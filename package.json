@@ -16,9 +16,13 @@
 	"contributes": {
 		"languages": [
 			{
-				"id":"lua",
-				"aliases": ["Lua"],
-				"extensions": [".lua"]
+				"id": "lua",
+				"aliases": [
+					"Lua"
+				],
+				"extensions": [
+					".lua"
+				]
 			}
 		],
 		"commands": [
@@ -45,5 +49,9 @@
 		"typescript": "^3.3.1",
 		"tslint": "^5.12.1",
 		"vscode-test": "^1.2.0"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^5.2.1",
+		"vscode-languageserver": "^5.2.1"
 	}
 }
