@@ -41,8 +41,8 @@ class Server
         this.connection.listen();
     }
 
-    private onInitialize(initializeParams: InitializeParams) {
-        this.rootUri = initializeParams.rootUri;
+    private onInitialize(params: InitializeParams) {
+        this.rootUri = params.rootUri;
 
         return {
             capabilities: {
