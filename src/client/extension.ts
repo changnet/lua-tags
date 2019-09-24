@@ -48,8 +48,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Options to control the language client
     let clientOptions: LanguageClientOptions = {
-        // Register the server for lua documents
-        documentSelector: [{ scheme: 'file', language: 'lua' }],
+        // 设置触发插件功能的rui
+        // lua为后缀的文件或者语言为Lua的untitled文件(新建一个文件，还没保存)
+        documentSelector: [
+            { scheme: 'file', language: 'lua' },
+            { language: 'lua', scheme: 'untitled' }
+        ],
         synchronize: {
             // Notify the server about file changes
             configurationSection: ['lua']
