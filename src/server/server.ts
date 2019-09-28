@@ -10,7 +10,9 @@ import {
     CompletionItem,
     CompletionItemKind,
     TextDocumentPositionParams
-  } from 'vscode-languageserver';
+} from 'vscode-languageserver';
+
+import { LuaSymbol } from "./symbol"
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 class Server
@@ -27,6 +29,9 @@ class Server
 
     // 哪些字符触发函数提示
     private readonly triggerCharacters = ['.', ':'];
+
+    // 记录解析过的符号
+    private symbos: LuaSymbol = new LuaSymbol();
 
     public constructor()
     {
