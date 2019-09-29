@@ -1,4 +1,4 @@
-# lua-tags README
+# lua-tags
 
 This is the README for your extension "lua-tags". After writing up a brief description, we recommend including the following sections.
 
@@ -27,39 +27,15 @@ This extension contributes the following settings:
 * `myExtension.enable`: enable/disable this extension
 * `myExtension.thing`: set to `blah` to do something
 
-## Known Issues
+## Todo
+* Document Symbol:
+  打开工程时生成缓存
+  保存文件时更新
+  如果失败，使用上次的
+* Workspace Symbol:
+  做一个全局缓存，从各个文档缓存取
+  如果某个文件有变化，就清空全局缓存，下次取全局时重新生成缓存
+* Go to Definition
+    优先和全局类型匹配，对就直接跳转
+    直接匹配函数名，给出列表
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
