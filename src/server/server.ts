@@ -18,8 +18,7 @@ import {
 import { Symbol } from "./symbol"
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
-class Server
-{
+class Server {
     // Create a connection for the server. The connection uses Node's IPC as a transport.
     // Also include all preview / proposed LSP features.
     private connection = createConnection(ProposedFeatures.all);
@@ -36,8 +35,7 @@ class Server
     // 记录解析过的符号
     private symbols: Symbol = new Symbol();
 
-    public constructor()
-    {
+    public constructor() {
         this.symbols.log = (ctx) => this.log(ctx);
         this.connection.onInitialize(handler => this.onInitialize(handler));
         this.connection.onInitialized(() => this.onInitialized());
@@ -45,14 +43,12 @@ class Server
         this.connection.onDocumentSymbol(handler => this.onDocumentSymbol(handler));
     }
 
-    public init()
-    {
+    public init() {
         this.documents.listen(this.connection);
         this.connection.listen();
     }
 
-    public log(ctx: string): void
-    {
+    public log(ctx: string): void {
         this.connection.console.log(ctx)
     }
 
@@ -76,17 +72,14 @@ class Server
         };
     }
 
-    private onInitialized()
-    {
+    private onInitialized() {
         this.log("Lua LSP Server started")
     }
 
-    private onCompletion(pos: TextDocumentPositionParams): CompletionItem[]
-    {
+    private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
         const uri = pos.textDocument.uri;
         const document = this.documents.get(uri);
-        if (!document)
-        {
+        if (!document) {
             return [];
         }
 
@@ -100,33 +93,32 @@ class Server
 
         // analysis.write(documentText.substring(0, startOffset));
 
-        this.symbols.parse(uri,text)
+        this.symbols.parse(uri, text)
 
         return [
             {
-              label: 'TypeScript',
-              kind: CompletionItemKind.Text,
-              data: 1
+                label: 'TypeScript',
+                kind: CompletionItemKind.Text,
+                data: 1
             },
             {
-              label: 'JavaScript',
-              kind: CompletionItemKind.Text,
-              data: 2
+                label: 'JavaScript',
+                kind: CompletionItemKind.Text,
+                data: 2
             }
-          ];
+        ];
     }
 
     // 返回当前文档的符号
-    private onDocumentSymbol(handler: DocumentSymbolParams): SymbolInformation[]
-    {
+    private onDocumentSymbol(handler: DocumentSymbolParams): SymbolInformation[] {
         const uri = handler.textDocument.uri;
         this.connection.console.log(`check symbol ${uri}`)
 
         return [
             {
-                name : "lua_tags",
-                kind : 1,
-                location : { uri: uri,range : {start:{line:1,character:0},end:{line:1,character:5}}}
+                name: "lua_tags",
+                kind: 1,
+                location: { uri: uri, range: { start: { line: 1, character: 0 }, end: { line: 1, character: 5 } } }
             }
         ];
     }

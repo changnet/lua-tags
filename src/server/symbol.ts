@@ -1,7 +1,17 @@
 // 符号处理
 
 import { g_setting } from "./setting"
-import {Options,Node,parse as luaparse} from 'luaparse';
+
+import {
+    Options,
+    parse as luaparse,
+
+    Node,
+    Identifier,
+    FunctionDeclaration,
+    LocalStatement,
+    AssignmentStatement
+} from 'luaparse';
 
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
@@ -13,16 +23,17 @@ import {Options,Node,parse as luaparse} from 'luaparse';
  *      文件结束时，还会有lua特有的Chunk
  */
 
-export class Symbol
-{
-    private global: { [key: string]: [] } = {};
+export class Symbol {
     private options: Options;
+    private global: { [key: string]: [] } = {};
 
     // !表示log现在不需要初始化，后面赋值
     public log!: (ctx: string) => void;
 
-    public constructor()
-    {
+    private scopeDeepth: number = 0;
+    private parseSymbol: { [key: string]: Node } = {}
+
+    public constructor() {
         this.options = {
             locations: true, // 是否记录语法节点的位置(node)
             scope: true, // 是否记录作用域
@@ -37,25 +48,69 @@ export class Symbol
     }
 
     // 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
-    private onCreateScope()
-    {
-        this.log("onc reate scope==========")
+    private onCreateScope() {
+        this.scopeDeepth++;
     }
 
     // 作用域结束
-    private onDestoryScope()
-    {
-        this.log("onc destory scope==========")
+    private onDestoryScope() {
+        this.scopeDeepth--;
     }
 
     //  语法节点结束
-    private onCreateNode(node: Node)
-    {
-        this.log(`onc onCreateNode ========== ${node.type}`)
+    private onCreateNode(node: Node) {
+        // 不是全局或者模块中的符号，不用解析
+        if (this.scopeDeepth > g_setting.scopeDeepth) return;
+
+        // this.log(`onc onCreateNode ========== ${JSON.stringify(node)}`)
+        switch (node.type) {
+            case "FunctionDeclaration": // 函数
+                this.parseFunctionNode(node);
+                break;
+            case "LocalStatement": // local变量
+            case "AssignmentStatement": // 全局变量
+                this.ParseVariableStatement(node);
+                break
+        }
     }
 
-    public parse(uri: string,text: string)
-    {
-        luaparse(text,this.options);
+    // 解析函数声明
+    private parseFunctionNode(node: FunctionDeclaration) {
+        let identifier = node.identifier
+        if (!identifier) return;
+
+        let name: string
+        if (identifier.type == "Identifier") {
+            // function test() 这种直接声明函数的写法
+            name = identifier.name
+        }
+        else if (identifier.type == "MemberExpression") {
+            // function m:test() 或者 function m.test() 这种成员函数写法
+            name = identifier.identifier.name
+        }
+        else {
+            return;
+        }
+        this.parseSymbol[name] = node;
+    }
+
+    // 解析变量声明
+    private ParseVariableStatement(node: LocalStatement | AssignmentStatement) {
+        // lua支持同时初始化多个变量 local x,y = 1,2
+        for (let variable of node.variables) {
+            if (variable.type != "Identifier") continue;
+
+            let name: string = variable.name
+            this.parseSymbol[name] = variable
+        }
+    }
+
+    public parse(uri: string, text: string) {
+        this.scopeDeepth = 0;
+        this.parseSymbol = {};
+
+        luaparse(text, this.options);
+
+        this.log(`parse done ${JSON.stringify(this.parseSymbol)}`)
     }
 }
