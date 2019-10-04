@@ -12,10 +12,12 @@ import {
     CompletionItemKind,
     DocumentSymbolParams,
     WorkspaceSymbolParams,
-    TextDocumentPositionParams
+    TextDocumentPositionParams,
+    SymbolKind
 } from 'vscode-languageserver';
 
 import { Symbol } from "./symbol"
+import { timingSafeEqual } from 'crypto';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 class Server {
@@ -36,11 +38,14 @@ class Server {
     private symbols: Symbol = new Symbol();
 
     public constructor() {
+        // 因为js的this是调用者，
+        // 因此这里用arrow function来保证symbol调用log函数时this是server
         this.symbols.log = (ctx) => this.log(ctx);
         this.connection.onInitialize(handler => this.onInitialize(handler));
         this.connection.onInitialized(() => this.onInitialized());
         this.connection.onCompletion(pos => this.onCompletion(pos));
         this.connection.onDocumentSymbol(handler => this.onDocumentSymbol(handler));
+        this.connection.onWorkspaceSymbol(handler => this.onWorkspaceSymbol(handler));
     }
 
     public init() {
@@ -60,10 +65,12 @@ class Server {
                 // Use full sync mode for now.
                 // TODO: Add support for Incremental changes. Full syncs will not scale very well.
                 textDocumentSync: this.documents.syncKind,
-                documentSymbolProvider: true, // 单个文档符号 CTRL + SHIFT + O
-                //workspaceSymbolProvider: true, // 整个工程符号 CTRL + T
+                // 单个文档符号，左边的大纲(Outliine) CTRL + SHIFT + O
+                documentSymbolProvider: true,
+                workspaceSymbolProvider: true, // 整个工程符号 CTRL + T
                 completionProvider: { // 打.或者:时列出可自动完成的函数
-                    resolveProvider: true,
+                    // resolve是命中哪个函数后，有一个回调回来，现在用不到
+                    resolveProvider: false,
                     triggerCharacters: this.triggerCharacters
                 }
                 //documentFormattingProvider: true, // 格式化整个文档
@@ -94,6 +101,7 @@ class Server {
         // analysis.write(documentText.substring(0, startOffset));
 
         this.symbols.parse(uri, text)
+        this.log(`check uri ========================${uri}`)
 
         return [
             {
@@ -110,17 +118,27 @@ class Server {
     }
 
     // 返回当前文档的符号
-    private onDocumentSymbol(handler: DocumentSymbolParams): SymbolInformation[] {
+    private onDocumentSymbol(
+        handler: DocumentSymbolParams): SymbolInformation[] {
         const uri = handler.textDocument.uri;
-        this.connection.console.log(`check symbol ${uri}`)
+        this.log(`check symbol ${uri}`)
 
-        return [
-            {
-                name: "lua_tags",
-                kind: 1,
-                location: { uri: uri, range: { start: { line: 1, character: 0 }, end: { line: 1, character: 5 } } }
-            }
-        ];
+        // return [
+        //     {
+        //         name: "lua_tags",
+        //         kind: SymbolKind.Function,
+        //         location: { uri: uri, range: { start: { line: 1, character: 0 },
+        //         end: { line: 1, character: 5 } } }
+        //     }
+        // ];
+        this.log(`sym uri ============================${uri}`)
+        return this.symbols.getDocumentSymbol(uri)
+    }
+
+    // 返回工作目录的符号(全局符号列表)
+    private onWorkspaceSymbol(
+        handler: WorkspaceSymbolParams): SymbolInformation[] {
+        return this.symbols.getGlobalSymbol(handler.query)
     }
 }
 
