@@ -13,6 +13,9 @@ class Setting {
     public scopeDeepth: number = 2;
 
     public luaVersion: Version = "5.3";
+
+    // 大于100kb的文件不解析，大概在2000代码以上了，取决于你写了啥
+    public maxFileSize: number = 100 * 1024;
 }
 
 export var g_setting = new Setting()
