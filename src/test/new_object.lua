@@ -9,7 +9,7 @@ end
 function NewObject.new()
     return
     {
-        new_test = new_test
+        new_test = new_test,
         test_other = test_other
     }
 end

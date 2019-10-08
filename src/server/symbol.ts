@@ -1,5 +1,6 @@
 // 符号处理
 
+import { g_utils } from "./utils"
 import { g_setting } from "./setting"
 
 import {
@@ -14,6 +15,7 @@ import {
 } from 'luaparse';
 
 import {
+    Range,
     createConnection,
     TextDocuments,
     TextDocument,
@@ -30,7 +32,9 @@ import {
     TextDocumentPositionParams,
     SymbolKind
 } from 'vscode-languageserver';
-import { isNull } from "util";
+
+import Uri from 'vscode-uri';
+import { promises as fs } from "fs"
 
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
@@ -57,15 +61,14 @@ export class Symbol {
     // 各个文档的语法节点缓存，uri为key
     private documentNode: { [key: string]: NodeCache } = {};
 
-    // 日志打印函数，!表示log现在不需要初始化，后面赋值
-    public log!: (ctx: string) => void;
-
     // 下面是一些解析当前文档的辅助变量
     private parseUri: string = "";
     private parseScopeDeepth: number = 0;
     private parseNodeList: Node[] = [];
     private parseNodeCache: NodeCache = {}
     private parseSymList: SymbolInformation[] = [];
+
+    private pathSlash: string = "/";
 
     public constructor() {
         this.options = {
@@ -96,7 +99,7 @@ export class Symbol {
         // 不是全局或者模块中的符号，不用解析
         if (this.parseScopeDeepth > g_setting.scopeDeepth) return;
 
-        // this.log(`onc onCreateNode ========== ${JSON.stringify(node)}`)
+        // g_utils.log(`onc onCreateNode ========== ${JSON.stringify(node)}`)
         switch (node.type) {
             case "FunctionDeclaration": // 函数
             case "LocalStatement": // local变量
@@ -224,7 +227,28 @@ export class Symbol {
         this.parseSymList = [];
         this.parseNodeCache = {};
 
-        luaparse(text, this.options);
+        try {
+            luaparse(text, this.options);
+        } catch(e) {
+            const lines = text.split(/\r?\n/g);
+            const line = lines[e.line - 1];
+
+            const range = Range.create(e.line - 1, e.column,
+                e.line - 1, line.length);
+
+            // Strip out the row and column from the message
+            const message = e.message.match(/\[\d+:\d+\] (.*)/)[1];
+
+            const diagnostic: Diagnostic = {
+                range,
+                message,
+                severity: DiagnosticSeverity.Error,
+                source: 'luaparse'
+            };
+
+            g_utils.diagnostics(uri,[diagnostic]);
+            return
+        }
 
         for (let node of this.parseNodeList) {
             this.parseNode(node)
@@ -237,7 +261,7 @@ export class Symbol {
         // 符号有变化，清空全局符号缓存，下次请求时生成
         this.globalSymbol = null
 
-        this.log(`parse done ${JSON.stringify(this.parseSymList)}`)
+        //g_utils.log(`parse done ${JSON.stringify(this.parseSymList)}`)
     }
 
     // 获取某个文档的符号
@@ -253,7 +277,7 @@ export class Symbol {
             this.globalSymbol = this.updateGlobalSymbol();
         }
 
-        this.log(`check global log:${JSON.stringify(this.globalSymbol)}`)
+        g_utils.log(`check global log:${JSON.stringify(this.globalSymbol)}`)
 
         let symList: SymbolInformation[] = []
         for (let name in this.globalSymbol) {
@@ -264,4 +288,54 @@ export class Symbol {
         }
         return symList;
     }
+
+    // 解析根目录的所有lua文件
+    public async parseRoot(path: string) {
+        // TODO:没打开目录时没有rootPath，后面再处理
+        // 使用和vs code一样的路径分隔符，不然无法根据uri快速查询符号
+        if ( -1 == path.indexOf(this.pathSlash)) {
+            this.pathSlash = "\\";
+        }
+
+        await this.parseDir(path);
+    }
+
+    // 解析单个目录的Lua文件
+    private async parseDir(path: string) {
+        // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
+        // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
+        let files = await fs.readdir(path, { withFileTypes: true });
+
+        for (let file of files) {
+            let subPath = `${path}${this.pathSlash}${file.name}`
+
+            if (file.isDirectory()) {
+                await this.parseDir(subPath)
+            }
+            else if (file.isFile()) {
+                await this.parseFile(subPath)
+            }
+        }
+    }
+
+    // 解析单个Lua文件
+    private async parseFile(path: string) {
+        if (!path.endsWith(".lua")) return;
+
+        let stat = await fs.stat(path)
+        if (stat.size > g_setting.maxFileSize) return;
+
+        // uri总是用/来编码，在win下，路径是用\的
+        // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
+        const uri = Uri.from({
+            scheme: "file",
+            path: "/" != this.pathSlash ? path.replace(/\\/g,"/") : path
+        }).toString()
+
+        let data = await fs.readFile(path)
+
+        //g_utils.log(data.toString())
+        this.parse(uri,data.toString())
+    }
+
 }

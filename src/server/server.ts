@@ -17,9 +17,9 @@ import {
     SymbolKind
 } from 'vscode-languageserver';
 
-import * as fs from "fs"
 import Uri from 'vscode-uri';
 import { Symbol } from "./symbol"
+import { g_utils } from "./utils"
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -33,7 +33,6 @@ class Server {
     private documents: TextDocuments = new TextDocuments();
 
     private rootUri: string | null = null;
-    private pathSlash: string = "/";
 
     // 哪些字符触发函数提示
     private readonly triggerCharacters = ['.', ':'];
@@ -42,9 +41,7 @@ class Server {
     private symbols: Symbol = new Symbol();
 
     public constructor() {
-        // 因为js的this是调用者，
-        // 因此这里用arrow function来保证symbol调用log函数时this是server
-        this.symbols.log = (ctx) => this.log(ctx);
+        g_utils.initialize(this.connection)
         this.connection.onInitialize(handler => this.onInitialize(handler));
         this.connection.onInitialized(() => this.onInitialized());
         this.connection.onCompletion(pos => this.onCompletion(pos));
@@ -65,12 +62,6 @@ class Server {
     private onInitialize(params: InitializeParams) {
         this.rootUri = params.rootUri;
 
-        // TODO:没打开目录时没有rootPath，后面再处理
-        // 使用和vs code一样的路径分隔符，不然无法根据uri快速查询符号
-        if ( params.rootPath && -1 == params.rootPath.indexOf(this.pathSlash)) {
-            this.pathSlash = "\\";
-        }
-
         return {
             capabilities: {
                 // Use full sync mode for now.
@@ -90,64 +81,21 @@ class Server {
             }
         };
     }
-
-    private parseDir(path: string) {
-        // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或 
-        // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
-        fs.readdir(path,{ withFileTypes: true },(err,files: fs.Dirent[]) => {
-            if (err) {
-                this.log(`read root files fail:${path}`)
-                return
-            }
-            for (let file of files) {
-                let subPath = `${path}${this.pathSlash}${file.name}`
-
-                if (file.isDirectory()) {
-                    this.parseDir(subPath)
-                }
-                else if (file.isFile()) {
-                    this.parseFile(subPath)
-                }
-            }
-        })
-    }
-
-    private parseFile(path: string) {
-        if (!path.endsWith(".lua")) return;
-        fs.stat(path,(err,stat) => {
-            if (stat.size > g_setting.maxFileSize) return;
-        })
-        // uri总是用/来编码，在win下，路径是用\的
-        // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
-        const uri = Uri.from({
-            scheme: "file",
-            path: "/" != this.pathSlash ? path.replace(/\\/g,"/") : path
-        })
-
-        fs.readFile(path,(err,data) => {
-            if (err) {
-                this.log(`read file fail:${path}`)
-                return
-            }
-            this.log(data.toString())
-        })
-    }
-
     private onInitialized() {
-        this.log(`Lua LSP Server started:${this.rootUri}`)
+        g_utils.log(`Lua LSP Server started:${this.rootUri}`)
 
         /* non-null assertion operator
-         * A new ! post-fix expression operator may be used to assert that its 
-         * operand is non-null and non-undefined in contexts where the type 
-         * checker is unable to conclude that fact. Specifically, the operation 
+         * A new ! post-fix expression operator may be used to assert that its
+         * operand is non-null and non-undefined in contexts where the type
+         * checker is unable to conclude that fact. Specifically, the operation
          * x! produces a value of the type of x with null and undefined excluded.
-         * The description contains many fancy words, but in plain English, it 
-         * means: when you add an exclamation mark after variable/property name, 
-         * you're telling to TypeScript that you're certain that value is not 
+         * The description contains many fancy words, but in plain English, it
+         * means: when you add an exclamation mark after variable/property name,
+         * you're telling to TypeScript that you're certain that value is not
          * null or undefined.
          */
         const uri = Uri.parse(this.rootUri!);
-        this.parseDir(uri.fsPath)
+        this.symbols.parseRoot(uri.fsPath);
     }
 
     private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
@@ -168,7 +116,7 @@ class Server {
         // analysis.write(documentText.substring(0, startOffset));
 
         this.symbols.parse(uri, text)
-        this.log(`check uri ========================${uri}`)
+        g_utils.log(`check uri ========================${uri}`)
 
         return [
             {
@@ -197,7 +145,7 @@ class Server {
         //         end: { line: 1, character: 5 } } }
         //     }
         // ];
-        this.log(`sym uri ============================${uri}`)
+        g_utils.log(`sym uri ============================${uri}`)
         return this.symbols.getDocumentSymbol(uri)
     }
 
