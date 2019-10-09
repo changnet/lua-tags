@@ -5,13 +5,15 @@ import { g_setting } from "./setting"
 
 import {
     Options,
-    parse as luaparse,
+    parse as luaParse,
+    Parser as luaParser,
 
     Node,
     Identifier,
     FunctionDeclaration,
     LocalStatement,
-    AssignmentStatement
+    AssignmentStatement,
+    Token
 } from 'luaparse';
 
 import {
@@ -36,6 +38,14 @@ import {
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs"
 
+// luaParser.lex()
+// https://github.com/oxyc/luaparse
+// type expressed as an enum flag which can be matched with luaparse.tokenTypes.
+// 这些没有包里找到定义
+let EOF = 1, StringLiteral = 2, Keyword = 4, Identifier = 8
+    , NumericLiteral = 16, Punctuator = 32, BooleanLiteral = 64
+    , NilLiteral = 128, VarargLiteral = 256;
+
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
  * node: 语法节点，注意顺序和编译器一样，从右到左。其类型参考luaparse的ast.Node声明
@@ -49,15 +59,21 @@ import { promises as fs } from "fs"
 type NodeCache = { [key: string]: Node }
 type VSCodeSymbol = SymbolInformation | null;
 type VariableStatement = LocalStatement | AssignmentStatement;
+type SymInfoMap = { [key: string]: SymbolInformation[] };
 
 export class Symbol {
     private options: Options;
 
     // 全局符号缓存，CTRL + T用的
-    private globalSymbol: { [key: string]: SymbolInformation[] } | null = null;
+    private globalSymbol: SymInfoMap | null = null;
+
+    // 全局模块缓存，方便快速查询符号 identifier
+    private globalIder: SymInfoMap = {}
 
     // 各个文档的符号缓存，uri为key
-    private documentSymbol: { [key: string]: SymbolInformation[] } = {};
+    private documentSymbol: SymInfoMap = {};
+    // 各个文档的符号缓存，第一层uri为key，第二层ider名为key
+    private documentIder: { [key: string]: SymInfoMap } = {};
     // 各个文档的语法节点缓存，uri为key
     private documentNode: { [key: string]: NodeCache } = {};
 
@@ -67,6 +83,8 @@ export class Symbol {
     private parseNodeList: Node[] = [];
     private parseNodeCache: NodeCache = {}
     private parseSymList: SymbolInformation[] = [];
+    // 各个文档的符号缓存，ider名为key
+    private parseIder: { [key: string]: SymbolInformation[] } = {};
 
     private pathSlash: string = "/";
 
@@ -127,7 +145,10 @@ export class Symbol {
         let identifier = node.identifier
         if (!identifier) return;
 
+        // g_utils.log(`parse func ${JSON.stringify(node)}`)
+
         let name: string
+        let base: string | null = null
         if (identifier.type == "Identifier") {
             // function test() 这种直接声明函数的写法
             name = identifier.name
@@ -135,6 +156,8 @@ export class Symbol {
         else if (identifier.type == "MemberExpression") {
             // function m:test() 或者 function m.test() 这种成员函数写法
             name = identifier.identifier.name
+            // 用json打印出来，这里明明有个name，但是导出的符号里没有
+            base = (identifier.base as any).name
         }
         else {
             return;
@@ -144,6 +167,7 @@ export class Symbol {
         let sym = this.functionNodeToSym(this.parseUri,name,node)
         if (sym) {
             this.parseSymList.push(sym)
+            if (base) this.parseIder[base].push(sym)
         }
     }
 
@@ -175,8 +199,8 @@ export class Symbol {
             location: {
                 uri: uri,
                 range: {
-                    start: { line: loc.start.line, character: loc.start.column },
-                    end: { line: loc.end.line, character: loc.end.column }
+                    start: { line: loc.start.line - 1, character: loc.start.column },
+                    end: { line: loc.end.line - 1, character: loc.end.column }
                 }
             }
         };
@@ -197,8 +221,8 @@ export class Symbol {
                 location: {
                     uri: uri,
                     range: {
-                        start: { line: loc.start.line, character: loc.start.column },
-                        end: { line: loc.end.line, character: loc.end.column }
+                        start: { line: loc.start.line - 1, character: loc.start.column },
+                        end: { line: loc.end.line - 1, character: loc.end.column }
                     }
                 }
             };
@@ -220,15 +244,17 @@ export class Symbol {
         return globalSymbol
     }
 
+    // 解析一段代码，如果这段代码有错误，会发给vs code
     public parse(uri: string, text: string) {
         this.parseUri = uri;
         this.parseScopeDeepth = 0;
         this.parseNodeList = [];
         this.parseSymList = [];
         this.parseNodeCache = {};
+        this.parseIder = {}
 
         try {
-            luaparse(text, this.options);
+            luaParse(text, this.options);
         } catch(e) {
             const lines = text.split(/\r?\n/g);
             const line = lines[e.line - 1];
@@ -257,6 +283,7 @@ export class Symbol {
         // 解析成功，更新缓存，否则使用旧的
         this.documentSymbol[uri] = this.parseSymList;
         this.documentNode[uri] = this.parseNodeCache;
+        this.documentIder[uri] = this.parseIder;
 
         // 符号有变化，清空全局符号缓存，下次请求时生成
         this.globalSymbol = null
@@ -336,6 +363,16 @@ export class Symbol {
 
         //g_utils.log(data.toString())
         this.parse(uri,data.toString())
+    }
+
+    public getlocalSymLocation() {
+        let parser: luaParser = luaParse(",j,m = function(a,b",{ wait: true })
+
+        let token: Token | null = null
+        do {
+            token = parser.lex();
+            g_utils.log(`lex ${JSON.stringify(token)}`)
+        } while (token && token.type != EOF)
     }
 
 }

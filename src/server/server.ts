@@ -55,10 +55,6 @@ class Server {
         this.connection.listen();
     }
 
-    public log(ctx: string): void {
-        this.connection.console.log(ctx)
-    }
-
     private onInitialize(params: InitializeParams) {
         this.rootUri = params.rootUri;
 
@@ -145,7 +141,7 @@ class Server {
         //         end: { line: 1, character: 5 } } }
         //     }
         // ];
-        g_utils.log(`sym uri ============================${uri}`)
+
         return this.symbols.getDocumentSymbol(uri)
     }
 
@@ -157,6 +153,61 @@ class Server {
 
     // go to definetion
     private onDefinition(handler: TextDocumentPositionParams): Definition {
+        const uri = handler.textDocument.uri;
+        const document = this.documents.get(uri);
+
+        if (!document) return [];
+
+        // vs code的行数和字符数是从0开始的，但是状态栏里Ln、Col是从1开始的
+
+        // 获取所在行的字符，因为不知道行的长度，直接传一个很大的数字
+        const line = handler.position.line
+        let text = document.getText({
+            start: {line: line,character: 0},
+            end: {line: line,character: 10240000}
+        })
+
+        // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
+        const pos = handler.position.character;
+        const leftText = text.substring(0,pos);
+        const rightText = text.substring(pos);
+
+        // let module = null;
+        let sym: string = ""
+        let isFunc: boolean = false
+
+        // identifierName调用者，即m:test()中的m
+        let iderName: string | null = null
+
+        /*
+         * https://javascript.info/regexp-groups
+         * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
+         * \w是匹配单词字符，即a-zA-Z0-9_
+         * .|:是匹配lua中m.n或者m:n的调用方式
+         * (\w+)([.|:]))?是说m:n中，m:可能不会出现，只有一个n
+         */
+        const leftWords = leftText.match(/((\w+)([.|:]))?\s*(\w+)$/);
+        if (leftWords) {
+            // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
+            //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
+            if (leftWords[2]) iderName = leftWords[2];
+            if (leftWords[4]) sym = leftWords[4];
+        }
+
+        // test()分解成test和(，如果不是函数调用，则第二个括号则不存在
+        const rightWords = rightText.match(/(\w+)\s*(\()?/);
+        if (rightWords) {
+            // test() 匹配到 ["test(","test","("]
+            if (rightWords[1]) sym += rightWords[1];
+            if (rightWords[2]) isFunc = true;
+        }
+
+        if (sym == "") return [];
+
+        g_utils.log(`goto definition ${iderName} ${sym} ${isFunc}`)
+
+        this.symbols.getlocalSymLocation()
+
         return [];
     }
 }
