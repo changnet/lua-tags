@@ -206,6 +206,16 @@ class Server {
 
         g_utils.log(`goto definition ${iderName} ${sym} ${isFunc}`)
 
+        let loc: Definition | null = null
+
+        /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
+         * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
+         */
+        if (iderName) {
+            loc = this.symbols.getGlobalIderDefinition(iderName,sym,isFunc);
+            if (loc) return loc;
+        }
+
         this.symbols.getlocalSymLocation()
 
         return [];

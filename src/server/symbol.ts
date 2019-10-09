@@ -32,7 +32,8 @@ import {
     DocumentSymbolParams,
     WorkspaceSymbolParams,
     TextDocumentPositionParams,
-    SymbolKind
+    SymbolKind,
+    Definition
 } from 'vscode-languageserver';
 
 import Uri from 'vscode-uri';
@@ -64,8 +65,11 @@ type SymInfoMap = { [key: string]: SymbolInformation[] };
 export class Symbol {
     private options: Options;
 
+    // 是否需要更新全局符号
+    private needUpdate: boolean = true;
+
     // 全局符号缓存，CTRL + T用的
-    private globalSymbol: SymInfoMap | null = null;
+    private globalSymbol: SymInfoMap = {};
 
     // 全局模块缓存，方便快速查询符号 identifier
     private globalIder: SymInfoMap = {}
@@ -167,7 +171,12 @@ export class Symbol {
         let sym = this.functionNodeToSym(this.parseUri,name,node)
         if (sym) {
             this.parseSymList.push(sym)
-            if (base) this.parseIder[base].push(sym)
+            if (base) {
+                if (!this.parseIder[base]) {
+                    this.parseIder[base] = [];
+                }
+                this.parseIder[base].push(sym)
+            }
         }
     }
 
@@ -229,8 +238,10 @@ export class Symbol {
     }
 
     // 更新全局符号缓存
-    private updateGlobalSymbol() {
-        let globalSymbol: { [key: string]: SymbolInformation[] } = {}
+    private updateGlobal() {
+        let globalSymbol: SymInfoMap = {}
+        let globalIder: SymInfoMap = {}
+
         for (let uri in this.documentSymbol) {
             for (let sym of this.documentSymbol[uri]) {
                 if (!globalSymbol[sym.name]) {
@@ -241,7 +252,18 @@ export class Symbol {
             }
         }
 
-        return globalSymbol
+        for (let uri in this.documentIder) {
+            for (let name in this.documentIder[uri]) {
+                globalIder[name] = []
+                let iderList = globalIder[name]
+                for (let sym of this.documentIder[uri][name]) {
+                    iderList.push(sym)
+                }
+            }
+        }
+
+        this.globalSymbol = globalSymbol
+        this.globalIder = globalIder
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
@@ -286,7 +308,9 @@ export class Symbol {
         this.documentIder[uri] = this.parseIder;
 
         // 符号有变化，清空全局符号缓存，下次请求时生成
-        this.globalSymbol = null
+        this.globalIder = {}
+        this.globalSymbol = {}
+        this.needUpdate = true
 
         //g_utils.log(`parse done ${JSON.stringify(this.parseSymList)}`)
     }
@@ -300,8 +324,8 @@ export class Symbol {
 
     // 获取全局符号
     public getGlobalSymbol(query: string): SymbolInformation[] {
-        if (!this.globalSymbol) {
-            this.globalSymbol = this.updateGlobalSymbol();
+        if (this.needUpdate) {
+            this.updateGlobal();
         }
 
         g_utils.log(`check global log:${JSON.stringify(this.globalSymbol)}`)
@@ -309,6 +333,7 @@ export class Symbol {
         let symList: SymbolInformation[] = []
         for (let name in this.globalSymbol) {
             // TODO:这里匹配一下query，甚至做下模糊匹配
+            // 全部发给vs code的话，vs code自己会匹配
             for (let sym of this.globalSymbol[name]) {
                 symList.push(sym)
             }
@@ -363,6 +388,54 @@ export class Symbol {
 
         //g_utils.log(data.toString())
         this.parse(uri,data.toString())
+    }
+
+    private checkSymDefinition(
+        symList: SymbolInformation[], symName: string, isFunc: boolean) {
+        if (!symList) return null;
+
+        let loc: Definition = []
+        for (let sym of symList) {
+            if (sym.name == symName) loc.push(sym.location);
+        }
+
+        if (loc.length > 0) return loc;
+
+        return null;
+    }
+
+    // 根据模块名(iderName)查找符号
+    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
+    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
+    public getGlobalIderDefinition(
+        iderName: string,symName: string,isFunc: boolean) {
+        if (this.needUpdate) this.updateGlobal();
+
+        return this.checkSymDefinition(this.globalIder[iderName],symName,isFunc)
+    }
+
+    // 查找经过本地化的原符号uri
+    private getRawUri(uri: string, iderName: string): string {
+        // 模块名为self则是当前文档self:test()这种用法
+        if ("self" == iderName) return uri;
+
+        // local M = require "abc" 这种用法
+
+        // local M = M 这种用法
+
+        // 都找不到，默认查找当前文档
+        return uri
+    }
+
+    // 查找某个文档的符号位置
+    public getDocumentDefinition(uri: string,
+        iderName: string, symName: string, isFunc: boolean) {
+        let rawUri = this.getRawUri(uri,iderName)
+
+        let iderMap = this.documentIder[rawUri]
+        if (!iderMap) return null;
+
+        return this.checkSymDefinition(iderMap[iderName],symName,isFunc)
     }
 
     public getlocalSymLocation() {
