@@ -18,6 +18,7 @@ import {
 
 import {
     Range,
+    Position,
     createConnection,
     TextDocuments,
     TextDocument,
@@ -38,6 +39,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs"
+import { Location } from "vscode";
 
 // luaParser.lex()
 // https://github.com/oxyc/luaparse
@@ -46,6 +48,17 @@ import { promises as fs } from "fs"
 let EOF = 1, StringLiteral = 2, Keyword = 4, Identifier = 8
     , NumericLiteral = 16, Punctuator = 32, BooleanLiteral = 64
     , NilLiteral = 128, VarargLiteral = 256;
+
+
+// 用于go to definition查询的数据结构
+export interface SymbolQuery {
+    uri: string; // 要查询的符号在哪个文档
+    iderName: string | null; // 模块名，m:test中的m
+    symName: string; // 符号名，m:test中的test
+    kind: SymbolKind; // 查询的符号是什么类型
+    leftWords: string | null; // 光标左边分解得到需要查询的字符串
+    position: Position; // 光标位置
+}
 
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
@@ -391,7 +404,7 @@ export class Symbol {
     }
 
     private checkSymDefinition(
-        symList: SymbolInformation[], symName: string, isFunc: boolean) {
+        symList: SymbolInformation[], symName: string, kind: SymbolKind) {
         if (!symList) return null;
 
         let loc: Definition = []
@@ -407,11 +420,14 @@ export class Symbol {
     // 根据模块名(iderName)查找符号
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalIderDefinition(
-        iderName: string,symName: string,isFunc: boolean) {
+    public getGlobalIderDefinition(query: SymbolQuery) {
+        let iderName = query.iderName
+        if (!iderName || "self" == iderName) return null;
+
         if (this.needUpdate) this.updateGlobal();
 
-        return this.checkSymDefinition(this.globalIder[iderName],symName,isFunc)
+        return this.checkSymDefinition(
+            this.globalIder[iderName],query.symName,query.kind)
     }
 
     // 查找经过本地化的原符号uri
@@ -427,15 +443,23 @@ export class Symbol {
         return uri
     }
 
-    // 查找某个文档的符号位置
-    public getDocumentDefinition(uri: string,
-        iderName: string, symName: string, isFunc: boolean) {
-        let rawUri = this.getRawUri(uri,iderName)
+    // 根据模块名查找某个文档的符号位置
+    public getDocumentIderDefinition(query: SymbolQuery) {
+        let iderName = query.iderName
+        if (!iderName) return null;
+
+        let rawUri = this.getRawUri(query.uri,iderName)
 
         let iderMap = this.documentIder[rawUri]
         if (!iderMap) return null;
 
-        return this.checkSymDefinition(iderMap[iderName],symName,isFunc)
+        return this.checkSymDefinition(
+            iderMap[iderName],query.symName,query.kind)
+    }
+
+    // 根据模块名查询局部变量位置
+    public getLocalIderDefinition(query: SymbolQuery) {
+        return null
     }
 
     public getlocalSymLocation() {

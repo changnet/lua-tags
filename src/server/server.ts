@@ -14,11 +14,16 @@ import {
     DocumentSymbolParams,
     WorkspaceSymbolParams,
     TextDocumentPositionParams,
-    SymbolKind
+    SymbolKind,
+    Position
 } from 'vscode-languageserver';
 
+import {
+    Symbol,
+    SymbolQuery
+} from "./symbol"
+
 import Uri from 'vscode-uri';
-import { Symbol } from "./symbol"
 import { g_utils } from "./utils"
 import { g_setting } from './setting';
 
@@ -151,33 +156,33 @@ class Server {
         return this.symbols.getGlobalSymbol(handler.query)
     }
 
-    // go to definetion
-    private onDefinition(handler: TextDocumentPositionParams): Definition {
-        const uri = handler.textDocument.uri;
+    // 根据光标位置分解出要查询的符号信息
+    private getSymbolQuery(uri: string,pos: Position): SymbolQuery | null {
         const document = this.documents.get(uri);
 
-        if (!document) return [];
+        if (!document) return null;
 
         // vs code的行数和字符数是从0开始的，但是状态栏里Ln、Col是从1开始的
 
         // 获取所在行的字符，因为不知道行的长度，直接传一个很大的数字
-        const line = handler.position.line
         let text = document.getText({
-            start: {line: line,character: 0},
-            end: {line: line,character: 10240000}
+            start: {line: pos.line,character: 0},
+            end: {line: pos.line,character: 10240000}
         })
 
         // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
-        const pos = handler.position.character;
-        const leftText = text.substring(0,pos);
-        const rightText = text.substring(pos);
+        const leftText = text.substring(0,pos.character);
+        const rightText = text.substring(pos.character);
 
         // let module = null;
-        let sym: string = ""
-        let isFunc: boolean = false
+        let symName: string = ""
+        let kind: SymbolKind = SymbolKind.Variable
 
         // identifierName调用者，即m:test()中的m
         let iderName: string | null = null
+
+        // 匹配到的字符
+        let matchWords: string | null = null;
 
         /*
          * https://javascript.info/regexp-groups
@@ -190,31 +195,94 @@ class Server {
         if (leftWords) {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
+            matchWords = leftWords[0]
             if (leftWords[2]) iderName = leftWords[2];
-            if (leftWords[4]) sym = leftWords[4];
+            if (leftWords[4]) symName = leftWords[4];
         }
 
         // test()分解成test和(，如果不是函数调用，则第二个括号则不存在
         const rightWords = rightText.match(/(\w+)\s*(\()?/);
         if (rightWords) {
             // test() 匹配到 ["test(","test","("]
-            if (rightWords[1]) sym += rightWords[1];
-            if (rightWords[2]) isFunc = true;
+            if (rightWords[1]) symName += rightWords[1];
+            if (rightWords[2]) kind = SymbolKind.Function;
         }
 
-        if (sym == "") return [];
+        return {
+            uri: uri,
+            iderName: iderName,
+            symName: symName,
+            kind: kind,
+            leftWords: matchWords,
+            position: pos
+        }
+    }
 
-        g_utils.log(`goto definition ${iderName} ${sym} ${isFunc}`)
+    // 获取查询本地符号需要解析的文本内容
+    private getLocalText(query: SymbolQuery): string[] {
+        const document = this.documents.get(query.uri);
+
+        if (!document) return [];
+
+        const line = query.position.line;
+        const matchWords = query.leftWords;
+
+        // 把当前整个文档内容按行分解
+        const allText = document.getText();
+        let lines = allText.split(/\r?\n/g);
+        if (lines.length < line + 1) {
+            g_utils.log(
+                `document lines error ${
+                    query.uri} expect ${line} got ${lines.length}`)
+            return []
+        }
+
+        // 去掉多余的行数
+        lines.length = line + 1
+        // 把当前行中已匹配的内容去掉
+        if (matchWords) {
+            lines[line] = lines[line].substring(
+                0, query.position.character - matchWords.length)
+        }
+
+        return lines
+    }
+
+    // go to definetion
+    private onDefinition(handler: TextDocumentPositionParams): Definition {
+        const uri = handler.textDocument.uri;
+
+        let query = this.getSymbolQuery(uri,handler.position)
+        if (!query || query.symName == "") return [];
+
+        g_utils.log(`goto definition ${JSON.stringify(query)}`)
 
         let loc: Definition | null = null
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
          * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
+         * 全局和文档都做了符号hash缓存，因此优先匹配
          */
-        if (iderName) {
-            loc = this.symbols.getGlobalIderDefinition(iderName,sym,isFunc);
-            if (loc) return loc;
-        }
+
+        // 根据模块名匹配全局
+        loc = this.symbols.getGlobalIderDefinition(query);
+        if (loc) return loc;
+
+        // 根据模块名匹配当前文档
+        loc = this.symbols.getDocumentIderDefinition(query);
+        if (loc) return loc;
+
+        // 根据模块名匹配局部变量
+        const localText = this.getLocalText(query)
+        loc = this.symbols.getLocalIderDefinition(query);
+        if (loc) return loc;
+
+        // 上面的方法都找不到，可能是根本没有模块名iderName
+        // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
+
+        // 全局符号匹配
+        // 当前文档符号匹配
+        // 局部符号匹配
 
         this.symbols.getlocalSymLocation()
 
