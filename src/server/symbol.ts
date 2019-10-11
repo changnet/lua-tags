@@ -45,10 +45,18 @@ import { Location } from "vscode";
 // https://github.com/oxyc/luaparse
 // type expressed as an enum flag which can be matched with luaparse.tokenTypes.
 // 这些没有包里找到定义
-let EOF = 1, StringLiteral = 2, Keyword = 4, Identifier = 8
-    , NumericLiteral = 16, Punctuator = 32, BooleanLiteral = 64
-    , NilLiteral = 128, VarargLiteral = 256;
 
+export const LuaTokenType = {
+    EOF: 1,
+    StringLiteral: 2,
+    Keyword: 4,
+    Identifier: 8,
+    NumericLiteral: 16,
+    Punctuator: 32,
+    BooleanLiteral: 64,
+    NilLiteral: 128,
+    VarargLiteral: 256
+}
 
 // 用于go to definition查询的数据结构
 export interface SymbolQuery {
@@ -457,8 +465,137 @@ export class Symbol {
             iderMap[iderName],query.symName,query.kind)
     }
 
+    // 解析对应符号的词法
+    private parseLexerToken(iderName: string,text: string[]):Token[] {
+        if (text.length <= 0) return [];
+
+        // 反向一行行地查找符号所在的位置
+        let line = text.length - 1
+        let foundToken: Token[] = [];
+        let parser: luaParser = luaParse("",{ wait: true })
+        do {
+            parser.write(text[line])
+
+            let found = false;
+            let tokenIndex = 0;
+            let token: Token | null = null
+            do {
+                tokenIndex ++;
+                token = parser.lex();
+
+                g_utils.log(`lex ${JSON.stringify(token)}`)
+
+                // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
+                // return function或者 var = function这种则继续查找upvalue
+                // 对于刚好换行导致function在行首的，暂不考虑
+                if (1 == tokenIndex
+                    && token.type == LuaTokenType.Keyword
+                    && token.value == "function") {
+                    return [];
+                }
+
+                // 查询到对应的符号
+                if (token.type == LuaTokenType.Identifier
+                    && token.value == iderName) {
+                    found = true;
+                    continue;
+                }
+
+                // 记录查询到的符号后面的词法
+                // m = M()查询m将记录= m()这几个词法
+                // 当然有可能会出现换行，这里也不考虑
+                if (found && token.type != LuaTokenType.EOF ) {
+                    foundToken.push(token)
+                }
+            } while (token && token.type != LuaTokenType.EOF)
+
+            line --;
+        } while (line >= 0);
+
+        return foundToken
+    }
+
+    // 获取 require("a.b.c") 中 a.b.c 路径的uri形式
+    private getRequireUri(path: string): string {
+        // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式
+        // uri总是使用a/b/c这种形式
+        path = path.replace(/\\/g,"/");
+        path = path.replace(/./g,"/");
+
+        // 在所有uri里查询匹配的uri
+        // 由于不知道项目中的path设置，因此这个路径其实可长可短
+        // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
+        for ( let uri in this.documentIder) {
+            if (uri.match(/.lua/g)) return uri
+        }
+
+        return ""
+    }
+
+    // 获取 m = require("xxx")对应的模块名
+    private getRequireFromLexer(token: Token[]): string | null {
+        if (token.length < 4 || "require" != token[2].value) return null;
+
+        let path = token[3].value // m = require "xxx"
+        if (token[3].type != LuaTokenType.StringLiteral) {
+            // m = require("xxx")
+            if (token.length < 5
+                || token[4].type != LuaTokenType.StringLiteral) {
+                return null;
+            }
+            path = token[4].value
+        }
+
+        // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式，把路径转换为uri形式
+        let uri = this.getRequireUri(path);
+
+        return uri
+    }
+
+    /* local M = GlobalSymbol
+     * M:test()
+     * 查询局部模块名M真正的模块名GlobalSymbol，注意只是局部的，比如一个函数里的。
+     * 不查询整个文档local化的那种，那种在上面的getDocumentIderDefinition处理
+     */
+    private getLocalRawIder(iderName: string,text: string[]) {
+        let foundToken = this.parseLexerToken(iderName,text)
+
+        // 尝试根据下面几种情况推断出真正的类型
+        // 1. 全局本地化: m = M
+        // 2. 通过__call创建新对象: m = M()
+        // 3. 通过new函数创建对象: m = M.new()
+        // 4. require引用: m = require "xxx"
+        if (foundToken.length < 2 || "=" != foundToken[0].value ) return null;
+
+        if (foundToken[1].type != LuaTokenType.Identifier) return null;
+
+        let newIderName = foundToken[1].value
+
+        // 4. require引用: m = require "xxx"
+        if ("require" == newIderName) {
+            let uri = this.getRequireFromLexer(foundToken)
+            if (!uri)  return null;
+
+            return {
+                uri: uri,
+                iderName: null
+            }
+        }
+
+        return null;
+    }
+
     // 根据模块名查询局部变量位置
-    public getLocalIderDefinition(query: SymbolQuery) {
+    public getLocalIderDefinition(query: SymbolQuery, text: string[]) {
+        let iderName = query.iderName
+        if (!iderName) return null;
+
+        let iderInfo = this.getLocalRawIder(iderName,text)
+        if (!iderInfo) return null;
+
+        if (iderInfo.uri) {
+
+        }
         return null
     }
 
@@ -469,7 +606,7 @@ export class Symbol {
         do {
             token = parser.lex();
             g_utils.log(`lex ${JSON.stringify(token)}`)
-        } while (token && token.type != EOF)
+        } while (token && token.type != LuaTokenType.EOF)
     }
 
 }

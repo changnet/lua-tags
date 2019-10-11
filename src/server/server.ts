@@ -273,9 +273,13 @@ class Server {
         if (loc) return loc;
 
         // 根据模块名匹配局部变量
-        const localText = this.getLocalText(query)
-        loc = this.symbols.getLocalIderDefinition(query);
-        if (loc) return loc;
+        let localText:string[] | null = null;
+
+        if (query.iderName) {
+            localText = this.getLocalText(query)
+            loc = this.symbols.getLocalIderDefinition(query, localText);
+            if (loc) return loc;
+        }
 
         // 上面的方法都找不到，可能是根本没有模块名iderName
         // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
@@ -284,7 +288,7 @@ class Server {
         // 当前文档符号匹配
         // 局部符号匹配
 
-        this.symbols.getlocalSymLocation()
+        // this.symbols.getlocalSymLocation()
 
         return [];
     }
