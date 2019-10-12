@@ -412,7 +412,7 @@ export class Symbol {
     }
 
     private checkSymDefinition(
-        symList: SymbolInformation[], symName: string, kind: SymbolKind) {
+        symList: SymbolInformation[] | null, symName: string, kind: SymbolKind) {
         if (!symList) return null;
 
         let loc: Definition = []
@@ -483,7 +483,7 @@ export class Symbol {
                 tokenIndex ++;
                 token = parser.lex();
 
-                g_utils.log(`lex ${JSON.stringify(token)}`)
+                // g_utils.log(`lex ${JSON.stringify(token)}`)
 
                 // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
                 // return function或者 var = function这种则继续查找upvalue
@@ -547,9 +547,7 @@ export class Symbol {
         }
 
         // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式，把路径转换为uri形式
-        let uri = this.getRequireUri(path);
-
-        return uri
+        return this.getRequireUri(path);
     }
 
     /* local M = GlobalSymbol
@@ -557,29 +555,54 @@ export class Symbol {
      * 查询局部模块名M真正的模块名GlobalSymbol，注意只是局部的，比如一个函数里的。
      * 不查询整个文档local化的那种，那种在上面的getDocumentIderDefinition处理
      */
-    private getLocalRawIder(iderName: string,text: string[]) {
-        let foundToken = this.parseLexerToken(iderName,text)
+    private getLocalRawIder(iderName: string, text: string[]) {
+        let token = this.parseLexerToken(iderName,text)
 
         // 尝试根据下面几种情况推断出真正的类型
         // 1. 全局本地化: m = M
         // 2. 通过__call创建新对象: m = M()
         // 3. 通过new函数创建对象: m = M.new()
         // 4. require引用: m = require "xxx"
-        if (foundToken.length < 2 || "=" != foundToken[0].value ) return null;
+        if (token.length < 2 || "=" != token[0].value ) return null;
 
-        if (foundToken[1].type != LuaTokenType.Identifier) return null;
+        if (token[1].type != LuaTokenType.Identifier) return null;
 
-        let newIderName = foundToken[1].value
+        let newIderName = token[1].value
 
         // 4. require引用: m = require "xxx"
+        // require 只能定位到uri，m这个不一定是模块名
         if ("require" == newIderName) {
-            let uri = this.getRequireFromLexer(foundToken)
+            let uri = this.getRequireFromLexer(token)
             if (!uri)  return null;
 
             return {
                 uri: uri,
                 iderName: null
             }
+        }
+
+        if (token.length < 3) return null;
+
+        // 2. 通过__call创建新对象: m = M()
+        // 当然很多情况下，也有可能是 m = get_something()这样调用普通函数，这时
+        // 不过get_somthing这个函数一般不会和模块名相同，所以也不会有太大问题，反正
+        // 也无法继续推断m的类型了
+        if (token[2].value == "("
+            && token[2].type == LuaTokenType.Punctuator) {
+            return { uri: null,iderName: newIderName};
+        }
+
+        if (token.length < 5) return null;
+
+        // 3. 通过new函数创建对象: m = M.new()
+        // 如果有人定义了一个普通函数也叫new，那就会出错
+        if (token[2].value == "."
+            && token[2].type == LuaTokenType.Punctuator
+            && (token[3].value == "new" || token[3].value == "new")
+            && token[3].type == LuaTokenType.Identifier
+            && token[4].value == "("
+            && token[4].type == LuaTokenType.Punctuator) {
+            return { uri: null,iderName: newIderName};
         }
 
         return null;
@@ -594,7 +617,14 @@ export class Symbol {
         if (!iderInfo) return null;
 
         if (iderInfo.uri) {
+            let symList = this.documentSymbol[iderInfo.uri]
+            return this.checkSymDefinition(symList,query.symName,query.kind)
+        }
 
+        if (iderInfo.iderName) {
+            let newQuery = Object.assign({},query)
+            newQuery.iderName = iderInfo.iderName
+            return this.getGlobalIderDefinition(newQuery)
         }
         return null
     }

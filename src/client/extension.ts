@@ -31,6 +31,8 @@ export function activate(context: vscode.ExtensionContext) {
     // 在Debug-->Add Configuration里加一个选项Attack，注意新增的端口和监听端口对应
     // 用F5打开插件后，创建对应的文件激活插件，然后在左边栏切换到Debug View
     // 在Debug选项里选择Attach，即可连接到服务器，这时就可以断点调试server了
+    // 如果断点显示Unverified breakpoint，应该是当前调试session不对，在debug界面应该
+    // 能看到两个session，一个Run Extension，一个Attack，选中Attack即可
     let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
     console.log(`server path:${serverModule}`)
