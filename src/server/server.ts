@@ -97,6 +97,8 @@ class Server {
          */
         const uri = Uri.parse(this.rootUri!);
         this.symbols.parseRoot(uri.fsPath);
+
+        g_utils.log(`Lua initialized done:${this.rootUri}`)
     }
 
     private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
@@ -284,11 +286,16 @@ class Server {
         // 上面的方法都找不到，可能是根本没有模块名iderName
         // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
 
-        // 全局符号匹配
         // 当前文档符号匹配
+        loc = this.symbols.getDocumentDefinition(query);
+        if (loc) return loc;
+        // 全局符号匹配
+        loc = this.symbols.getGlobalDefinition(query);
+        if (loc) return loc;
         // 局部符号匹配
-
-        // this.symbols.getlocalSymLocation()
+        if (!localText) localText = this.getLocalText(query);
+        loc = this.symbols.getlocalDefinition(query,localText);
+        if (loc) return loc;
 
         return [];
     }

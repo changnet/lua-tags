@@ -19,6 +19,7 @@ import {
 import {
     Range,
     Position,
+    Location,
     createConnection,
     TextDocuments,
     TextDocument,
@@ -39,7 +40,6 @@ import {
 
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs"
-import { Location } from "vscode";
 
 // luaParser.lex()
 // https://github.com/oxyc/luaparse
@@ -283,6 +283,7 @@ export class Symbol {
             }
         }
 
+        this.needUpdate = false
         this.globalSymbol = globalSymbol
         this.globalIder = globalIder
     }
@@ -348,8 +349,6 @@ export class Symbol {
         if (this.needUpdate) {
             this.updateGlobal();
         }
-
-        g_utils.log(`check global log:${JSON.stringify(this.globalSymbol)}`)
 
         let symList: SymbolInformation[] = []
         for (let name in this.globalSymbol) {
@@ -466,6 +465,7 @@ export class Symbol {
     }
 
     // 解析对应符号的词法
+    // 返回 m = ... 之后 ... 的词法
     private parseLexerToken(iderName: string,text: string[]):Token[] {
         if (text.length <= 0) return [];
 
@@ -477,28 +477,30 @@ export class Symbol {
             parser.write(text[line])
 
             let found = false;
-            let tokenIndex = 0;
-            let token: Token | null = null
+            let token: Token = parser.lex();
+
+            // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
+            // return function或者 var = function这种则继续查找upvalue
+            // 对于刚好换行导致function在行首的，暂不考虑
+            if (token.value == "function"
+                && token.type == LuaTokenType.Keyword) {
+                return [];
+            }
+
             do {
-                tokenIndex ++;
                 token = parser.lex();
 
                 // g_utils.log(`lex ${JSON.stringify(token)}`)
 
-                // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
-                // return function或者 var = function这种则继续查找upvalue
-                // 对于刚好换行导致function在行首的，暂不考虑
-                if (1 == tokenIndex
-                    && token.type == LuaTokenType.Keyword
-                    && token.value == "function") {
-                    return [];
-                }
-
-                // 查询到对应的符号
-                if (token.type == LuaTokenType.Identifier
-                    && token.value == iderName) {
-                    found = true;
-                    continue;
+                // 查询到对应的符号赋值操作 m = ...
+                if (token.value == iderName
+                    && token.type == LuaTokenType.Identifier) {
+                    token = parser.lex();
+                    if (token.value == "="
+                        && token.type == LuaTokenType.Punctuator) {
+                        found = true;
+                        continue;
+                    }
                 }
 
                 // 记录查询到的符号后面的词法
@@ -507,7 +509,7 @@ export class Symbol {
                 if (found && token.type != LuaTokenType.EOF ) {
                     foundToken.push(token)
                 }
-            } while (token && token.type != LuaTokenType.EOF)
+            } while (token.type != LuaTokenType.EOF)
 
             line --;
         } while (line >= 0);
@@ -534,16 +536,16 @@ export class Symbol {
 
     // 获取 m = require("xxx")对应的模块名
     private getRequireFromLexer(token: Token[]): string | null {
-        if (token.length < 4 || "require" != token[2].value) return null;
+        if (token.length < 2 || "require" != token[0].value) return null;
 
-        let path = token[3].value // m = require "xxx"
-        if (token[3].type != LuaTokenType.StringLiteral) {
+        let path = token[1].value // m = require "xxx"
+        if (token[1].type != LuaTokenType.StringLiteral) {
             // m = require("xxx")
-            if (token.length < 5
-                || token[4].type != LuaTokenType.StringLiteral) {
+            if (token.length < 4
+                || token[3].type != LuaTokenType.StringLiteral) {
                 return null;
             }
-            path = token[4].value
+            path = token[3].value
         }
 
         // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式，把路径转换为uri形式
@@ -563,11 +565,13 @@ export class Symbol {
         // 2. 通过__call创建新对象: m = M()
         // 3. 通过new函数创建对象: m = M.new()
         // 4. require引用: m = require "xxx"
-        if (token.length < 2 || "=" != token[0].value ) return null;
+        if (token.length <= 0) return null;
 
-        if (token[1].type != LuaTokenType.Identifier) return null;
+        if (token[0].type != LuaTokenType.Identifier) return null;
 
-        let newIderName = token[1].value
+        let newIderName = token[0].value
+        // 1. 全局本地化: m = M
+        if (1 == token.length) return { uri: null, iderName: newIderName}
 
         // 4. require引用: m = require "xxx"
         // require 只能定位到uri，m这个不一定是模块名
@@ -581,27 +585,27 @@ export class Symbol {
             }
         }
 
-        if (token.length < 3) return null;
+        if (token.length < 2) return null;
 
         // 2. 通过__call创建新对象: m = M()
         // 当然很多情况下，也有可能是 m = get_something()这样调用普通函数，这时
         // 不过get_somthing这个函数一般不会和模块名相同，所以也不会有太大问题，反正
         // 也无法继续推断m的类型了
-        if (token[2].value == "("
-            && token[2].type == LuaTokenType.Punctuator) {
+        if (token[1].value == "("
+            && token[1].type == LuaTokenType.Punctuator) {
             return { uri: null,iderName: newIderName};
         }
 
-        if (token.length < 5) return null;
+        if (token.length < 4) return null;
 
         // 3. 通过new函数创建对象: m = M.new()
         // 如果有人定义了一个普通函数也叫new，那就会出错
-        if (token[2].value == "."
-            && token[2].type == LuaTokenType.Punctuator
-            && (token[3].value == "new" || token[3].value == "new")
-            && token[3].type == LuaTokenType.Identifier
-            && token[4].value == "("
-            && token[4].type == LuaTokenType.Punctuator) {
+        if (token[1].value == "."
+            && token[1].type == LuaTokenType.Punctuator
+            && (token[2].value == "new" || token[2].value == "new")
+            && token[2].type == LuaTokenType.Identifier
+            && token[3].value == "("
+            && token[3].type == LuaTokenType.Punctuator) {
             return { uri: null,iderName: newIderName};
         }
 
@@ -629,14 +633,76 @@ export class Symbol {
         return null
     }
 
-    public getlocalSymLocation() {
-        let parser: luaParser = luaParse(",j,m = function(a,b",{ wait: true })
+    // 从全局符号获取符号定义
+    public getGlobalDefinition(query: SymbolQuery) {
+        if (this.needUpdate) this.updateGlobal();
 
-        let token: Token | null = null
+        return this.checkSymDefinition(
+            this.globalSymbol[query.symName],query.symName,query.kind)
+    }
+
+    // 获取当前文档的符号定义
+    public getDocumentDefinition(query: SymbolQuery) {
+        return this.checkSymDefinition(
+            this.documentSymbol[query.uri],query.symName,query.kind)
+    }
+
+    // 获取局部变量定义
+    public getlocalDefinition(query: SymbolQuery, text: string[]) {
+        if (text.length <= 0) return [];
+
+        const symName = query.symName;
+
+        // 反向一行行地查找符号所在的位置
+        let line = text.length - 1
+        let found: Token | null = null;
+        let parser: luaParser = luaParse("",{ wait: true })
         do {
-            token = parser.lex();
-            g_utils.log(`lex ${JSON.stringify(token)}`)
-        } while (token && token.type != LuaTokenType.EOF)
+            parser.write(text[line])
+
+            let last = null;
+            let stop = false;
+            let token: Token = parser.lex();
+
+            // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
+            // return function或者 var = function这种则继续查找upvalue
+            // 对于刚好换行导致function在行首的，暂不考虑
+            if (token.value == "function"
+                && token.type == LuaTokenType.Keyword) {
+                return null;
+            }
+
+            do {
+                token = parser.lex();
+
+                // g_utils.log(`lex ${JSON.stringify(token)}`)
+
+                // 查询到对应的符号声明 local m
+                if (token.value == symName
+                    && token.type == LuaTokenType.Identifier) {
+                    found = token;
+                    if (last && token.value == "local"
+                        && token.type == LuaTokenType.Keyword) {
+                        stop = true;
+                        break;
+                    }
+                }
+
+                last = token;
+            } while (token.type != LuaTokenType.EOF)
+
+            if (stop) break;
+
+            line --;
+        } while (line >= 0);
+
+        if (!found) return null;
+
+        let rawLine = line
+        return Location.create(query.uri,{
+            start: { line: rawLine, character: found.range[0]},
+            end: { line: rawLine, character: found.range[1]}
+        });
     }
 
 }
