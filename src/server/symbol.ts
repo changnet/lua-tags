@@ -464,6 +464,25 @@ export class Symbol {
             iderMap[iderName],query.symName,query.kind)
     }
 
+    // 检测是否结束作用局域
+    // 当遇到本地函数:local function 或者 全局函数:function 时结束
+    private isLocalScopeEnd(token: Token, last: Token | null): boolean {
+        // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
+        // return function或者 var = function这种则继续查找upvalue
+        // 对于刚好换行导致function在行首的，暂不考虑
+        if (token.value != "function"
+            || token.type != LuaTokenType.Keyword) {
+            return false;
+        }
+
+        if (!last || last.value == "local"
+            && last.type == LuaTokenType.Keyword) {
+            return true;
+        }
+
+        return false;
+    }
+
     // 解析对应符号的词法
     // 返回 m = ... 之后 ... 的词法
     private parseLexerToken(iderName: string,text: string[]):Token[] {
@@ -472,25 +491,21 @@ export class Symbol {
         // 反向一行行地查找符号所在的位置
         let line = text.length - 1
         let foundToken: Token[] = [];
+        // 注意下，这里用一个parser持续write得到的token值是对的
+        // 但token里的line和range是错的，不过这里没用到位置信息可以这样用
+        // 正确的用法是每行创建一个parser
         let parser: luaParser = luaParse("",{ wait: true })
         do {
             parser.write(text[line])
 
+            let last = null;
             let found = false;
             let token: Token = parser.lex();
-
-            // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
-            // return function或者 var = function这种则继续查找upvalue
-            // 对于刚好换行导致function在行首的，暂不考虑
-            if (token.value == "function"
-                && token.type == LuaTokenType.Keyword) {
-                return [];
-            }
 
             do {
                 token = parser.lex();
 
-                // g_utils.log(`lex ${JSON.stringify(token)}`)
+                if (this.isLocalScopeEnd(token,last)) return [];
 
                 // 查询到对应的符号赋值操作 m = ...
                 if (token.value == iderName
@@ -509,6 +524,7 @@ export class Symbol {
                 if (found && token.type != LuaTokenType.EOF ) {
                     foundToken.push(token)
                 }
+                last = token;
             } while (token.type != LuaTokenType.EOF)
 
             line --;
@@ -656,33 +672,32 @@ export class Symbol {
         // 反向一行行地查找符号所在的位置
         let line = text.length - 1
         let found: Token | null = null;
-        let parser: luaParser = luaParse("",{ wait: true })
+        // 用一个全局parser的话,token的range不准确
+        //let parser: luaParser = luaParse("",{ wait: true })
         do {
-            parser.write(text[line])
+            //parser.write(text[line]);
+            let parser: luaParser = luaParse(text[line],{ wait: true })
+            // parser.write("\n");
 
             let last = null;
             let stop = false;
-            let token: Token = parser.lex();
-
-            // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
-            // return function或者 var = function这种则继续查找upvalue
-            // 对于刚好换行导致function在行首的，暂不考虑
-            if (token.value == "function"
-                && token.type == LuaTokenType.Keyword) {
-                return null;
-            }
+            let token: Token | null = null;
 
             do {
                 token = parser.lex();
 
-                // g_utils.log(`lex ${JSON.stringify(token)}`)
+                // 作用域结束，但这个符号仍有可能是这个函数的参数，继续查找这一行
+                if (this.isLocalScopeEnd(token, last)) stop = true;
+
+                g_utils.log(`lex ${JSON.stringify(token)}`)
 
                 // 查询到对应的符号声明 local m
                 if (token.value == symName
                     && token.type == LuaTokenType.Identifier) {
                     found = token;
-                    if (last && token.value == "local"
-                        && token.type == LuaTokenType.Keyword) {
+                    found.line = line;
+                    if (last && last.value == "local"
+                        && last.type == LuaTokenType.Keyword) {
                         stop = true;
                         break;
                     }
@@ -698,10 +713,9 @@ export class Symbol {
 
         if (!found) return null;
 
-        let rawLine = line
         return Location.create(query.uri,{
-            start: { line: rawLine, character: found.range[0]},
-            end: { line: rawLine, character: found.range[1]}
+            start: { line: found.line, character: found.range[0]},
+            end: { line: found.line, character: found.range[1]}
         });
     }
 

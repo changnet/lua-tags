@@ -203,7 +203,7 @@ class Server {
         }
 
         // test()分解成test和(，如果不是函数调用，则第二个括号则不存在
-        const rightWords = rightText.match(/(\w+)\s*(\()?/);
+        const rightWords = rightText.match(/^(\w+)\s*(\()?/);
         if (rightWords) {
             // test() 匹配到 ["test(","test","("]
             if (rightWords[1]) symName += rightWords[1];
