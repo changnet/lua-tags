@@ -338,10 +338,10 @@ export class Symbol {
     }
 
     // 获取某个文档的符号
-    public getDocumentSymbol(uri: string): SymbolInformation[] {
+    public getDocumentSymbol(uri: string): SymbolInformation[] | null {
         let symList: SymbolInformation[] = this.documentSymbol[uri]
 
-        return symList ? symList : []
+        return symList
     }
 
     // 获取全局符号
@@ -500,10 +500,17 @@ export class Symbol {
 
             let last = null;
             let found = false;
-            let token: Token = parser.lex();
+            let token: Token | null = null;
 
             do {
                 token = parser.lex();
+
+                // 记录查询到的符号后面的词法
+                // m = M()查询m将记录= m()这几个词法
+                // 当然有可能会出现换行，这里也不考虑
+                if (found && token.type != LuaTokenType.EOF ) {
+                    foundToken.push(token)
+                }
 
                 if (this.isLocalScopeEnd(token,last)) return [];
 
@@ -514,18 +521,14 @@ export class Symbol {
                     if (token.value == "="
                         && token.type == LuaTokenType.Punctuator) {
                         found = true;
-                        continue;
                     }
+                    continue;
                 }
 
-                // 记录查询到的符号后面的词法
-                // m = M()查询m将记录= m()这几个词法
-                // 当然有可能会出现换行，这里也不考虑
-                if (found && token.type != LuaTokenType.EOF ) {
-                    foundToken.push(token)
-                }
                 last = token;
             } while (token.type != LuaTokenType.EOF)
+
+            if (found) break;
 
             line --;
         } while (line >= 0);
@@ -688,8 +691,6 @@ export class Symbol {
 
                 // 作用域结束，但这个符号仍有可能是这个函数的参数，继续查找这一行
                 if (this.isLocalScopeEnd(token, last)) stop = true;
-
-                g_utils.log(`lex ${JSON.stringify(token)}`)
 
                 // 查询到对应的符号声明 local m
                 if (token.value == symName

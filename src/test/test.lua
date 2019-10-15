@@ -22,5 +22,8 @@ local function test_upvalue(param1, param2,param3)
 
         local x = param1 + param11 + Hash.A
         ins:show(x)
+
+        local other = no_such_func()
+        other:show()
     end
 end

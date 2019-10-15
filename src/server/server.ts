@@ -149,7 +149,22 @@ class Server {
         //     }
         // ];
 
-        return this.symbols.getDocumentSymbol(uri)
+        // 刚启动的时候，还没来得及解析文件
+        // 如果就已经打开文件了，优先解析这一个，多次解析同一个文件不影响
+        let symList = this.symbols.getDocumentSymbol(uri)
+        if (!symList) {
+            const document = this.documents.get(uri);
+            if (!document) {
+                return [];
+            }
+
+            const text = document.getText();
+            this.symbols.parse(uri, text);
+
+            symList = this.symbols.getDocumentSymbol(uri)
+        }
+
+        return symList ? symList : []
     }
 
     // 返回工作目录的符号(全局符号列表)
