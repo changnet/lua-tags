@@ -7,10 +7,9 @@ import { Options } from 'luaparse';
 export type Version = "5.1" | "5.2" | "5.3" | "LuaJIT";
 
 class Setting {
-    // 查询符号时，默认搜索的作用域
-    // 对lua而言，通常用table实现模块
-    // 因此只搜索模块中的符号，对于多层镶嵌的变量或者函数，不处理
-    public scopeDeepth: number = 2;
+    // 查询符号时，默认搜索的作用域深度
+    // 一般只搜索模块中的函数，不搜索局部变量，默认为1
+    public scopeDeepth: number = 1;
 
     public luaVersion: Version = "5.3";
 

@@ -720,6 +720,35 @@ export class Symbol {
         });
     }
 
+    // 符号转自动完成格式
+    private symbolToComplition(sym: SymbolInformation): CompletionItem {
+        let kind: CompletionItemKind = CompletionItemKind.Text
+        switch (sym.kind) {
+            case SymbolKind.Function: kind = CompletionItemKind.Function; break;
+            case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
+        }
+
+        return {
+            label: sym.name,
+            kind: kind
+        }
+    }
+
+    private checkSymCompletion(
+        symList: SymbolInformation[] | null, symName: string) {
+        if (!symList) return null;
+
+        let items: CompletionItem[] = []
+        for (let sym of symList) {
+            // 暂时不和symName对比过滤了，单个模块的符号应该不多，由vs code处理就行
+            items.push(this.symbolToComplition(sym));
+        }
+
+        if (items.length > 0) return items;
+
+        return null;
+    }
+
     // 根据模块名(mdName)查找符号
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
@@ -729,7 +758,7 @@ export class Symbol {
 
         if (this.needUpdate) this.updateGlobal();
 
-        return this.checkSymDefinition(
-            this.globalModule[mdName],query.symName,query.kind)
+        return this.checkSymCompletion(
+            this.globalModule[mdName],query.symName)
     }
 }

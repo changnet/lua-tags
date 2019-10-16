@@ -107,9 +107,8 @@ class Server {
 
         let query = this.getSymbolQuery(uri,pos.position)
 
-        g_utils.log(`check uri =====${JSON.stringify(pos)}`)
         g_utils.log(`check uri =====${JSON.stringify(query)}`)
-        if (!query || query.symName == "") return [];
+        if (!query) return [];
 
         // return [
         //     {
@@ -123,6 +122,9 @@ class Server {
         //         data: 2
         //     }
         // ];
+
+        let items = this.symbols.getGlobalIderCompletion(query);
+        if (items) return items;
 
         return [];
     }
