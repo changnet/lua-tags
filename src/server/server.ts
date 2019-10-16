@@ -101,38 +101,30 @@ class Server {
         g_utils.log(`Lua initialized done:${this.rootUri}`)
     }
 
+    // 代码自动完成提示
     private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
         const uri = pos.textDocument.uri;
-        const document = this.documents.get(uri);
-        if (!document) {
-            return [];
-        }
 
-        const text = document.getText();
+        let query = this.getSymbolQuery(uri,pos.position)
 
-        // const { prefixStartPosition, suffixEndPosition } = getCursorWordBoundry(documentText,
-        //     pos.position);
+        g_utils.log(`check uri =====${JSON.stringify(pos)}`)
+        g_utils.log(`check uri =====${JSON.stringify(query)}`)
+        if (!query || query.symName == "") return [];
 
-        // const startOffset = document.offsetAt(prefixStartPosition);
-        // const endOffset = document.offsetAt(suffixEndPosition);
+        // return [
+        //     {
+        //         label: 'TypeScript',
+        //         kind: CompletionItemKind.Text,
+        //         data: 1
+        //     },
+        //     {
+        //         label: 'JavaScript',
+        //         kind: CompletionItemKind.Text,
+        //         data: 2
+        //     }
+        // ];
 
-        // analysis.write(documentText.substring(0, startOffset));
-
-        this.symbols.parse(uri, text)
-        g_utils.log(`check uri ========================${uri}`)
-
-        return [
-            {
-                label: 'TypeScript',
-                kind: CompletionItemKind.Text,
-                data: 1
-            },
-            {
-                label: 'JavaScript',
-                kind: CompletionItemKind.Text,
-                data: 2
-            }
-        ];
+        return [];
     }
 
     // 返回当前文档的符号
@@ -195,8 +187,8 @@ class Server {
         let symName: string = ""
         let kind: SymbolKind = SymbolKind.Variable
 
-        // identifierName调用者，即m:test()中的m
-        let iderName: string | null = null
+        // 模块名，即m:test()中的m
+        let mdName: string | null = null
 
         // 匹配到的字符
         let matchWords: string | null = null;
@@ -207,13 +199,14 @@ class Server {
          * \w是匹配单词字符，即a-zA-Z0-9_
          * .|:是匹配lua中m.n或者m:n的调用方式
          * (\w+)([.|:]))?是说m:n中，m:可能不会出现，只有一个n
+         * (\w+)?$是在自动自动完成时，可能会出现 ev: 这种情况，有模块名无符号名
          */
-        const leftWords = leftText.match(/((\w+)([.|:]))?\s*(\w+)$/);
+        const leftWords = leftText.match(/((\w+)([.|:]))?\s*(\w+)?$/);
         if (leftWords) {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
             matchWords = leftWords[0]
-            if (leftWords[2]) iderName = leftWords[2];
+            if (leftWords[2]) mdName = leftWords[2];
             if (leftWords[4]) symName = leftWords[4];
         }
 
@@ -227,7 +220,7 @@ class Server {
 
         return {
             uri: uri,
-            iderName: iderName,
+            mdName: mdName,
             symName: symName,
             kind: kind,
             leftWords: matchWords,
@@ -282,23 +275,23 @@ class Server {
          */
 
         // 根据模块名匹配全局
-        loc = this.symbols.getGlobalIderDefinition(query);
+        loc = this.symbols.getGlobalModuleDefinition(query);
         if (loc) return loc;
 
         // 根据模块名匹配当前文档
-        loc = this.symbols.getDocumentIderDefinition(query);
+        loc = this.symbols.getDocumentModuleDefinition(query);
         if (loc) return loc;
 
         // 根据模块名匹配局部变量
         let localText:string[] | null = null;
 
-        if (query.iderName) {
+        if (query.mdName) {
             localText = this.getLocalText(query)
-            loc = this.symbols.getLocalIderDefinition(query, localText);
+            loc = this.symbols.getLocalModuleDefinition(query, localText);
             if (loc) return loc;
         }
 
-        // 上面的方法都找不到，可能是根本没有模块名iderName
+        // 上面的方法都找不到，可能是根本没有模块名mdName
         // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
 
         // 当前文档符号匹配

@@ -61,7 +61,7 @@ export const LuaTokenType = {
 // 用于go to definition查询的数据结构
 export interface SymbolQuery {
     uri: string; // 要查询的符号在哪个文档
-    iderName: string | null; // 模块名，m:test中的m
+    mdName: string | null; // 模块名，m:test中的m
     symName: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
     leftWords: string | null; // 光标左边分解得到需要查询的字符串
@@ -93,12 +93,12 @@ export class Symbol {
     private globalSymbol: SymInfoMap = {};
 
     // 全局模块缓存，方便快速查询符号 identifier
-    private globalIder: SymInfoMap = {}
+    private globalModule: SymInfoMap = {}
 
     // 各个文档的符号缓存，uri为key
     private documentSymbol: SymInfoMap = {};
     // 各个文档的符号缓存，第一层uri为key，第二层ider名为key
-    private documentIder: { [key: string]: SymInfoMap } = {};
+    private documentModule: { [key: string]: SymInfoMap } = {};
     // 各个文档的语法节点缓存，uri为key
     private documentNode: { [key: string]: NodeCache } = {};
 
@@ -109,7 +109,7 @@ export class Symbol {
     private parseNodeCache: NodeCache = {}
     private parseSymList: SymbolInformation[] = [];
     // 各个文档的符号缓存，ider名为key
-    private parseIder: { [key: string]: SymbolInformation[] } = {};
+    private parseModule: { [key: string]: SymbolInformation[] } = {};
 
     private pathSlash: string = "/";
 
@@ -193,10 +193,10 @@ export class Symbol {
         if (sym) {
             this.parseSymList.push(sym)
             if (base) {
-                if (!this.parseIder[base]) {
-                    this.parseIder[base] = [];
+                if (!this.parseModule[base]) {
+                    this.parseModule[base] = [];
                 }
-                this.parseIder[base].push(sym)
+                this.parseModule[base].push(sym)
             }
         }
     }
@@ -261,7 +261,7 @@ export class Symbol {
     // 更新全局符号缓存
     private updateGlobal() {
         let globalSymbol: SymInfoMap = {}
-        let globalIder: SymInfoMap = {}
+        let globalModule: SymInfoMap = {}
 
         for (let uri in this.documentSymbol) {
             for (let sym of this.documentSymbol[uri]) {
@@ -273,19 +273,19 @@ export class Symbol {
             }
         }
 
-        for (let uri in this.documentIder) {
-            for (let name in this.documentIder[uri]) {
-                globalIder[name] = []
-                let iderList = globalIder[name]
-                for (let sym of this.documentIder[uri][name]) {
-                    iderList.push(sym)
+        for (let uri in this.documentModule) {
+            for (let name in this.documentModule[uri]) {
+                globalModule[name] = []
+                let moduleList = globalModule[name]
+                for (let sym of this.documentModule[uri][name]) {
+                    moduleList.push(sym)
                 }
             }
         }
 
         this.needUpdate = false
         this.globalSymbol = globalSymbol
-        this.globalIder = globalIder
+        this.globalModule = globalModule
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
@@ -295,7 +295,7 @@ export class Symbol {
         this.parseNodeList = [];
         this.parseSymList = [];
         this.parseNodeCache = {};
-        this.parseIder = {}
+        this.parseModule = {}
 
         try {
             luaParse(text, this.options);
@@ -327,10 +327,10 @@ export class Symbol {
         // 解析成功，更新缓存，否则使用旧的
         this.documentSymbol[uri] = this.parseSymList;
         this.documentNode[uri] = this.parseNodeCache;
-        this.documentIder[uri] = this.parseIder;
+        this.documentModule[uri] = this.parseModule;
 
         // 符号有变化，清空全局符号缓存，下次请求时生成
-        this.globalIder = {}
+        this.globalModule = {}
         this.globalSymbol = {}
         this.needUpdate = true
 
@@ -424,23 +424,23 @@ export class Symbol {
         return null;
     }
 
-    // 根据模块名(iderName)查找符号
+    // 根据模块名查找符号
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalIderDefinition(query: SymbolQuery) {
-        let iderName = query.iderName
-        if (!iderName || "self" == iderName) return null;
+    public getGlobalModuleDefinition(query: SymbolQuery) {
+        let mdName = query.mdName
+        if (!mdName || "self" == mdName) return null;
 
         if (this.needUpdate) this.updateGlobal();
 
         return this.checkSymDefinition(
-            this.globalIder[iderName],query.symName,query.kind)
+            this.globalModule[mdName],query.symName,query.kind)
     }
 
     // 查找经过本地化的原符号uri
-    private getRawUri(uri: string, iderName: string): string {
+    private getRawUri(uri: string, mdName: string): string {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" == iderName) return uri;
+        if ("self" == mdName) return uri;
 
         // local M = require "abc" 这种用法
 
@@ -451,17 +451,17 @@ export class Symbol {
     }
 
     // 根据模块名查找某个文档的符号位置
-    public getDocumentIderDefinition(query: SymbolQuery) {
-        let iderName = query.iderName
-        if (!iderName) return null;
+    public getDocumentModuleDefinition(query: SymbolQuery) {
+        let mdName = query.mdName
+        if (!mdName) return null;
 
-        let rawUri = this.getRawUri(query.uri,iderName)
+        let rawUri = this.getRawUri(query.uri,mdName)
 
-        let iderMap = this.documentIder[rawUri]
-        if (!iderMap) return null;
+        let mdMap = this.documentModule[rawUri]
+        if (!mdMap) return null;
 
         return this.checkSymDefinition(
-            iderMap[iderName],query.symName,query.kind)
+            mdMap[mdName],query.symName,query.kind)
     }
 
     // 检测是否结束作用局域
@@ -485,7 +485,7 @@ export class Symbol {
 
     // 解析对应符号的词法
     // 返回 m = ... 之后 ... 的词法
-    private parseLexerToken(iderName: string,text: string[]):Token[] {
+    private parseLexerToken(mdName: string,text: string[]):Token[] {
         if (text.length <= 0) return [];
 
         // 反向一行行地查找符号所在的位置
@@ -515,7 +515,7 @@ export class Symbol {
                 if (this.isLocalScopeEnd(token,last)) return [];
 
                 // 查询到对应的符号赋值操作 m = ...
-                if (token.value == iderName
+                if (token.value == mdName
                     && token.type == LuaTokenType.Identifier) {
                     token = parser.lex();
                     if (token.value == "="
@@ -546,7 +546,7 @@ export class Symbol {
         // 在所有uri里查询匹配的uri
         // 由于不知道项目中的path设置，因此这个路径其实可长可短
         // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
-        for ( let uri in this.documentIder) {
+        for ( let uri in this.documentModule) {
             if (uri.match(/.lua/g)) return uri
         }
 
@@ -576,8 +576,8 @@ export class Symbol {
      * 查询局部模块名M真正的模块名GlobalSymbol，注意只是局部的，比如一个函数里的。
      * 不查询整个文档local化的那种，那种在上面的getDocumentIderDefinition处理
      */
-    private getLocalRawIder(iderName: string, text: string[]) {
-        let token = this.parseLexerToken(iderName,text)
+    private getLocalRawModule(mdName: string, text: string[]) {
+        let token = this.parseLexerToken(mdName,text)
 
         // 尝试根据下面几种情况推断出真正的类型
         // 1. 全局本地化: m = M
@@ -588,19 +588,19 @@ export class Symbol {
 
         if (token[0].type != LuaTokenType.Identifier) return null;
 
-        let newIderName = token[0].value
+        let newModuleName = token[0].value
         // 1. 全局本地化: m = M
-        if (1 == token.length) return { uri: null, iderName: newIderName}
+        if (1 == token.length) return { uri: null, mdName: newModuleName}
 
         // 4. require引用: m = require "xxx"
         // require 只能定位到uri，m这个不一定是模块名
-        if ("require" == newIderName) {
+        if ("require" == newModuleName) {
             let uri = this.getRequireFromLexer(token)
             if (!uri)  return null;
 
             return {
                 uri: uri,
-                iderName: null
+                mdName: null
             }
         }
 
@@ -612,7 +612,7 @@ export class Symbol {
         // 也无法继续推断m的类型了
         if (token[1].value == "("
             && token[1].type == LuaTokenType.Punctuator) {
-            return { uri: null,iderName: newIderName};
+            return { uri: null,mdName: newModuleName};
         }
 
         if (token.length < 4) return null;
@@ -625,18 +625,18 @@ export class Symbol {
             && token[2].type == LuaTokenType.Identifier
             && token[3].value == "("
             && token[3].type == LuaTokenType.Punctuator) {
-            return { uri: null,iderName: newIderName};
+            return { uri: null,iderName: newModuleName};
         }
 
         return null;
     }
 
     // 根据模块名查询局部变量位置
-    public getLocalIderDefinition(query: SymbolQuery, text: string[]) {
-        let iderName = query.iderName
-        if (!iderName) return null;
+    public getLocalModuleDefinition(query: SymbolQuery, text: string[]) {
+        let mdName = query.mdName
+        if (!mdName) return null;
 
-        let iderInfo = this.getLocalRawIder(iderName,text)
+        let iderInfo = this.getLocalRawModule(mdName,text)
         if (!iderInfo) return null;
 
         if (iderInfo.uri) {
@@ -644,10 +644,10 @@ export class Symbol {
             return this.checkSymDefinition(symList,query.symName,query.kind)
         }
 
-        if (iderInfo.iderName) {
+        if (iderInfo.mdName) {
             let newQuery = Object.assign({},query)
-            newQuery.iderName = iderInfo.iderName
-            return this.getGlobalIderDefinition(newQuery)
+            newQuery.mdName = iderInfo.mdName
+            return this.getGlobalModuleDefinition(newQuery)
         }
         return null
     }
@@ -720,4 +720,16 @@ export class Symbol {
         });
     }
 
+    // 根据模块名(mdName)查找符号
+    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
+    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
+    public getGlobalIderCompletion(query: SymbolQuery) {
+        let mdName = query.mdName
+        if (!mdName || "self" == mdName) return null;
+
+        if (this.needUpdate) this.updateGlobal();
+
+        return this.checkSymDefinition(
+            this.globalModule[mdName],query.symName,query.kind)
+    }
 }
