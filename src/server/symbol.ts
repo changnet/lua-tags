@@ -752,7 +752,7 @@ export class Symbol {
     // 根据模块名(mdName)查找符号
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalIderCompletion(query: SymbolQuery) {
+    public getGlobalModuleCompletion(query: SymbolQuery) {
         let mdName = query.mdName
         if (!mdName || "self" == mdName) return null;
 
@@ -760,5 +760,18 @@ export class Symbol {
 
         return this.checkSymCompletion(
             this.globalModule[mdName],query.symName)
+    }
+
+    // 根据模块名查找某个文档的符号位置
+    public getDocumentModuleCompletion(query: SymbolQuery) {
+        let mdName = query.mdName
+        if (!mdName) return null;
+
+        let rawUri = this.getRawUri(query.uri,mdName)
+
+        let mdMap = this.documentModule[rawUri]
+        if (!mdMap) return null;
+
+        return this.checkSymCompletion(mdMap[mdName],query.symName)
     }
 }

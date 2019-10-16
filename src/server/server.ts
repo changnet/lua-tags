@@ -123,8 +123,15 @@ class Server {
         //     }
         // ];
 
-        let items = this.symbols.getGlobalIderCompletion(query);
+        // 根据模块名，匹配全局符号
+        let items = this.symbols.getGlobalModuleCompletion(query);
         if (items) return items;
+
+        // 根据模块名，匹配文档符号
+        items = this.symbols.getDocumentModuleCompletion(query);
+        if (items) return items;
+
+        // 根据局部模块名，匹配符号
 
         return [];
     }
