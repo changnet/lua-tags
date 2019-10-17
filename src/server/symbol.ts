@@ -370,17 +370,15 @@ export class Symbol {
     }
 
     // 获取全局符号
-    public getGlobalSymbol(query: string): SymbolInformation[] {
+    public getGlobalSymbol(query: string | null): SymbolInformation[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }
 
         let symList: SymbolInformation[] = []
         for (let name in this.globalSymbol) {
-            // TODO:这里匹配一下query，甚至做下模糊匹配
-            // 全部发给vs code的话，vs code自己会匹配
             for (let sym of this.globalSymbol[name]) {
-                symList.push(sym)
+                if (!query || sym.name == query) symList.push(sym)
             }
         }
         return symList;
@@ -435,33 +433,6 @@ export class Symbol {
         this.parse(uri,data.toString())
     }
 
-    private checkSymDefinition(
-        symList: SymbolInformation[] | null, symName: string, kind: SymbolKind) {
-        if (!symList) return null;
-
-        let loc: Definition = []
-        for (let sym of symList) {
-            if (sym.name == symName) loc.push(sym.location);
-        }
-
-        if (loc.length > 0) return loc;
-
-        return null;
-    }
-
-    // 根据模块名查找符号
-    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
-    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalModuleDefinition(query: SymbolQuery) {
-        let mdName = query.mdName
-        if (!mdName || "self" == mdName) return null;
-
-        if (this.needUpdate) this.updateGlobal();
-
-        return this.checkSymDefinition(
-            this.globalModule[mdName],query.symName,query.kind)
-    }
-
     // 查找经过本地化的原符号uri
     public getRawUri(uri: string, mdName: string): string {
         // 模块名为self则是当前文档self:test()这种用法
@@ -473,20 +444,6 @@ export class Symbol {
 
         // 都找不到，默认查找当前文档
         return uri
-    }
-
-    // 根据模块名查找某个文档的符号位置
-    public getDocumentModuleDefinition(query: SymbolQuery) {
-        let mdName = query.mdName
-        if (!mdName) return null;
-
-        let rawUri = this.getRawUri(query.uri,mdName)
-
-        let mdMap = this.documentModule[rawUri]
-        if (!mdMap) return null;
-
-        return this.checkSymDefinition(
-            mdMap[mdName],query.symName,query.kind)
     }
 
     // 检测是否结束作用局域
@@ -601,7 +558,7 @@ export class Symbol {
      * 查询局部模块名M真正的模块名GlobalSymbol，注意只是局部的，比如一个函数里的。
      * 不查询整个文档local化的那种，那种在上面的getDocumentIderDefinition处理
      */
-    private getLocalRawModule(mdName: string, text: string[]) {
+    public getLocalRawModule(mdName: string, text: string[]) {
         let token = this.parseLexerToken(mdName,text)
 
         // 尝试根据下面几种情况推断出真正的类型
@@ -656,46 +613,10 @@ export class Symbol {
         return null;
     }
 
-    // 根据模块名查询局部变量位置
-    public getLocalModuleDefinition(query: SymbolQuery, text: string[]) {
-        let mdName = query.mdName
-        if (!mdName) return null;
 
-        let iderInfo = this.getLocalRawModule(mdName,text)
-        if (!iderInfo) return null;
-
-        if (iderInfo.uri) {
-            let symList = this.documentSymbol[iderInfo.uri]
-            return this.checkSymDefinition(symList,query.symName,query.kind)
-        }
-
-        if (iderInfo.mdName) {
-            let newQuery = Object.assign({},query)
-            newQuery.mdName = iderInfo.mdName
-            return this.getGlobalModuleDefinition(newQuery)
-        }
-        return null
-    }
-
-    // 从全局符号获取符号定义
-    public getGlobalDefinition(query: SymbolQuery) {
-        if (this.needUpdate) this.updateGlobal();
-
-        return this.checkSymDefinition(
-            this.globalSymbol[query.symName],query.symName,query.kind)
-    }
-
-    // 获取当前文档的符号定义
-    public getDocumentDefinition(query: SymbolQuery) {
-        return this.checkSymDefinition(
-            this.documentSymbol[query.uri],query.symName,query.kind)
-    }
-
-    // 获取局部变量定义
-    public getlocalDefinition(query: SymbolQuery, text: string[]) {
+    // 获取局部变量位置
+    public parselocalSymLocation(uri: string, symName: string, text: string[]) {
         if (text.length <= 0) return [];
-
-        const symName = query.symName;
 
         // 反向一行行地查找符号所在的位置
         let line = text.length - 1
@@ -739,10 +660,9 @@ export class Symbol {
 
         if (!found) return null;
 
-        return Location.create(query.uri,{
+        return Location.create(uri,{
             start: { line: found.line, character: found.range[0]},
             end: { line: found.line, character: found.range[1]}
         });
     }
-
 }

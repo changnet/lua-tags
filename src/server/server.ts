@@ -26,6 +26,7 @@ import {
 import Uri from 'vscode-uri';
 import { g_utils } from "./utils"
 import { AutoCompletion } from "./autoCompletion"
+import { GoToDefinition } from "./goToDefinition"
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -171,7 +172,9 @@ class Server {
     // 返回工作目录的符号(全局符号列表)
     private onWorkspaceSymbol(
         handler: WorkspaceSymbolParams): SymbolInformation[] {
-        return Symbol.instance().getGlobalSymbol(handler.query)
+        // TODO:这里匹配一下query，甚至做下模糊匹配
+        // 全部发给vs code的话，vs code自己会匹配
+        return Symbol.instance().getGlobalSymbol(null) // handler.query
     }
 
     // 根据光标位置分解出要查询的符号信息
@@ -283,13 +286,13 @@ class Server {
          * 全局和文档都做了符号hash缓存，因此优先匹配
          */
 
-        let symbol = Symbol.instance();
+        let definetion = GoToDefinition.instance();
         // 根据模块名匹配全局
-        loc = symbol.getGlobalModuleDefinition(query);
+        loc = definetion.getGlobalModuleDefinition(query);
         if (loc) return loc;
 
         // 根据模块名匹配当前文档
-        loc = symbol.getDocumentModuleDefinition(query);
+        loc = definetion.getDocumentModuleDefinition(query);
         if (loc) return loc;
 
         // 根据模块名匹配局部变量
@@ -297,7 +300,7 @@ class Server {
 
         if (query.mdName) {
             localText = this.getLocalText(query)
-            loc = symbol.getLocalModuleDefinition(query, localText);
+            loc = definetion.getLocalModuleDefinition(query, localText);
             if (loc) return loc;
         }
 
@@ -305,14 +308,14 @@ class Server {
         // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
 
         // 当前文档符号匹配
-        loc = symbol.getDocumentDefinition(query);
+        loc = definetion.getDocumentDefinition(query);
         if (loc) return loc;
         // 全局符号匹配
-        loc = symbol.getGlobalDefinition(query);
+        loc = definetion.getGlobalDefinition(query);
         if (loc) return loc;
         // 局部符号匹配
         if (!localText) localText = this.getLocalText(query);
-        loc = symbol.getlocalDefinition(query,localText);
+        loc = definetion.getlocalDefinition(query,localText);
         if (loc) return loc;
 
         return [];
