@@ -25,7 +25,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { g_utils } from "./utils"
-import { Completion } from "./completion"
+import { AutoCompletion } from "./autoCompletion"
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -121,7 +121,7 @@ class Server {
         //     }
         // ];
 
-        let completion = Completion.instance();
+        let completion = AutoCompletion.instance();
         // 根据模块名，匹配全局符号
         let items = completion.getGlobalModuleCompletion(query);
         if (items) return items;

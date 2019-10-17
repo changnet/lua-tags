@@ -27,18 +27,18 @@ import {
     SymbolQuery
 } from "./symbol"
 
-export class Completion {
-    private static ins: Completion;
+export class AutoCompletion {
+    private static ins: AutoCompletion;
 
     private constructor() {
     }
 
     public static instance() {
-        if (!Completion.ins) {
-            Completion.ins = new Completion();
+        if (!AutoCompletion.ins) {
+            AutoCompletion.ins = new AutoCompletion();
         }
 
-        return Completion.ins;
+        return AutoCompletion.ins;
     }
 
 
