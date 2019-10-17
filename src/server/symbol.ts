@@ -84,6 +84,8 @@ type VariableStatement = LocalStatement | AssignmentStatement;
 type SymInfoMap = { [key: string]: SymbolInformation[] };
 
 export class Symbol {
+    private static ins: Symbol;
+
     private options: Options;
 
     // 是否需要更新全局符号
@@ -113,7 +115,7 @@ export class Symbol {
 
     private pathSlash: string = "/";
 
-    public constructor() {
+    private constructor() {
         this.options = {
             locations: true, // 是否记录语法节点的位置(node)
             scope: true, // 是否记录作用域
@@ -125,6 +127,14 @@ export class Symbol {
             onDestroyScope: () => this.onDestoryScope(),
             onCreateNode: (node) => this.onCreateNode(node)
         } as Options;
+    }
+
+    public static instance() {
+        if (!Symbol.ins) {
+            Symbol.ins = new Symbol();
+        }
+
+        return Symbol.ins;
     }
 
     // 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
@@ -288,6 +298,13 @@ export class Symbol {
         this.globalModule = globalModule
     }
 
+    // 获取某个模块的符号
+    public getGlobalModule(mdName: string) {
+        if (this.needUpdate) this.updateGlobal()
+
+        return this.globalModule[mdName]
+    }
+
     // 解析一段代码，如果这段代码有错误，会发给vs code
     public parse(uri: string, text: string) {
         this.parseUri = uri;
@@ -342,6 +359,14 @@ export class Symbol {
         let symList: SymbolInformation[] = this.documentSymbol[uri]
 
         return symList
+    }
+
+    // 获取某个文档里的某个模块
+    public getDocumentModule(uri: string, mdName: string) {
+        let mdMap = this.documentModule[uri]
+        if (!mdMap) return null;
+
+        return mdMap[mdName]
     }
 
     // 获取全局符号
@@ -438,7 +463,7 @@ export class Symbol {
     }
 
     // 查找经过本地化的原符号uri
-    private getRawUri(uri: string, mdName: string): string {
+    public getRawUri(uri: string, mdName: string): string {
         // 模块名为self则是当前文档self:test()这种用法
         if ("self" == mdName) return uri;
 
@@ -720,58 +745,4 @@ export class Symbol {
         });
     }
 
-    // 符号转自动完成格式
-    private symbolToComplition(sym: SymbolInformation): CompletionItem {
-        let kind: CompletionItemKind = CompletionItemKind.Text
-        switch (sym.kind) {
-            case SymbolKind.Function: kind = CompletionItemKind.Function; break;
-            case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
-        }
-
-        return {
-            label: sym.name,
-            kind: kind
-        }
-    }
-
-    private checkSymCompletion(
-        symList: SymbolInformation[] | null, symName: string) {
-        if (!symList) return null;
-
-        let items: CompletionItem[] = []
-        for (let sym of symList) {
-            // 暂时不和symName对比过滤了，单个模块的符号应该不多，由vs code处理就行
-            items.push(this.symbolToComplition(sym));
-        }
-
-        if (items.length > 0) return items;
-
-        return null;
-    }
-
-    // 根据模块名(mdName)查找符号
-    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
-    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalModuleCompletion(query: SymbolQuery) {
-        let mdName = query.mdName
-        if (!mdName || "self" == mdName) return null;
-
-        if (this.needUpdate) this.updateGlobal();
-
-        return this.checkSymCompletion(
-            this.globalModule[mdName],query.symName)
-    }
-
-    // 根据模块名查找某个文档的符号位置
-    public getDocumentModuleCompletion(query: SymbolQuery) {
-        let mdName = query.mdName
-        if (!mdName) return null;
-
-        let rawUri = this.getRawUri(query.uri,mdName)
-
-        let mdMap = this.documentModule[rawUri]
-        if (!mdMap) return null;
-
-        return this.checkSymCompletion(mdMap[mdName],query.symName)
-    }
 }

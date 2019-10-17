@@ -25,6 +25,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { g_utils } from "./utils"
+import { Completion } from "./completion"
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -41,9 +42,6 @@ class Server {
 
     // 哪些字符触发函数提示
     private readonly triggerCharacters = ['.', ':'];
-
-    // 记录解析过的符号
-    private symbols: Symbol = new Symbol();
 
     public constructor() {
         g_utils.initialize(this.connection)
@@ -96,7 +94,7 @@ class Server {
          * null or undefined.
          */
         const uri = Uri.parse(this.rootUri!);
-        this.symbols.parseRoot(uri.fsPath);
+        Symbol.instance().parseRoot(uri.fsPath);
 
         g_utils.log(`Lua initialized done:${this.rootUri}`)
     }
@@ -123,12 +121,13 @@ class Server {
         //     }
         // ];
 
+        let completion = Completion.instance();
         // 根据模块名，匹配全局符号
-        let items = this.symbols.getGlobalModuleCompletion(query);
+        let items = completion.getGlobalModuleCompletion(query);
         if (items) return items;
 
         // 根据模块名，匹配文档符号
-        items = this.symbols.getDocumentModuleCompletion(query);
+        items = completion.getDocumentModuleCompletion(query);
         if (items) return items;
 
         // 根据局部模块名，匹配符号
@@ -152,7 +151,8 @@ class Server {
 
         // 刚启动的时候，还没来得及解析文件
         // 如果就已经打开文件了，优先解析这一个，多次解析同一个文件不影响
-        let symList = this.symbols.getDocumentSymbol(uri)
+        let symbol = Symbol.instance();
+        let symList = symbol.getDocumentSymbol(uri)
         if (!symList) {
             const document = this.documents.get(uri);
             if (!document) {
@@ -160,9 +160,9 @@ class Server {
             }
 
             const text = document.getText();
-            this.symbols.parse(uri, text);
+            symbol.parse(uri, text);
 
-            symList = this.symbols.getDocumentSymbol(uri)
+            symList = symbol.getDocumentSymbol(uri)
         }
 
         return symList ? symList : []
@@ -171,7 +171,7 @@ class Server {
     // 返回工作目录的符号(全局符号列表)
     private onWorkspaceSymbol(
         handler: WorkspaceSymbolParams): SymbolInformation[] {
-        return this.symbols.getGlobalSymbol(handler.query)
+        return Symbol.instance().getGlobalSymbol(handler.query)
     }
 
     // 根据光标位置分解出要查询的符号信息
@@ -283,12 +283,13 @@ class Server {
          * 全局和文档都做了符号hash缓存，因此优先匹配
          */
 
+        let symbol = Symbol.instance();
         // 根据模块名匹配全局
-        loc = this.symbols.getGlobalModuleDefinition(query);
+        loc = symbol.getGlobalModuleDefinition(query);
         if (loc) return loc;
 
         // 根据模块名匹配当前文档
-        loc = this.symbols.getDocumentModuleDefinition(query);
+        loc = symbol.getDocumentModuleDefinition(query);
         if (loc) return loc;
 
         // 根据模块名匹配局部变量
@@ -296,7 +297,7 @@ class Server {
 
         if (query.mdName) {
             localText = this.getLocalText(query)
-            loc = this.symbols.getLocalModuleDefinition(query, localText);
+            loc = symbol.getLocalModuleDefinition(query, localText);
             if (loc) return loc;
         }
 
@@ -304,14 +305,14 @@ class Server {
         // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
 
         // 当前文档符号匹配
-        loc = this.symbols.getDocumentDefinition(query);
+        loc = symbol.getDocumentDefinition(query);
         if (loc) return loc;
         // 全局符号匹配
-        loc = this.symbols.getGlobalDefinition(query);
+        loc = symbol.getGlobalDefinition(query);
         if (loc) return loc;
         // 局部符号匹配
         if (!localText) localText = this.getLocalText(query);
-        loc = this.symbols.getlocalDefinition(query,localText);
+        loc = symbol.getlocalDefinition(query,localText);
         if (loc) return loc;
 
         return [];
