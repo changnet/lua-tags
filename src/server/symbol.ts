@@ -370,7 +370,7 @@ export class Symbol {
     }
 
     // 获取全局符号
-    public getGlobalSymbol(query: string | null): SymbolInformation[] {
+    public getGlobalSymbol(query?: string): SymbolInformation[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }

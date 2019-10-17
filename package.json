@@ -54,6 +54,7 @@
 	"dependencies": {
 		"vscode-languageclient": "^5.2.1",
 		"vscode-languageserver": "^5.2.1",
-		"luaparse": "^0.2.1"
+		"luaparse": "^0.2.1",
+		"fuzzysort": "^1.1.4"
 	}
 }

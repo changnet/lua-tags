@@ -27,6 +27,9 @@ import {
     SymbolQuery
 } from "./symbol"
 
+import * as fuzzysort from "fuzzysort"
+import { g_utils } from './utils';
+
 export class AutoCompletion {
     private static ins: AutoCompletion;
 
@@ -50,20 +53,35 @@ export class AutoCompletion {
             case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
         }
 
-        return {
+        let file = sym.location.uri.match(/\/(\w+.\w+)$/)
+
+        let item: CompletionItem = {
             label: sym.name,
             kind: kind
-        }
+        };
+
+        if (file) item.detail = file[1];
+
+        return item;
     }
 
+    // 检测列表中哪些符号需要显示在自动完成列表
     private checkSymCompletion(
         symList: SymbolInformation[] | null, symName: string) {
         if (!symList) return null;
 
         let items: CompletionItem[] = []
         for (let sym of symList) {
-            // 暂时不和symName对比过滤了，单个模块的符号应该不多，由vs code处理就行
-            items.push(this.symbolToComplition(sym));
+            // let res = fuzzysort.single(symName,sym.name)
+            // https://github.com/farzher/fuzzysort
+            // res.score
+            // exact match returns a score of 0. lower is worse
+            // 不匹配返回null
+            // g_utils.log(`check match ${symName} ${sym.name}
+            //    ${JSON.stringify(fuzzysort.single(symName,sym.name))}`)
+            if (0 == symName.length || fuzzysort.single(symName,sym.name)) {
+                items.push(this.symbolToComplition(sym));
+            }
         }
 
         if (items.length > 0) return items;
@@ -93,5 +111,48 @@ export class AutoCompletion {
 
         return this.checkSymCompletion(
             symbol.getDocumentModule(rawUri,mdName),query.symName)
+    }
+
+    // 根据模块名查询局部变量位置
+    public getLocalModuleCompletion(query: SymbolQuery, text: string[]) {
+        let mdName = query.mdName
+        if (!mdName) return null;
+
+        let symbol = Symbol.instance();
+        let iderInfo = symbol.getLocalRawModule(mdName, text);
+        if (!iderInfo) return null;
+
+        if (iderInfo.uri) {
+            let symList = symbol.getDocumentSymbol(iderInfo.uri)
+            return this.checkSymCompletion(symList, query.symName)
+        }
+
+        if (iderInfo.mdName) {
+            let newQuery = Object.assign({}, query)
+            newQuery.mdName = iderInfo.mdName
+            return this.getGlobalModuleCompletion(newQuery)
+        }
+        return null
+    }
+
+    // 从全局符号获取符号定义
+    public getGlobalCompletion(query: SymbolQuery) {
+        let symList = Symbol.instance().getGlobalSymbol();
+
+        return this.checkSymCompletion(symList,query.symName)
+    }
+
+    // 获取当前文档的符号定义
+    public getDocumentCompletion(query: SymbolQuery) {
+        let symList = Symbol.instance().getDocumentSymbol(query.uri);
+
+        return this.checkSymCompletion(symList,query.symName)
+    }
+
+    // 获取局部变量位置
+    // TODO: 局部变量不处理自动完成了，vs code会自动把当前文档的单词提示出来
+    // 不地ts的是有提示的，以后看要不要做
+    public getlocalCompletion(query: SymbolQuery, text: string[]) {
+        return null;
     }
 }

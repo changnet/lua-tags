@@ -41,9 +41,6 @@ class Server {
 
     private rootUri: string | null = null;
 
-    // 哪些字符触发函数提示
-    private readonly triggerCharacters = ['.', ':'];
-
     public constructor() {
         g_utils.initialize(this.connection)
         this.connection.onInitialize(handler => this.onInitialize(handler));
@@ -73,8 +70,9 @@ class Server {
                 definitionProvider: true, // go to definition
                 completionProvider: { // 打.或者:时列出可自动完成的函数
                     // resolve是命中哪个函数后，有一个回调回来，现在用不到
-                    resolveProvider: false,
-                    triggerCharacters: this.triggerCharacters
+                    resolveProvider: false
+                    // 哪些字符触发函数提示
+                    // triggerCharacters: ['.', ':']
                 }
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分
@@ -98,42 +96,6 @@ class Server {
         Symbol.instance().parseRoot(uri.fsPath);
 
         g_utils.log(`Lua initialized done:${this.rootUri}`)
-    }
-
-    // 代码自动完成提示
-    private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
-        const uri = pos.textDocument.uri;
-
-        let query = this.getSymbolQuery(uri,pos.position)
-
-        g_utils.log(`check uri =====${JSON.stringify(query)}`)
-        if (!query) return [];
-
-        // return [
-        //     {
-        //         label: 'TypeScript',
-        //         kind: CompletionItemKind.Text,
-        //         data: 1
-        //     },
-        //     {
-        //         label: 'JavaScript',
-        //         kind: CompletionItemKind.Text,
-        //         data: 2
-        //     }
-        // ];
-
-        let completion = AutoCompletion.instance();
-        // 根据模块名，匹配全局符号
-        let items = completion.getGlobalModuleCompletion(query);
-        if (items) return items;
-
-        // 根据模块名，匹配文档符号
-        items = completion.getDocumentModuleCompletion(query);
-        if (items) return items;
-
-        // 根据局部模块名，匹配符号
-
-        return [];
     }
 
     // 返回当前文档的符号
@@ -174,7 +136,7 @@ class Server {
         handler: WorkspaceSymbolParams): SymbolInformation[] {
         // TODO:这里匹配一下query，甚至做下模糊匹配
         // 全部发给vs code的话，vs code自己会匹配
-        return Symbol.instance().getGlobalSymbol(null) // handler.query
+        return Symbol.instance().getGlobalSymbol() // handler.query
     }
 
     // 根据光标位置分解出要查询的符号信息
@@ -317,6 +279,63 @@ class Server {
         if (!localText) localText = this.getLocalText(query);
         loc = definetion.getlocalDefinition(query,localText);
         if (loc) return loc;
+
+        return [];
+    }
+
+    // 代码自动补全
+    private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
+        const uri = pos.textDocument.uri;
+
+        let query = this.getSymbolQuery(uri,pos.position)
+
+        g_utils.log(`check uri =====${JSON.stringify(query)}`)
+        if (!query) return [];
+
+        // return [
+        //     {
+        //         label: 'TypeScript',
+        //         kind: CompletionItemKind.Text,
+        //         data: 1
+        //     },
+        //     {
+        //         label: 'JavaScript',
+        //         kind: CompletionItemKind.Text,
+        //         data: 2
+        //     }
+        // ];
+
+        let completion = AutoCompletion.instance();
+        // 根据模块名，匹配全局符号
+        let items = completion.getGlobalModuleCompletion(query);
+        if (items) return items;
+
+        // 根据模块名，匹配文档符号
+        items = completion.getDocumentModuleCompletion(query);
+        if (items) return items;
+
+        // 根据局部模块名，匹配符号
+        let localText:string[] | null = null;
+
+        if (query.mdName) {
+            localText = this.getLocalText(query)
+            items = completion.getLocalModuleCompletion(query, localText);
+            if (items) return items;
+        }
+
+        if (query.symName.length <= 0) return [];
+
+        // 根据模块名无法匹配到，下面开始忽略模块名
+        // 当前文档符号匹配
+        items = completion.getDocumentCompletion(query);
+        if (items) return items;
+        // 全局符号匹配
+        items = completion.getGlobalCompletion(query);
+        if (items) return items;
+        // 局部符号匹配
+        if (!localText) localText = this.getLocalText(query);
+        items = completion.getlocalCompletion(query, localText);
+        if (items) return items;
 
         return [];
     }
