@@ -17,7 +17,8 @@ local function test_upvalue(param1, param2,param3)
         A = 1,
         B = 2
     }
-    return function(param11, param12, param13)
+    return
+        function(param11, param12, param13)
         local ins = MetaObject()
 
         local x = param1 + param11 + Hash.A

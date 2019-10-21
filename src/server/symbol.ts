@@ -448,18 +448,32 @@ export class Symbol {
 
     // 检测是否结束作用局域
     // 当遇到本地函数:local function 或者 全局函数:function 时结束
-    private isLocalScopeEnd(token: Token, last: Token | null): boolean {
+    private isLocalScopeEnd(token: Token,
+        last: Token | null, text: string[], line: number): boolean {
         // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
         // return function或者 var = function这种则继续查找upvalue
-        // 对于刚好换行导致function在行首的，暂不考虑
         if (token.value != "function"
             || token.type != LuaTokenType.Keyword) {
             return false;
         }
 
-        if (!last || last.value == "local"
+        // local function
+        if (last && last.value == "local"
             && last.type == LuaTokenType.Keyword) {
             return true;
+        }
+
+        // 没有last，则表明function在行首的，简单处理下面这种换行
+        // local x =
+        //      function()
+        // 加了注释的情况，暂时不考虑。如果要处理这里得用lexer来解析了
+        while (line >= 0) {
+            line = line - 1
+            let lineText = text[line]
+            if (lineText.length > 0) {
+                let isMatch = lineText.match(/[return|=]\s*$/g)
+                return isMatch ? false : true
+            }
         }
 
         return false;
@@ -494,7 +508,7 @@ export class Symbol {
                     foundToken.push(token)
                 }
 
-                if (this.isLocalScopeEnd(token,last)) return [];
+                if (this.isLocalScopeEnd(token, last, text, line)) return [];
 
                 // 查询到对应的符号赋值操作 m = ...
                 if (token.value == mdName
@@ -636,7 +650,7 @@ export class Symbol {
                 token = parser.lex();
 
                 // 作用域结束，但这个符号仍有可能是这个函数的参数，继续查找这一行
-                if (this.isLocalScopeEnd(token, last)) stop = true;
+                if (this.isLocalScopeEnd(token, last, text, line)) stop = true;
 
                 // 查询到对应的符号声明 local m
                 if (token.value == symName
