@@ -139,8 +139,8 @@ class Server {
         return Symbol.instance().getGlobalSymbol() // handler.query
     }
 
-    // 根据光标位置分解出要查询的符号信息
-    private getSymbolQuery(uri: string,pos: Position): SymbolQuery | null {
+    // 获取查询符号所在行的文本内容
+    private getQueryLineText(uri: string, pos: Position): string | null {
         const document = this.documents.get(uri);
 
         if (!document) return null;
@@ -148,11 +148,15 @@ class Server {
         // vs code的行数和字符数是从0开始的，但是状态栏里Ln、Col是从1开始的
 
         // 获取所在行的字符，因为不知道行的长度，直接传一个很大的数字
-        let text = document.getText({
+        return document.getText({
             start: {line: pos.line,character: 0},
             end: {line: pos.line,character: 10240000}
         })
+    }
 
+    // 根据光标位置分解出要查询的符号信息
+    private getSymbolQuery(
+        uri: string, text: string, pos: Position): SymbolQuery | null {
         // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
         const leftText = text.substring(0,pos.character);
         const rightText = text.substring(pos.character);
@@ -236,19 +240,26 @@ class Server {
     private onDefinition(handler: TextDocumentPositionParams): Definition {
         const uri = handler.textDocument.uri;
 
-        let query = this.getSymbolQuery(uri,handler.position)
+        let line = this.getQueryLineText(uri, handler.position);
+        if (!line) return [];
+
+        let loc: Definition | null = null
+        let definetion = GoToDefinition.instance();
+
+        // require("a.b.c") 跳转到对应的文件
+        loc = definetion.getRequireDefinition(line, handler.position);
+        if (loc) return loc;
+
+        let query = this.getSymbolQuery(uri, line, handler.position);
         if (!query || query.symName == "") return [];
 
         g_utils.log(`goto definition ${JSON.stringify(query)}`)
-
-        let loc: Definition | null = null
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
          * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
          * 全局和文档都做了符号hash缓存，因此优先匹配
          */
 
-        let definetion = GoToDefinition.instance();
         // 根据模块名匹配全局
         loc = definetion.getGlobalModuleDefinition(query);
         if (loc) return loc;
@@ -287,7 +298,10 @@ class Server {
     private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
         const uri = pos.textDocument.uri;
 
-        let query = this.getSymbolQuery(uri,pos.position)
+        let line = this.getQueryLineText(uri, pos.position);
+        if (!line) return [];
+
+        let query = this.getSymbolQuery(uri, line, pos.position);
 
         g_utils.log(`check uri =====${JSON.stringify(query)}`)
         if (!query) return [];

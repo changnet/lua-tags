@@ -519,17 +519,17 @@ export class Symbol {
     }
 
     // 获取 require("a.b.c") 中 a.b.c 路径的uri形式
-    private getRequireUri(path: string): string {
+    public getRequireUri(path: string): string {
         // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式
         // uri总是使用a/b/c这种形式
         path = path.replace(/\\/g,"/");
-        path = path.replace(/./g,"/");
+        path = path.replace(/\./g,"/");
 
         // 在所有uri里查询匹配的uri
         // 由于不知道项目中的path设置，因此这个路径其实可长可短
         // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
         for ( let uri in this.documentModule) {
-            if (uri.match(/.lua/g)) return uri
+            if (uri.endsWith(`${path}.lua`)) return uri
         }
 
         return ""

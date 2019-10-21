@@ -123,4 +123,28 @@ export class GoToDefinition {
         let symbol = Symbol.instance();
         return symbol.parselocalSymLocation(query.uri, query.symName, text);
     }
+
+    // require("aaa.bbb")这种，则打开对应的文件
+    public getRequireDefinition(text: string, pos: Position) {
+        // 注意特殊情况下，可能会有 require "a/b" require "a\b"
+        let found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)"\s*[)]?/);
+        if (!found || !found[1]) return null;
+
+        // 光标的位置不在require("a.b.c")范围内
+        let start = text.indexOf(found[0])
+        if (start > pos.character || pos.character > start + found[0].length ) {
+            return null;
+        }
+
+        let uri = Symbol.instance().getRequireUri(found[1]);
+        if ("" == uri) return null;
+
+        return {
+            uri: uri,
+            range: {
+                start: { line: 0, character: 0},
+                end: { line: 0, character: 0}
+            }
+        }
+    }
 }
