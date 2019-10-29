@@ -13,7 +13,8 @@ import {
     FunctionDeclaration,
     LocalStatement,
     AssignmentStatement,
-    Token
+    Token,
+    Expression
 } from 'luaparse';
 
 import {
@@ -214,13 +215,14 @@ export class Symbol {
     // 解析变量声明
     private ParseVariableStatement(node: VariableStatement) {
         // lua支持同时初始化多个变量 local x,y = 1,2
-        for (let variable of node.variables) {
+        for (let index = 0; index < node.variables.length; index ++) {
+            let variable = node.variables[index]
             if (variable.type != "Identifier") continue;
 
             let name: string = variable.name
             this.parseNodeCache[name] = variable
 
-            let sym = this.variableStatementToSym(this.parseUri,name,node)
+            let sym = this.variableStatementToSym(this.parseUri,name,node,index)
             if (sym) {
                 this.parseSymList.push(sym)
             }
@@ -246,26 +248,49 @@ export class Symbol {
         };
     }
 
+    // 获取变量类型
+    private getVariableKind(initExpr: Expression[], index: number) {
+        let kind: SymbolKind = SymbolKind.Variable
+
+        if (initExpr.length <= 0) return kind;
+
+        let init = initExpr[index]
+        switch (init.type) {
+            case "StringLiteral":
+                kind = SymbolKind.String;
+                break;
+            case "NumericLiteral":
+                kind = SymbolKind.Number;
+                break;
+            case "BooleanLiteral":
+                kind = SymbolKind.Boolean;
+                break;
+            case "TableConstructorExpression":
+                kind = SymbolKind.Module;
+                break;
+        }
+        return kind;
+    }
+
     // 把变量声明转换为vs code的符号格式
-    private variableStatementToSym(
-        uri: string, name: string, node: VariableStatement): VSCodeSymbol {
-            let loc = node.loc
-            if (!loc) return null;
+    private variableStatementToSym(uri: string, name: string,
+        node: VariableStatement, index: number): VSCodeSymbol {
+        let loc = node.loc
+        if (!loc) return null;
 
-            // TODO: 判断一下类型，可能是变量，或者const
-            // 为空table或者nil的是变量，为固定table或者数字或者字符串的是const
+        let kind = this.getVariableKind(node.init, index);
 
-            return {
-                name: name,
-                kind: SymbolKind.Variable,
-                location: {
-                    uri: uri,
-                    range: {
-                        start: { line: loc.start.line - 1, character: loc.start.column },
-                        end: { line: loc.end.line - 1, character: loc.end.column }
-                    }
+        return {
+            name: name,
+            kind: kind,
+            location: {
+                uri: uri,
+                range: {
+                    start: { line: loc.start.line - 1, character: loc.start.column },
+                    end: { line: loc.end.line - 1, character: loc.end.column }
                 }
-            };
+            }
+        };
     }
 
     // 更新全局符号缓存
