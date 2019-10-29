@@ -171,7 +171,7 @@ export class Symbol {
                 break;
             case "LocalStatement": // local变量
             case "AssignmentStatement": // 全局变量
-                this.ParseVariableStatement(node);
+                this.parseVariableStatement(node);
                 break
         }
     }
@@ -200,7 +200,7 @@ export class Symbol {
         }
         this.parseNodeCache[name] = node;
 
-        let sym = this.functionNodeToSym(this.parseUri,name,node)
+        let sym = this.functionToSym(this.parseUri,name,node)
         if (sym) {
             this.parseSymList.push(sym)
             if (base) {
@@ -212,8 +212,48 @@ export class Symbol {
         }
     }
 
+    // 只有这几种变量被判断为静态变量去解析
+    private isConstType(rawType: string) {
+        if ("StringLiteral" == rawType
+            || "NumericLiteral" == rawType
+            || "FunctionDeclaration" == rawType
+            || "BooleanLiteral" == rawType) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // 解析子变量
+    // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
+    private parserSubVariable(initExpr: Expression[], index: number) {
+        let init = initExpr[index]
+        if ("TableConstructorExpression" != init.type) return [];
+
+        let symList: SymbolInformation[] = [];
+        for (let field of init.fields) {
+            // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
+            // local M = { a = 1, [2] = 2}这种就只能处理有Key的那部分了
+            if ( ("TableKey" != field.type && "TableKeyString" != field.type)
+                || "Identifier" != field.key.type) {
+                continue;
+            }
+
+            // value值不是固定的，也不处理
+            if (!this.isConstType(field.value.type)) continue;
+
+            let kind = this.getVariableKind(field.value.type)
+            let sym = this.toSym(
+                this.parseUri, field.key.name, kind, field.key.loc)
+
+            symList.push(sym)
+        }
+
+        return symList;
+    }
+
     // 解析变量声明
-    private ParseVariableStatement(node: VariableStatement) {
+    private parseVariableStatement(node: VariableStatement) {
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < node.variables.length; index ++) {
             let variable = node.variables[index]
@@ -222,22 +262,30 @@ export class Symbol {
             let name: string = variable.name
             this.parseNodeCache[name] = variable
 
-            let sym = this.variableStatementToSym(this.parseUri,name,node,index)
-            if (sym) {
-                this.parseSymList.push(sym)
+            let sym = this.variableToSym(this.parseUri,name,node,index)
+            if (!sym) continue;
+
+            this.parseSymList.push(sym)
+
+            if (SymbolKind.Module != sym.kind) continue;
+
+            // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
+            if (!this.parseModule[name]) this.parseModule[name] = [];
+            let subSymList = this.parserSubVariable(node.init, index)
+            g_utils.log(`parse sub variable ${name} ${JSON.stringify(node.init)}`)
+            for (let subSym of subSymList) {
+                this.parseSymList.push(subSym)
+                this.parseModule[name].push(subSym)
             }
         }
     }
 
-    // 把luaparse的node转换为vs code的符号格式
-    private functionNodeToSym(
-        uri: string, name: string, node: FunctionDeclaration): VSCodeSymbol {
-        let loc = node.loc
-        if (!loc) return null;
-
+    // 构建一个vs code的符号
+    // @loc: luaparse中的loc位置结构
+    private toSym(uri: string, name: string, kind: SymbolKind, loc: any) {
         return {
             name: name,
-            kind: SymbolKind.Function,
+            kind: kind,
             location: {
                 uri: uri,
                 range: {
@@ -248,14 +296,20 @@ export class Symbol {
         };
     }
 
+    // 把luaparse的node转换为vs code的符号格式
+    private functionToSym(
+        uri: string, name: string, node: FunctionDeclaration): VSCodeSymbol {
+        let loc = node.loc
+        if (!loc) return null;
+
+        return this.toSym(uri, name, SymbolKind.Function, loc)
+    }
+
     // 获取变量类型
-    private getVariableKind(initExpr: Expression[], index: number) {
+    private getVariableKind(rawType: string) {
         let kind: SymbolKind = SymbolKind.Variable
 
-        if (initExpr.length <= 0) return kind;
-
-        let init = initExpr[index]
-        switch (init.type) {
+        switch (rawType) {
             case "StringLiteral":
                 kind = SymbolKind.String;
                 break;
@@ -273,24 +327,17 @@ export class Symbol {
     }
 
     // 把变量声明转换为vs code的符号格式
-    private variableStatementToSym(uri: string, name: string,
+    private variableToSym(uri: string, name: string,
         node: VariableStatement, index: number): VSCodeSymbol {
         let loc = node.loc
         if (!loc) return null;
 
-        let kind = this.getVariableKind(node.init, index);
+        let kind: SymbolKind = SymbolKind.Variable;
+        if (node.init.length > index) {
+            kind = this.getVariableKind(node.init[index].type);
+        }
 
-        return {
-            name: name,
-            kind: kind,
-            location: {
-                uri: uri,
-                range: {
-                    start: { line: loc.start.line - 1, character: loc.start.column },
-                    end: { line: loc.end.line - 1, character: loc.end.column }
-                }
-            }
-        };
+        return this.toSym(uri, name, kind, loc)
     }
 
     // 更新全局符号缓存

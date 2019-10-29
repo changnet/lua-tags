@@ -36,8 +36,13 @@ local M, N, X, Y = {}, 1, "X", false
 -- 测试枚举
 local ENUM =
 {
-    E_NONE = 1,
-    E_DEFAULT = 2,
+    E_NUMBER = 1,
+    E_STRING = "hello",
+    E_BOOLEAN = true,
+    E_EXPRESS = 4 + 0, -- unsupport for now
+    E_FUNCTION = function() end,
+    E_UNKNOW = unknow, -- unsupport for now
 
-    E_MAX
+    E_MAX -- unsupport for now
 }
+ENUM.TEST = 3 -- unsupport for now
