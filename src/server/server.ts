@@ -70,9 +70,11 @@ class Server {
                 definitionProvider: true, // go to definition
                 completionProvider: { // 打.或者:时列出可自动完成的函数
                     // resolve是命中哪个函数后，有一个回调回来，现在用不到
-                    resolveProvider: false
+                    resolveProvider: false,
                     // 哪些字符触发函数提示
-                    // triggerCharacters: ['.', ':']
+                    // 默认情况下，vs code是代码部分都会请求自动补全
+                    // 但在字符串里，只有这些特殊字符才会触发，比如做路径补全时用到
+                    triggerCharacters: ['.']
                 }
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分
@@ -301,6 +303,11 @@ class Server {
         let line = this.getQueryLineText(uri, pos.position);
         if (!line) return [];
 
+        let completion = AutoCompletion.instance();
+        // 根据模块名，匹配全局符号
+        let items = completion.getRequireCompletion(line, pos.position.character)
+        if (items) return items;
+
         let query = this.getSymbolQuery(uri, line, pos.position);
 
         g_utils.log(`check uri =====${JSON.stringify(query)}`)
@@ -319,9 +326,9 @@ class Server {
         //     }
         // ];
 
-        let completion = AutoCompletion.instance();
+
         // 根据模块名，匹配全局符号
-        let items = completion.getGlobalModuleCompletion(query);
+        items = completion.getGlobalModuleCompletion(query);
         if (items) return items;
 
         // 根据模块名，匹配文档符号

@@ -51,6 +51,7 @@ export class AutoCompletion {
         switch (sym.kind) {
             case SymbolKind.Function: kind = CompletionItemKind.Function; break;
             case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
+            case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
         let file = sym.location.uri.match(/\/(\w+.\w+)$/)
@@ -154,5 +155,41 @@ export class AutoCompletion {
     // 不地ts的是有提示的，以后看要不要做
     public getlocalCompletion(query: SymbolQuery, text: string[]) {
         return null;
+    }
+
+    // require "a.b.c" 自动补全后面的路径
+    public getRequireCompletion(line: string, pos: number) {
+        const text = line.substring(0,pos);
+
+        let found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)/);
+        if (!found || !found[1]) return null;
+
+        let symbol = Symbol.instance();
+        let path = symbol.toUriFormat(found[1]);
+
+        let leftWord: string | null = null
+        let lMathList = path.match(/\w*$/g);
+        if (lMathList) leftWord = lMathList[0];
+
+        let items: CompletionItem[] = [];
+
+        const uris = symbol.getAllDocUri();
+        for (let uri of uris) {
+            let index = uri.indexOf(path);
+            if (index < 0) continue;
+
+            let rightText = uri.substring(index + path.length);
+
+            let rMatchList = rightText.match(/^\w*/g);
+            if (!rMatchList) continue;
+
+            let name = rMatchList[0]
+            if (leftWord) name = leftWord + name;
+
+            items.push({label: name,kind: CompletionItemKind.File})
+        }
+
+        if (items.length <= 0) return null;
+        return items;
     }
 }

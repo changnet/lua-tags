@@ -1,6 +1,9 @@
 local MetaObject = require "meta_object"
 local NewObject  = require("new_object")
 
+-- 测试路径补全，打出这个.号才会触发路径补全
+require "lite."
+
 -- 测试oo类型对象成员函数跳转
 local mo = MetaObject()
 mo:show()

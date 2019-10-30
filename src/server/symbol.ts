@@ -41,6 +41,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs"
+import { generateKeyPairSync } from "crypto";
 
 // luaParser.lex()
 // https://github.com/oxyc/luaparse
@@ -426,6 +427,11 @@ export class Symbol {
         //g_utils.log(`parse done ${JSON.stringify(this.parseSymList)}`)
     }
 
+    // 获取所有文档的uri
+    public getAllDocUri() {
+        return Object.keys(this.documentSymbol)
+    }
+
     // 获取某个文档的符号
     public getDocumentSymbol(uri: string): SymbolInformation[] | null {
         let symList: SymbolInformation[] = this.documentSymbol[uri]
@@ -604,12 +610,19 @@ export class Symbol {
         return foundToken
     }
 
-    // 获取 require("a.b.c") 中 a.b.c 路径的uri形式
-    public getRequireUri(path: string): string {
+    // 转换成uri路径格式
+    public toUriFormat(path: string): string {
         // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式
         // uri总是使用a/b/c这种形式
         path = path.replace(/\\/g,"/");
         path = path.replace(/\./g,"/");
+
+        return path;
+    }
+
+    // 获取 require("a.b.c") 中 a.b.c 路径的uri形式
+    public getRequireUri(path: string): string {
+        path = this.toUriFormat(path)
 
         // 在所有uri里查询匹配的uri
         // 由于不知道项目中的path设置，因此这个路径其实可长可短
