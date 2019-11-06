@@ -204,7 +204,8 @@ class Server {
             symName: symName,
             kind: kind,
             leftWords: matchWords,
-            position: pos
+            position: pos,
+            text: text
         }
     }
 
@@ -284,9 +285,11 @@ class Server {
 
         // 当前文档符号匹配
         loc = definetion.getDocumentDefinition(query);
+        loc = definetion.localizationFilter(query, loc);
         if (loc) return loc;
         // 全局符号匹配
         loc = definetion.getGlobalDefinition(query);
+        loc = definetion.localizationFilter(query, loc);
         if (loc) return loc;
         // 局部符号匹配
         if (!localText) localText = this.getLocalText(query);

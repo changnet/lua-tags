@@ -68,6 +68,7 @@ export interface SymbolQuery {
     kind: SymbolKind; // 查询的符号是什么类型
     leftWords: string | null; // 光标左边分解得到需要查询的字符串
     position: Position; // 光标位置
+    text: string; // 符号所在的整行代码
 }
 
 /* luaparse
@@ -213,18 +214,6 @@ export class Symbol {
         }
     }
 
-    // 只有这几种变量被判断为静态变量去解析
-    private isConstType(rawType: string) {
-        if ("StringLiteral" == rawType
-            || "NumericLiteral" == rawType
-            || "FunctionDeclaration" == rawType
-            || "BooleanLiteral" == rawType) {
-            return true;
-        }
-
-        return false;
-    }
-
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
     private parserSubVariable(initExpr: Expression[], index: number) {
@@ -239,9 +228,6 @@ export class Symbol {
                 || "Identifier" != field.key.type) {
                 continue;
             }
-
-            // value值不是固定的，也不处理
-            if (!this.isConstType(field.value.type)) continue;
 
             let kind = this.getVariableKind(field.value.type)
             let sym = this.toSym(
@@ -273,7 +259,7 @@ export class Symbol {
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             if (!this.parseModule[name]) this.parseModule[name] = [];
             let subSymList = this.parserSubVariable(node.init, index)
-            g_utils.log(`parse sub variable ${name} ${JSON.stringify(node.init)}`)
+
             for (let subSym of subSymList) {
                 this.parseSymList.push(subSym)
                 this.parseModule[name].push(subSym)
@@ -330,7 +316,7 @@ export class Symbol {
     // 把变量声明转换为vs code的符号格式
     private variableToSym(uri: string, name: string,
         node: VariableStatement, index: number): VSCodeSymbol {
-        let loc = node.loc
+        let loc = node.variables[index].loc
         if (!loc) return null;
 
         let kind: SymbolKind = SymbolKind.Variable;

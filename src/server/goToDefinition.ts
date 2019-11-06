@@ -147,4 +147,35 @@ export class GoToDefinition {
             }
         }
     }
+
+    // 判断是否本地化
+    private isLocalization(query: SymbolQuery,loc: Location) {
+        if (query.uri != loc.uri) return false;
+        if (query.position.line != loc.range.start.line) return false;
+
+        // 找出 M = M
+        let re = new RegExp(query.symName + "\\s*=\\s*" + query.symName,"g");
+        let match = query.text.match(re);
+
+        if (!match) return false;
+
+        let startIdx = query.text.indexOf(match[0]);
+        let eqIdx = query.text.indexOf("=", startIdx);
+
+        // 在等号右边就是本地化的符号，要查找原符号才行
+        return query.position.character > eqIdx ? true : false;
+    }
+
+    // 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M
+    public localizationFilter(query: SymbolQuery, loc: Definition | null) {
+        if (!loc) return null;
+
+        if (!(loc instanceof Array)) {
+            return this.isLocalization(query,loc) ? null : loc;
+        }
+
+        let newLoc = loc.filter(oneLoc => !this.isLocalization(query,oneLoc));
+
+        return newLoc.length > 0 ? newLoc : null;
+    }
 }

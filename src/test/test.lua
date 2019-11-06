@@ -2,7 +2,7 @@ local MetaObject = require "meta_object"
 local NewObject  = require("new_object")
 
 -- 测试路径补全，打出这个.号才会触发路径补全
-require "lite."
+require "conf."
 
 -- 测试oo类型对象成员函数跳转
 local mo = MetaObject()
@@ -42,10 +42,16 @@ local ENUM =
     E_NUMBER = 1,
     E_STRING = "hello",
     E_BOOLEAN = true,
-    E_EXPRESS = 4 + 0, -- unsupport for now
+    E_EXPRESS = 4 + 0,
     E_FUNCTION = function() end,
-    E_UNKNOW = unknow, -- unsupport for now
+    E_UNKNOW = unknow,
 
     E_MAX -- unsupport for now
 }
 ENUM.TEST = 3 -- unsupport for now
+
+-- 测试本地化，注意后面的符号要能跳转到原符号
+local LiteConf = LiteConf
+
+--  测试真正类型自动补全，打出下面的点号，应该能够补全
+-- LiteConf.
