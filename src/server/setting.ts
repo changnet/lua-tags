@@ -17,4 +17,4 @@ class Setting {
     public maxFileSize: number = 100 * 1024;
 }
 
-export var g_setting = new Setting()
+export var g_setting = new Setting();

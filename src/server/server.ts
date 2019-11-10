@@ -21,12 +21,12 @@ import {
 import {
     Symbol,
     SymbolQuery
-} from "./symbol"
+} from "./symbol";
 
 import Uri from 'vscode-uri';
-import { g_utils } from "./utils"
-import { AutoCompletion } from "./autoCompletion"
-import { GoToDefinition } from "./goToDefinition"
+import { g_utils } from "./utils";
+import { AutoCompletion } from "./autoCompletion";
+import { GoToDefinition } from "./goToDefinition";
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -42,7 +42,7 @@ class Server {
     private rootUri: string | null = null;
 
     public constructor() {
-        g_utils.initialize(this.connection)
+        g_utils.initialize(this.connection);
         this.connection.onInitialize(handler => this.onInitialize(handler));
         this.connection.onInitialized(() => this.onInitialized());
         this.connection.onCompletion(pos => this.onCompletion(pos));
@@ -82,7 +82,7 @@ class Server {
         };
     }
     private onInitialized() {
-        g_utils.log(`Lua LSP Server started:${this.rootUri}`)
+        g_utils.log(`Lua LSP Server started:${this.rootUri}`);
 
         /* non-null assertion operator
          * A new ! post-fix expression operator may be used to assert that its
@@ -97,7 +97,7 @@ class Server {
         const uri = Uri.parse(this.rootUri!);
         Symbol.instance().parseRoot(uri.fsPath);
 
-        g_utils.log(`Lua initialized done:${this.rootUri}`)
+        g_utils.log(`Lua initialized done:${this.rootUri}`);
     }
 
     // 返回当前文档的符号
@@ -117,7 +117,7 @@ class Server {
         // 刚启动的时候，还没来得及解析文件
         // 如果就已经打开文件了，优先解析这一个，多次解析同一个文件不影响
         let symbol = Symbol.instance();
-        let symList = symbol.getDocumentSymbol(uri)
+        let symList = symbol.getDocumentSymbol(uri);
         if (!symList) {
             const document = this.documents.get(uri);
             if (!document) {
@@ -127,10 +127,10 @@ class Server {
             const text = document.getText();
             symbol.parse(uri, text);
 
-            symList = symbol.getDocumentSymbol(uri)
+            symList = symbol.getDocumentSymbol(uri);
         }
 
-        return symList ? symList : []
+        return symList ? symList : [];
     }
 
     // 返回工作目录的符号(全局符号列表)
@@ -138,37 +138,37 @@ class Server {
         handler: WorkspaceSymbolParams): SymbolInformation[] {
         // TODO:这里匹配一下query，甚至做下模糊匹配
         // 全部发给vs code的话，vs code自己会匹配
-        return Symbol.instance().getGlobalSymbol() // handler.query
+        return Symbol.instance().getGlobalSymbol(); // handler.query
     }
 
     // 获取查询符号所在行的文本内容
     private getQueryLineText(uri: string, pos: Position): string | null {
         const document = this.documents.get(uri);
 
-        if (!document) return null;
+        if (!document) { return null; }
 
         // vs code的行数和字符数是从0开始的，但是状态栏里Ln、Col是从1开始的
 
         // 获取所在行的字符，因为不知道行的长度，直接传一个很大的数字
         return document.getText({
-            start: {line: pos.line,character: 0},
-            end: {line: pos.line,character: 10240000}
-        })
+            start: { line: pos.line, character: 0 },
+            end: { line: pos.line, character: 10240000 }
+        });
     }
 
     // 根据光标位置分解出要查询的符号信息
     private getSymbolQuery(
         uri: string, text: string, pos: Position): SymbolQuery | null {
         // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
-        const leftText = text.substring(0,pos.character);
+        const leftText = text.substring(0, pos.character);
         const rightText = text.substring(pos.character);
 
         // let module = null;
-        let symName: string = ""
-        let kind: SymbolKind = SymbolKind.Variable
+        let symName: string = "";
+        let kind: SymbolKind = SymbolKind.Variable;
 
         // 模块名，即m:test()中的m
-        let mdName: string | null = null
+        let mdName: string | null = null;
 
         // 匹配到的字符
         let matchWords: string | null = null;
@@ -185,17 +185,17 @@ class Server {
         if (leftWords) {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
-            matchWords = leftWords[0]
-            if (leftWords[2]) mdName = leftWords[2];
-            if (leftWords[4]) symName = leftWords[4];
+            matchWords = leftWords[0];
+            if (leftWords[2]) { mdName = leftWords[2]; }
+            if (leftWords[4]) { symName = leftWords[4]; }
         }
 
         // test()分解成test和(，如果不是函数调用，则第二个括号则不存在
         const rightWords = rightText.match(/^(\w+)\s*(\()?/);
         if (rightWords) {
             // test() 匹配到 ["test(","test","("]
-            if (rightWords[1]) symName += rightWords[1];
-            if (rightWords[2]) kind = SymbolKind.Function;
+            if (rightWords[1]) { symName += rightWords[1]; }
+            if (rightWords[2]) { kind = SymbolKind.Function; }
         }
 
         return {
@@ -206,14 +206,14 @@ class Server {
             leftWords: matchWords,
             position: pos,
             text: text
-        }
+        };
     }
 
     // 获取查询本地符号需要解析的文本内容
     private getLocalText(query: SymbolQuery): string[] {
         const document = this.documents.get(query.uri);
 
-        if (!document) return [];
+        if (!document) { return []; }
 
         const line = query.position.line;
         const matchWords = query.leftWords;
@@ -224,19 +224,19 @@ class Server {
         if (lines.length < line + 1) {
             g_utils.log(
                 `document lines error ${
-                    query.uri} expect ${line} got ${lines.length}`)
-            return []
+                query.uri} expect ${line} got ${lines.length}`);
+            return [];
         }
 
         // 去掉多余的行数
-        lines.length = line + 1
+        lines.length = line + 1;
         // 把当前行中已匹配的内容去掉
         if (matchWords) {
             lines[line] = lines[line].substring(
-                0, query.position.character - matchWords.length)
+                0, query.position.character - matchWords.length);
         }
 
-        return lines
+        return lines;
     }
 
     // go to definetion
@@ -244,19 +244,19 @@ class Server {
         const uri = handler.textDocument.uri;
 
         let line = this.getQueryLineText(uri, handler.position);
-        if (!line) return [];
+        if (!line) { return []; }
 
-        let loc: Definition | null = null
+        let loc: Definition | null = null;
         let definetion = GoToDefinition.instance();
 
         // require("a.b.c") 跳转到对应的文件
         loc = definetion.getRequireDefinition(line, handler.position);
-        if (loc) return loc;
+        if (loc) { return loc; }
 
         let query = this.getSymbolQuery(uri, line, handler.position);
-        if (!query || query.symName == "") return [];
+        if (!query || query.symName === "") { return []; }
 
-        g_utils.log(`goto definition ${JSON.stringify(query)}`)
+        g_utils.log(`goto definition ${JSON.stringify(query)}`);
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
          * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
@@ -265,19 +265,19 @@ class Server {
 
         // 根据模块名匹配全局
         loc = definetion.getGlobalModuleDefinition(query);
-        if (loc) return loc;
+        if (loc) { return loc; }
 
         // 根据模块名匹配当前文档
         loc = definetion.getDocumentModuleDefinition(query);
-        if (loc) return loc;
+        if (loc) { return loc; }
 
         // 根据模块名匹配局部变量
-        let localText:string[] | null = null;
+        let localText: string[] | null = null;
 
         if (query.mdName) {
-            localText = this.getLocalText(query)
+            localText = this.getLocalText(query);
             loc = definetion.getLocalModuleDefinition(query, localText);
-            if (loc) return loc;
+            if (loc) { return loc; }
         }
 
         // 上面的方法都找不到，可能是根本没有模块名mdName
@@ -286,15 +286,15 @@ class Server {
         // 当前文档符号匹配
         loc = definetion.getDocumentDefinition(query);
         loc = definetion.localizationFilter(query, loc);
-        if (loc) return loc;
+        if (loc) { return loc; }
         // 全局符号匹配
         loc = definetion.getGlobalDefinition(query);
         loc = definetion.localizationFilter(query, loc);
-        if (loc) return loc;
+        if (loc) { return loc; }
         // 局部符号匹配
-        if (!localText) localText = this.getLocalText(query);
-        loc = definetion.getlocalDefinition(query,localText);
-        if (loc) return loc;
+        if (!localText) { localText = this.getLocalText(query); }
+        loc = definetion.getlocalDefinition(query, localText);
+        if (loc) { return loc; }
 
         return [];
     }
@@ -304,17 +304,17 @@ class Server {
         const uri = pos.textDocument.uri;
 
         let line = this.getQueryLineText(uri, pos.position);
-        if (!line) return [];
+        if (!line) { return []; }
 
         let completion = AutoCompletion.instance();
         // 根据模块名，匹配全局符号
-        let items = completion.getRequireCompletion(line, pos.position.character)
-        if (items) return items;
+        let items = completion.getRequireCompletion(line, pos.position.character);
+        if (items) { return items; }
 
         let query = this.getSymbolQuery(uri, line, pos.position);
 
-        g_utils.log(`check uri =====${JSON.stringify(query)}`)
-        if (!query) return [];
+        g_utils.log(`check uri =====${JSON.stringify(query)}`);
+        if (!query) { return []; }
 
         // return [
         //     {
@@ -332,39 +332,39 @@ class Server {
 
         // 根据模块名，匹配全局符号
         items = completion.getGlobalModuleCompletion(query);
-        if (items) return items;
+        if (items) { return items; }
 
         // 根据模块名，匹配文档符号
         items = completion.getDocumentModuleCompletion(query);
-        if (items) return items;
+        if (items) { return items; }
 
         // 根据局部模块名，匹配符号
-        let localText:string[] | null = null;
+        let localText: string[] | null = null;
 
         if (query.mdName) {
-            localText = this.getLocalText(query)
+            localText = this.getLocalText(query);
             items = completion.getLocalModuleCompletion(query, localText);
-            if (items) return items;
+            if (items) { return items; }
         }
 
-        if (query.symName.length <= 0) return [];
+        if (query.symName.length <= 0) { return []; }
 
         // 根据模块名无法匹配到，下面开始忽略模块名
         // 当前文档符号匹配
         items = completion.getDocumentCompletion(query);
-        if (items) return items;
+        if (items) { return items; }
         // 全局符号匹配
         items = completion.getGlobalCompletion(query);
-        if (items) return items;
+        if (items) { return items; }
         // 局部符号匹配
-        if (!localText) localText = this.getLocalText(query);
+        if (!localText) { localText = this.getLocalText(query); }
         items = completion.getlocalCompletion(query, localText);
-        if (items) return items;
+        if (items) { return items; }
 
         return [];
     }
 }
 
-let srv = new Server()
-srv.init()
+let srv = new Server();
+srv.init();
 

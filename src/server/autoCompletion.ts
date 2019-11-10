@@ -25,9 +25,9 @@ import {
 import {
     Symbol,
     SymbolQuery
-} from "./symbol"
+} from "./symbol";
 
-import * as fuzzysort from "fuzzysort"
+import * as fuzzysort from "fuzzysort";
 import { g_utils } from './utils';
 
 export class AutoCompletion {
@@ -47,21 +47,21 @@ export class AutoCompletion {
 
     // 符号转自动完成格式
     private symbolToComplition(sym: SymbolInformation): CompletionItem {
-        let kind: CompletionItemKind = CompletionItemKind.Text
+        let kind: CompletionItemKind = CompletionItemKind.Text;
         switch (sym.kind) {
             case SymbolKind.Function: kind = CompletionItemKind.Function; break;
             case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
             case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
-        let file = sym.location.uri.match(/\/(\w+.\w+)$/)
+        let file = sym.location.uri.match(/\/(\w+.\w+)$/);
 
         let item: CompletionItem = {
             label: sym.name,
             kind: kind
         };
 
-        if (file) item.detail = file[1];
+        if (file) { item.detail = file[1]; }
 
         return item;
     }
@@ -69,9 +69,9 @@ export class AutoCompletion {
     // 检测列表中哪些符号需要显示在自动完成列表
     private checkSymCompletion(
         symList: SymbolInformation[] | null, symName: string) {
-        if (!symList) return null;
+        if (!symList) { return null; }
 
-        let items: CompletionItem[] = []
+        let items: CompletionItem[] = [];
         for (let sym of symList) {
             // let res = fuzzysort.single(symName,sym.name)
             // https://github.com/farzher/fuzzysort
@@ -80,12 +80,12 @@ export class AutoCompletion {
             // 不匹配返回null
             // g_utils.log(`check match ${symName} ${sym.name}
             //    ${JSON.stringify(fuzzysort.single(symName,sym.name))}`)
-            if (0 == symName.length || fuzzysort.single(symName,sym.name)) {
+            if (0 === symName.length || fuzzysort.single(symName, sym.name)) {
                 items.push(this.symbolToComplition(sym));
             }
         }
 
-        if (items.length > 0) return items;
+        if (items.length > 0) { return items; }
 
         return null;
     }
@@ -94,60 +94,60 @@ export class AutoCompletion {
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
     public getGlobalModuleCompletion(query: SymbolQuery) {
-        let mdName = query.mdName
-        if (!mdName || "self" == mdName) return null;
+        let mdName = query.mdName;
+        if (!mdName || "self" === mdName) { return null; }
 
         let symList = Symbol.instance().getGlobalModule(mdName);
 
-        return this.checkSymCompletion(symList,query.symName)
+        return this.checkSymCompletion(symList, query.symName);
     }
 
     // 根据模块名查找某个文档的符号位置
     public getDocumentModuleCompletion(query: SymbolQuery) {
-        let mdName = query.mdName
-        if (!mdName) return null;
+        let mdName = query.mdName;
+        if (!mdName) { return null; }
 
         let symbol = Symbol.instance();
-        let rawUri = symbol.getRawUri(query.uri,mdName)
+        let rawUri = symbol.getRawUri(query.uri, mdName);
 
         return this.checkSymCompletion(
-            symbol.getDocumentModule(rawUri,mdName),query.symName)
+            symbol.getDocumentModule(rawUri, mdName), query.symName);
     }
 
     // 根据模块名查询局部变量位置
     public getLocalModuleCompletion(query: SymbolQuery, text: string[]) {
-        let mdName = query.mdName
-        if (!mdName) return null;
+        let mdName = query.mdName;
+        if (!mdName) { return null; }
 
         let symbol = Symbol.instance();
         let iderInfo = symbol.getLocalRawModule(mdName, text);
-        if (!iderInfo) return null;
+        if (!iderInfo) { return null; }
 
         if (iderInfo.uri) {
-            let symList = symbol.getDocumentSymbol(iderInfo.uri)
-            return this.checkSymCompletion(symList, query.symName)
+            let symList = symbol.getDocumentSymbol(iderInfo.uri);
+            return this.checkSymCompletion(symList, query.symName);
         }
 
         if (iderInfo.mdName) {
-            let newQuery = Object.assign({}, query)
-            newQuery.mdName = iderInfo.mdName
-            return this.getGlobalModuleCompletion(newQuery)
+            let newQuery = Object.assign({}, query);
+            newQuery.mdName = iderInfo.mdName;
+            return this.getGlobalModuleCompletion(newQuery);
         }
-        return null
+        return null;
     }
 
     // 从全局符号获取符号定义
     public getGlobalCompletion(query: SymbolQuery) {
         let symList = Symbol.instance().getGlobalSymbol();
 
-        return this.checkSymCompletion(symList,query.symName)
+        return this.checkSymCompletion(symList, query.symName);
     }
 
     // 获取当前文档的符号定义
     public getDocumentCompletion(query: SymbolQuery) {
         let symList = Symbol.instance().getDocumentSymbol(query.uri);
 
-        return this.checkSymCompletion(symList,query.symName)
+        return this.checkSymCompletion(symList, query.symName);
     }
 
     // 获取局部变量位置
@@ -159,37 +159,37 @@ export class AutoCompletion {
 
     // require "a.b.c" 自动补全后面的路径
     public getRequireCompletion(line: string, pos: number) {
-        const text = line.substring(0,pos);
+        const text = line.substring(0, pos);
 
         let found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)/);
-        if (!found || !found[1]) return null;
+        if (!found || !found[1]) { return null; }
 
         let symbol = Symbol.instance();
         let path = symbol.toUriFormat(found[1]);
 
-        let leftWord: string | null = null
+        let leftWord: string | null = null;
         let lMathList = path.match(/\w*$/g);
-        if (lMathList) leftWord = lMathList[0];
+        if (lMathList) { leftWord = lMathList[0]; }
 
         let items: CompletionItem[] = [];
 
         const uris = symbol.getAllDocUri();
         for (let uri of uris) {
             let index = uri.indexOf(path);
-            if (index < 0) continue;
+            if (index < 0) { continue; }
 
             let rightText = uri.substring(index + path.length);
 
             let rMatchList = rightText.match(/^\w*/g);
-            if (!rMatchList) continue;
+            if (!rMatchList) { continue; }
 
-            let name = rMatchList[0]
-            if (leftWord) name = leftWord + name;
+            let name = rMatchList[0];
+            if (leftWord) { name = leftWord + name; }
 
-            items.push({label: name,kind: CompletionItemKind.File})
+            items.push({ label: name, kind: CompletionItemKind.File });
         }
 
-        if (items.length <= 0) return null;
+        if (items.length <= 0) { return null; }
         return items;
     }
 }

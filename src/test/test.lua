@@ -48,7 +48,12 @@ local ENUM =
 
     E_MAX -- unsupport for now
 }
-ENUM.TEST = 3 -- unsupport for now
+ENUM.TEST = 3
+
+-- test function assignment
+table.empty = function(tbl)
+    return not next(tbl)
+end
 
 -- 测试本地化，注意后面的符号要能跳转到原符号
 local LiteConf = LiteConf

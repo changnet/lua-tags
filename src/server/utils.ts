@@ -4,18 +4,18 @@ import {
 } from 'vscode-languageserver';
 
 class Utils {
-    private conn:Connection | null = null;
+    private conn: Connection | null = null;
 
-    public initialize(conn:Connection) {
+    public initialize(conn: Connection) {
         this.conn = conn;
     }
 
     public log(ctx: string) {
-        this.conn!.console.log(ctx)
+        this.conn!.console.log(ctx);
     }
 
-    public diagnostics(uri: string,diags: Diagnostic[]): void {
-        this.conn!.sendDiagnostics({uri: uri,diagnostics: diags});
+    public diagnostics(uri: string, diags: Diagnostic[]): void {
+        this.conn!.sendDiagnostics({ uri: uri, diagnostics: diags });
     }
 }
 
