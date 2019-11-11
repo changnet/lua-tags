@@ -65,6 +65,7 @@ class Server {
 
     private onInitialize(params: InitializeParams) {
         this.rootUri = params.rootUri;
+        g_setting.setRootPath(this.rootUri || "");
 
         return {
             capabilities: {
