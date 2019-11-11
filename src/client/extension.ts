@@ -58,7 +58,9 @@ export function activate(context: vscode.ExtensionContext) {
         ],
         synchronize: {
             // Notify the server about file changes
-            configurationSection: ['lua']
+            configurationSection: ['lua'],
+            // 检测文件变动，onDidChangeWatchedFiles事件才会触发
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua')
         }
     };
 
@@ -83,4 +85,4 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // this method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }

@@ -411,7 +411,9 @@ export class Symbol {
                 source: 'luaparse'
             };
 
-            g_utils.diagnostics(uri, [diagnostic]);
+            // 这个会导致在写代码写一半的时候频繁报错，暂时不启用
+            // 后面在保存文件的时候lint一下就好了
+            // g_utils.diagnostics(uri, [diagnostic]);
             return [];
         }
 

@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 import {
     Definition,
     createConnection,
@@ -16,7 +18,9 @@ import {
     TextDocumentPositionParams,
     SymbolKind,
     Position,
-    TextDocumentChangeEvent
+    DidChangeWatchedFilesParams,
+    TextDocumentChangeEvent,
+    FileChangeType
 } from 'vscode-languageserver';
 
 import {
@@ -40,6 +44,11 @@ class Server {
     // supports full document sync only
     private documents: TextDocuments = new TextDocuments();
 
+    // 检测文件增删
+    // private fileWatcher =
+    //     vscode.workspace.createFileSystemWatcher(
+    //         "**/*.lua", false, true, false);
+
     private rootUri: string | null = null;
 
     public constructor() {
@@ -53,6 +62,7 @@ class Server {
         conn.onDocumentSymbol(handler => this.onDocumentSymbol(handler));
         conn.onWorkspaceSymbol(handler => this.onWorkspaceSymbol(handler));
         conn.onDefinition(handler => this.onDefinition(handler));
+        conn.onDidChangeWatchedFiles(handler => this.onFilesChange(handler));
 
         let doc = this.documents;
         doc.onDidChangeContent(handler => this.onDocumentChange(handler));
@@ -376,6 +386,21 @@ class Server {
     private onDocumentChange(handler: TextDocumentChangeEvent) {
         let uri = handler.document.uri;
         Symbol.instance().parse(uri, handler.document.getText());
+    }
+
+    // 文件增删
+    private onFilesChange(handler: DidChangeWatchedFilesParams) {
+        // 文件内容变化(保存的时候，不是输入的时候)这里也会触发
+        // 但不在这里处理，在 onDidChangeContent 处理
+        // 那边无论是文件内容被其他程序修改，还是临时输入都会触发
+        for (let event of handler.changes) {
+            if (FileChangeType.Created === event.type) {
+
+            }
+            else if (FileChangeType.Deleted === event.type) {
+
+            }
+        }
     }
 }
 
