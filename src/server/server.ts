@@ -124,6 +124,7 @@ class Server {
 
         // 刚启动的时候，还没来得及解析文件
         // 如果就已经打开文件了，优先解析这一个，多次解析同一个文件不影响
+        // 或者这个文件不是工程目录里的文件，不做缓存
         let symbol = Symbol.instance();
         let symList = symbol.getDocumentSymbol(uri);
         if (!symList) {
@@ -133,9 +134,7 @@ class Server {
             }
 
             const text = document.getText();
-            symbol.parse(uri, text);
-
-            symList = symbol.getDocumentSymbol(uri);
+            symList = symbol.parse(uri, text);
         }
 
         return symList ? symList : [];
@@ -375,7 +374,8 @@ class Server {
 
     // 文件内容变化，自己输入或者被其他软件修改都会触发
     private onDocumentChange(handler: TextDocumentChangeEvent) {
-        g_utils.log(`doc change ==== ${JSON.stringify(handler)}`);
+        let uri = handler.document.uri;
+        Symbol.instance().parse(uri, handler.document.getText());
     }
 }
 

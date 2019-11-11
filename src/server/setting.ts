@@ -50,6 +50,13 @@ class Setting {
 
         // 是否被排除
         let isExclude = false;
+        for (let dir of this.excludeDir) {
+            let re = new RegExp(`${this.rootPath}/${dir}`, "g");
+            if (uri.match(re)) {
+                isExclude = true;
+                break;
+            }
+        }
 
         if (!isInPro || isExclude) {
             return FileType.FT_SINGLE;

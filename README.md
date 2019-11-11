@@ -28,14 +28,7 @@ This extension contributes the following settings:
 * `myExtension.thing`: set to `blah` to do something
 
 ## Todo
-* Document Symbol:
-  打开工程时生成缓存
-  保存文件时更新
-  如果失败，使用上次的
-* Workspace Symbol:
-  做一个全局缓存，从各个文档缓存取
-  如果某个文件有变化，就清空全局缓存，下次取全局时重新生成缓存
-* Go to Definition
-    优先和全局类型匹配，对就直接跳转
-    直接匹配函数名，给出列表
+https://code.visualstudio.com/api/references/vscode-api
+match(selector: DocumentSelector, document: TextDocument): number
+使用match来筛选文件
 

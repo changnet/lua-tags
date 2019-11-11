@@ -1,7 +1,7 @@
 // 符号处理
 
 import { g_utils } from "./utils";
-import { g_setting } from "./setting";
+import { g_setting, FileType } from "./setting";
 
 import {
     Options,
@@ -380,7 +380,12 @@ export class Symbol {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string) {
+    public parse(uri: string, text: string): SymbolInformation[] {
+        let ft = g_setting.getFileType(uri, text.length);
+        if (FileType.FT_NONE === ft) {
+            return [];
+        }
+
         this.parseUri = uri;
         this.parseScopeDeepth = 0;
         this.parseNodeList = [];
@@ -407,11 +412,16 @@ export class Symbol {
             };
 
             g_utils.diagnostics(uri, [diagnostic]);
-            return;
+            return [];
         }
 
         for (let node of this.parseNodeList) {
             this.parseNode(node);
+        }
+
+        // 不是工程文件，不要把符号添加到工程里
+        if (FileType.FT_SINGLE === ft) {
+            return this.parseSymList;
         }
 
         // 解析成功，更新缓存，否则使用旧的
@@ -423,7 +433,7 @@ export class Symbol {
         this.globalSymbol = {};
         this.needUpdate = true;
 
-        //g_utils.log(`parse done ${JSON.stringify(this.parseSymList)}`)
+        return this.parseSymList;
     }
 
     // 获取所有文档的uri
