@@ -15,6 +15,19 @@ class Setting {
 
     // 大于100kb的文件不解析，大概在2000代码以上了，取决于你写了啥
     public maxFileSize: number = 100 * 1024;
+
+    private confDir: string = ""; // 配置文件目录，特殊解析
+    private excludeDir: string[] = []; // 排除的目录
+    private rootPath: string = ""; // 工程根目录
+
+    // 设置工程根目录
+    public setRootPath(root: string) {
+        this.rootPath = root;
+    }
+
+    public needParse(uri: string) {
+
+    }
 }
 
 export var g_setting = new Setting();

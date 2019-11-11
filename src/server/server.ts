@@ -15,7 +15,8 @@ import {
     WorkspaceSymbolParams,
     TextDocumentPositionParams,
     SymbolKind,
-    Position
+    Position,
+    TextDocumentChangeEvent
 } from 'vscode-languageserver';
 
 import {
@@ -42,13 +43,19 @@ class Server {
     private rootUri: string | null = null;
 
     public constructor() {
-        g_utils.initialize(this.connection);
-        this.connection.onInitialize(handler => this.onInitialize(handler));
-        this.connection.onInitialized(() => this.onInitialized());
-        this.connection.onCompletion(pos => this.onCompletion(pos));
-        this.connection.onDocumentSymbol(handler => this.onDocumentSymbol(handler));
-        this.connection.onWorkspaceSymbol(handler => this.onWorkspaceSymbol(handler));
-        this.connection.onDefinition(handler => this.onDefinition(handler));
+        let conn = this.connection;
+
+        g_utils.initialize(conn);
+
+        conn.onInitialize(handler => this.onInitialize(handler));
+        conn.onInitialized(() => this.onInitialized());
+        conn.onCompletion(handler => this.onCompletion(handler));
+        conn.onDocumentSymbol(handler => this.onDocumentSymbol(handler));
+        conn.onWorkspaceSymbol(handler => this.onWorkspaceSymbol(handler));
+        conn.onDefinition(handler => this.onDefinition(handler));
+
+        let doc = this.documents;
+        doc.onDidChangeContent(handler => this.onDocumentChange(handler));
     }
 
     public init() {
@@ -300,20 +307,21 @@ class Server {
     }
 
     // 代码自动补全
-    private onCompletion(pos: TextDocumentPositionParams): CompletionItem[] {
-        const uri = pos.textDocument.uri;
+    private onCompletion(handler: TextDocumentPositionParams): CompletionItem[] {
+        const uri = handler.textDocument.uri;
 
-        let line = this.getQueryLineText(uri, pos.position);
+        let line = this.getQueryLineText(uri, handler.position);
         if (!line) { return []; }
 
         let completion = AutoCompletion.instance();
         // 根据模块名，匹配全局符号
-        let items = completion.getRequireCompletion(line, pos.position.character);
+        let items = completion.getRequireCompletion(
+            line, handler.position.character);
         if (items) { return items; }
 
-        let query = this.getSymbolQuery(uri, line, pos.position);
+        let query = this.getSymbolQuery(uri, line, handler.position);
 
-        g_utils.log(`check uri =====${JSON.stringify(query)}`);
+        // g_utils.log(`check uri =====${JSON.stringify(query)}`);
         if (!query) { return []; }
 
         // return [
@@ -362,6 +370,11 @@ class Server {
         if (items) { return items; }
 
         return [];
+    }
+
+    // 文件内容变化，自己输入或者被其他软件修改都会触发
+    private onDocumentChange(handler: TextDocumentChangeEvent) {
+        g_utils.log(`doc change ==== ${JSON.stringify(handler)}`);
     }
 }
 
