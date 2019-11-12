@@ -9,6 +9,7 @@ import {
     Parser as luaParser,
 
     Node,
+    Statement,
     Identifier,
     FunctionDeclaration,
     LocalStatement,
@@ -89,10 +90,17 @@ interface SymIdentifier {
  *      文件结束时，还会有lua特有的Chunk
  */
 
-type NodeCache = { [key: string]: Node };
-type VSCodeSymbol = SymbolInformation | null;
+// 在vs code的符号基础上扩展一些字段，方便类型跟踪
+interface SymInfoEx extends SymbolInformation {
+    refType?: string; // local N = M时记录引用的类型M
+    refUri?: string; // local M = require "x"时记录引用的文件x
+    value?: string; // local V = 2这种静态数据时记录它的值
+    parameters?: string[]; // 如果是函数，记录其参数
+}
+
+type VSCodeSymbol = SymInfoEx | null;
 type VariableStatement = LocalStatement | AssignmentStatement;
-type SymInfoMap = { [key: string]: SymbolInformation[] };
+type SymInfoMap = { [key: string]: SymInfoEx[] };
 
 export class Symbol {
     private static ins: Symbol;
@@ -112,16 +120,14 @@ export class Symbol {
     private documentSymbol: SymInfoMap = {};
     // 各个文档的符号缓存，第一层uri为key，第二层ider名为key
     private documentModule: { [key: string]: SymInfoMap } = {};
-    // 各个文档的语法节点缓存，uri为key
-    private documentNode: { [key: string]: NodeCache } = {};
 
     // 下面是一些解析当前文档的辅助变量
     private parseUri: string = "";
     private parseScopeDeepth: number = 0;
     private parseNodeList: Node[] = [];
-    private parseSymList: SymbolInformation[] = [];
+    private parseSymList: SymInfoEx[] = [];
     // 各个文档的符号缓存，ider名为key
-    private parseModule: { [key: string]: SymbolInformation[] } = {};
+    private parseModule: { [key: string]: SymInfoEx[] } = {};
 
     private pathSlash: string = "/";
 
@@ -236,7 +242,7 @@ export class Symbol {
         let name = ider.name;
         if (!name) { return; }
 
-        let sym = this.toSym(this.parseUri, name, SymbolKind.Function, node.loc);
+        let sym = this.toSym(name, node);
         this.pushParseSymbol(ider, sym);
     }
 
@@ -257,11 +263,9 @@ export class Symbol {
                 continue;
             }
 
-            let kind = this.getVariableKind(field.value.type);
-            let sym = this.toSym(
-                this.parseUri, field.key.name, kind, field.key.loc);
+            let sym = this.toSym(field.key.name, field.value);
 
-            symList.push(sym);
+            if (sym) { symList.push(sym); }
         }
 
         return symList;
@@ -287,7 +291,7 @@ export class Symbol {
             let name = ider.name;
             if (!name) { continue; }
 
-            let sym = this.variableToSym(this.parseUri, name, node, index);
+            let sym = this.toSym(name, node.init[index]);
 
             this.pushParseSymbol(ider, sym);
 
@@ -306,26 +310,15 @@ export class Symbol {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    private toSym(uri: string, name: string,
-        kind: SymbolKind, loc: any): SymbolInformation {
-        return {
-            name: name,
-            kind: kind,
-            location: {
-                uri: uri,
-                range: {
-                    start: { line: loc.start.line - 1, character: loc.start.column },
-                    end: { line: loc.end.line - 1, character: loc.end.column }
-                }
-            }
-        };
-    }
+    private toSym(name: string, node: Statement | Expression): VSCodeSymbol {
+        const loc = node.loc;
+        if (!loc) {
+            return null;
+        }
 
-    // 获取变量类型
-    private getVariableKind(rawType: string) {
         let kind: SymbolKind = SymbolKind.Variable;
 
-        switch (rawType) {
+        switch (node.type) {
             case "StringLiteral":
                 kind = SymbolKind.String;
                 break;
@@ -342,21 +335,20 @@ export class Symbol {
                 kind = SymbolKind.Function;
                 break;
         }
-        return kind;
-    }
 
-    // 把变量声明转换为vs code的符号格式
-    private variableToSym(uri: string, name: string,
-        node: VariableStatement, index: number): VSCodeSymbol {
-        let loc = node.variables[index].loc;
-        if (!loc) { return null; }
-
-        let kind: SymbolKind = SymbolKind.Variable;
-        if (node.init.length > index) {
-            kind = this.getVariableKind(node.init[index].type);
-        }
-
-        return this.toSym(uri, name, kind, loc);
+        return {
+            name: name,
+            kind: kind,
+            location: {
+                uri: this.parseUri,
+                range: {
+                    start: {
+                        line: loc.start.line - 1, character: loc.start.column
+                    },
+                    end: { line: loc.end.line - 1, character: loc.end.column }
+                }
+            }
+        };
     }
 
     // 更新全局符号缓存
