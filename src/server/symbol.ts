@@ -16,7 +16,8 @@ import {
     AssignmentStatement,
     Token,
     Expression,
-    IndexExpression
+    IndexExpression,
+    ReturnStatement
 } from 'luaparse';
 
 import {
@@ -168,6 +169,7 @@ export class Symbol {
             case "FunctionDeclaration": // 函数
             case "LocalStatement": // local变量赋值 local var = x
             case "AssignmentStatement": // 全局变量 g_var = x 成员变量赋值 M.var = x
+            case "ReturnStatement": // return { a = 111 } 这种情况
                 this.parseNodeList.push(node);
                 break;
         }
@@ -182,6 +184,9 @@ export class Symbol {
             case "LocalStatement": // local变量
             case "AssignmentStatement": // 全局变量
                 this.parseVariableStatement(node);
+                break;
+            case "ReturnStatement": // return { a = 111 } 这种情况
+                this.parseReturnStatement(node);
                 break;
         }
     }
@@ -237,7 +242,7 @@ export class Symbol {
 
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
-    private parserSubVariable(initExpr: Expression[], index: number) {
+    private parserTableConstructor(initExpr: Expression[], index: number) {
         let init = initExpr[index];
         if ("TableConstructorExpression" !== init.type) {
             return [];
@@ -262,6 +267,17 @@ export class Symbol {
         return symList;
     }
 
+    // 解析 return {}这种情况
+    private parseReturnStatement(node: ReturnStatement) {
+        for (let index = 0; index < node.arguments.length; index++) {
+            let subSymList = this.parserTableConstructor(node.arguments, index);
+
+            for (let subSym of subSymList) {
+                this.parseSymList.push(subSym);
+            }
+        }
+    }
+
     // 解析变量声明
     private parseVariableStatement(node: VariableStatement) {
         // lua支持同时初始化多个变量 local x,y = 1,2
@@ -279,7 +295,7 @@ export class Symbol {
 
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             if (!this.parseModule[name]) { this.parseModule[name] = []; }
-            let subSymList = this.parserSubVariable(node.init, index);
+            let subSymList = this.parserTableConstructor(node.init, index);
 
             for (let subSym of subSymList) {
                 this.parseSymList.push(subSym);
@@ -290,7 +306,8 @@ export class Symbol {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    private toSym(uri: string, name: string, kind: SymbolKind, loc: any): SymbolInformation {
+    private toSym(uri: string, name: string,
+        kind: SymbolKind, loc: any): SymbolInformation {
         return {
             name: name,
             kind: kind,
