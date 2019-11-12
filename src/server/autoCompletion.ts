@@ -24,6 +24,7 @@ import {
 
 import {
     Symbol,
+    SymInfoEx,
     SymbolQuery
 } from "./symbol";
 
@@ -46,7 +47,7 @@ export class AutoCompletion {
 
 
     // 符号转自动完成格式
-    private symbolToComplition(sym: SymbolInformation): CompletionItem {
+    private toCompletion(sym: SymInfoEx): CompletionItem {
         let kind: CompletionItemKind = CompletionItemKind.Text;
         switch (sym.kind) {
             case SymbolKind.Function: kind = CompletionItemKind.Function; break;
@@ -61,14 +62,25 @@ export class AutoCompletion {
             kind: kind
         };
 
-        if (file) { item.detail = file[1]; }
+        if (file) {
+            item.detail = file[1];
+
+            if (sym.value) {
+                item.detail += `: ${sym.name} = ${sym.value}`;
+            }
+
+            if (sym.parameters) {
+                let parameters = sym.parameters.join(", ");
+                item.detail += `: function ${sym.name}(${parameters})`;
+            }
+        }
 
         return item;
     }
 
     // 检测列表中哪些符号需要显示在自动完成列表
     private checkSymCompletion(
-        symList: SymbolInformation[] | null, symName: string) {
+        symList: SymInfoEx[] | null, symName: string) {
         if (!symList) { return null; }
 
         let items: CompletionItem[] = [];
@@ -81,7 +93,7 @@ export class AutoCompletion {
             // g_utils.log(`check match ${symName} ${sym.name}
             //    ${JSON.stringify(fuzzysort.single(symName,sym.name))}`)
             if (0 === symName.length || fuzzysort.single(symName, sym.name)) {
-                items.push(this.symbolToComplition(sym));
+                items.push(this.toCompletion(sym));
             }
         }
 

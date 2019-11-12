@@ -91,7 +91,7 @@ interface SymIdentifier {
  */
 
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
-interface SymInfoEx extends SymbolInformation {
+export interface SymInfoEx extends SymbolInformation {
     refType?: string; // local N = M时记录引用的类型M
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
@@ -316,29 +316,9 @@ export class Symbol {
             return null;
         }
 
-        let kind: SymbolKind = SymbolKind.Variable;
-
-        switch (node.type) {
-            case "StringLiteral":
-                kind = SymbolKind.String;
-                break;
-            case "NumericLiteral":
-                kind = SymbolKind.Number;
-                break;
-            case "BooleanLiteral":
-                kind = SymbolKind.Boolean;
-                break;
-            case "TableConstructorExpression":
-                kind = SymbolKind.Module;
-                break;
-            case "FunctionDeclaration":
-                kind = SymbolKind.Function;
-                break;
-        }
-
-        return {
+        let sym: SymInfoEx = {
             name: name,
-            kind: kind,
+            kind: SymbolKind.Variable,
             location: {
                 uri: this.parseUri,
                 range: {
@@ -349,6 +329,40 @@ export class Symbol {
                 }
             }
         };
+
+        switch (node.type) {
+            case "StringLiteral":
+                sym.value = node.raw;
+                sym.kind = SymbolKind.String;
+                break;
+            case "NumericLiteral":
+                sym.value = node.raw;
+                sym.kind = SymbolKind.Number;
+                break;
+            case "BooleanLiteral":
+                sym.value = node.raw;
+                sym.kind = SymbolKind.Boolean;
+                break;
+            case "TableConstructorExpression":
+                sym.kind = SymbolKind.Module;
+                break;
+            case "FunctionDeclaration":
+                sym.kind = SymbolKind.Function;
+
+                sym.parameters = [];
+                for (let para of node.parameters) {
+                    // function(a, ...) a是name
+                    if ("Identifier" === para.type) {
+                        sym.parameters.push(para.name);
+                    }
+                    else if ("VarargLiteral" === para.type) {
+                        sym.parameters.push(para.value);
+                    }
+                }
+                break;
+        }
+
+        return sym;
     }
 
     // 更新全局符号缓存

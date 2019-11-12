@@ -92,7 +92,7 @@ class Server {
                     // 哪些字符触发函数提示
                     // 默认情况下，vs code是代码部分都会请求自动补全
                     // 但在字符串里，只有这些特殊字符才会触发，比如做路径补全时用到
-                    triggerCharacters: ['.']
+                    triggerCharacters: ['.', ':']
                 }
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分

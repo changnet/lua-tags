@@ -11,4 +11,8 @@ end
 function MetaObject:meta_test()
 end
 
+-- 测试能否显示参数
+function MetaObject:param_test(a, b, c, ...)
+end
+
 return MetaObject

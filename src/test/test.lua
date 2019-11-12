@@ -10,6 +10,9 @@ mo:show()
 mo:base_test()
 mo:meta_test()
 
+-- 测试自动补全能否显示参数
+mo:param_test()
+
 -- 测试new table类型成员跳转
 local no = NewObject.new()
 no:new_test()
