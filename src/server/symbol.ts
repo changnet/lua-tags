@@ -443,6 +443,17 @@ export class Symbol {
         return Object.keys(this.documentSymbol);
     }
 
+    // 删除某个文档的符号
+    public delDocumentSymbol(uri: string) {
+        delete this.documentSymbol[uri];
+        delete this.documentModule[uri];
+
+        // 符号有变化，清空全局符号缓存，下次请求时生成
+        this.globalModule = {};
+        this.globalSymbol = {};
+        this.needUpdate = true;
+    }
+
     // 获取某个文档的符号
     public getDocumentSymbol(uri: string): SymbolInformation[] | null {
         let symList: SymbolInformation[] = this.documentSymbol[uri];
@@ -503,7 +514,7 @@ export class Symbol {
     }
 
     // 解析单个Lua文件
-    private async parseFile(path: string) {
+    public async parseFile(path: string) {
         if (!path.endsWith(".lua")) { return; }
 
         let stat = await fs.stat(path);

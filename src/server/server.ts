@@ -382,7 +382,8 @@ class Server {
         return [];
     }
 
-    // 文件内容变化，自己输入或者被其他软件修改都会触发
+    // 已打开的文档内容变化，注意是已打开的
+    // 在编辑器上修改文档内容没保存，或者其他软件直接修改文件都会触发
     private onDocumentChange(handler: TextDocumentChangeEvent) {
         let uri = handler.document.uri;
         Symbol.instance().parse(uri, handler.document.getText());
@@ -390,17 +391,33 @@ class Server {
 
     // 文件增删
     private onFilesChange(handler: DidChangeWatchedFilesParams) {
-        // 文件内容变化(保存的时候，不是输入的时候)这里也会触发
-        // 但不在这里处理，在 onDidChangeContent 处理
-        // 那边无论是文件内容被其他程序修改，还是临时输入都会触发
+        let symbol = Symbol.instance();
         for (let event of handler.changes) {
-            if (FileChangeType.Created === event.type) {
 
-            }
-            else if (FileChangeType.Deleted === event.type) {
+            let uri = event.uri;
+            let type = event.type;
+            switch (type) {
+                case FileChangeType.Created: {
+                    let path = Uri.parse(uri);
+                    symbol.parseFile(path.fsPath);
+                    break;
+                }
+                case FileChangeType.Changed: {
+                    let doc = this.documents.get(uri);
+                    // 取得到文档，说明是已打开的文件，在 onDocumentChange 处理
+                    // 这里只处理没打开的文件
+                    if (doc) { return; }
 
-            }
-        }
+                    let path = Uri.parse(uri);
+                    symbol.parseFile(path.fsPath);
+                    break;
+                }
+                case FileChangeType.Deleted: {
+                    symbol.delDocumentSymbol(uri);
+                    break;
+                }
+            } // switch
+        } // for
     }
 }
 
