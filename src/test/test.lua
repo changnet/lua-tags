@@ -63,3 +63,11 @@ local LiteConf = LiteConf
 
 --  测试真正类型自动补全，打出下面的点号，应该能够补全
 -- LiteConf.
+
+-- 测试本地化换名后是否能跟踪原类型
+local LC = LiteConf
+-- LC.
+
+-- 测试require文件时是否能跟踪类型，尤其是require的文件是匿名模块时
+local conf = require "conf.anno_conf"
+-- conf.

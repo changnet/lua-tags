@@ -63,7 +63,10 @@ export class GoToDefinition {
         let mdName = query.mdName;
         if (!mdName || "self" === mdName) { return null; }
 
-        let symList = Symbol.instance().getGlobalModule(mdName);
+        let symbol = Symbol.instance();
+
+        let rawName = symbol.getRawModule(query.uri, mdName);
+        let symList = symbol.getGlobalModule(rawName);
 
         return this.checkSymDefinition(symList, query.symName, query.kind);
     }

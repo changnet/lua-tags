@@ -18,7 +18,8 @@ import {
     Token,
     Expression,
     IndexExpression,
-    ReturnStatement
+    ReturnStatement,
+    CallExpression
 } from 'luaparse';
 
 import {
@@ -286,12 +287,13 @@ export class Symbol {
     private parseVariableStatement(node: VariableStatement) {
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < node.variables.length; index++) {
-            let ider = this.parseIdentifier(node.variables[index]);
+            let varNode = node.variables[index];
+            let ider = this.parseIdentifier(varNode);
 
             let name = ider.name;
             if (!name) { continue; }
 
-            let sym = this.toSym(name, node.init[index]);
+            let sym = this.toSym(name, varNode, node.init[index]);
 
             this.pushParseSymbol(ider, sym);
 
@@ -310,7 +312,8 @@ export class Symbol {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    private toSym(name: string, node: Statement | Expression): VSCodeSymbol {
+    private toSym(name: string, node: Statement | Expression,
+        init?: Statement | Expression): VSCodeSymbol {
         const loc = node.loc;
         if (!loc) {
             return null;
@@ -330,27 +333,43 @@ export class Symbol {
             }
         };
 
-        switch (node.type) {
-            case "StringLiteral":
-                sym.value = node.raw;
+        let initNode = init || node;
+        switch (initNode.type) {
+            case "Identifier": {
+                // 在顶层作用域中 local N = M 会被视为把模块M本地化为N
+                // 在跟踪N的符号时会在M查找
+                // 如果是local M = M这种同名的，则不处理，反正都是根据名字去查找
+                if (1 === this.parseScopeDeepth) {
+                    if (name !== initNode.name) {
+                        sym.refType = initNode.name;
+                    }
+                }
+                break;
+            }
+            case "StringLiteral": {
+                sym.value = initNode.value;
                 sym.kind = SymbolKind.String;
                 break;
-            case "NumericLiteral":
-                sym.value = node.raw;
+            }
+            case "NumericLiteral": {
+                sym.value = initNode.raw;
                 sym.kind = SymbolKind.Number;
                 break;
-            case "BooleanLiteral":
-                sym.value = node.raw;
+            }
+            case "BooleanLiteral": {
+                sym.value = initNode.raw;
                 sym.kind = SymbolKind.Boolean;
                 break;
-            case "TableConstructorExpression":
+            }
+            case "TableConstructorExpression": {
                 sym.kind = SymbolKind.Module;
                 break;
-            case "FunctionDeclaration":
+            }
+            case "FunctionDeclaration": {
                 sym.kind = SymbolKind.Function;
 
                 sym.parameters = [];
-                for (let para of node.parameters) {
+                for (let para of initNode.parameters) {
                     // function(a, ...) a是name
                     if ("Identifier" === para.type) {
                         sym.parameters.push(para.name);
@@ -360,6 +379,28 @@ export class Symbol {
                     }
                 }
                 break;
+            }
+            case "CallExpression": {// local M = require("x")
+                let base = initNode.base;
+                if ("Identifier" === base.type && "require" === base.name) {
+                    let arg = initNode.arguments[0]
+                    if (arg.type === "StringLiteral") {
+                        sym.refUri = arg.value;
+                    }
+                }
+                break;
+            }
+            case "StringCallExpression": {// local M = require "x"
+                let base = initNode.base;
+                if ("Identifier" === base.type && "require" === base.name) {
+                    let arg = initNode.argument;
+                    if (arg.type === "StringLiteral") {
+                        sym.refUri = arg.value;
+                    }
+                }
+                break;
+            }
+
         }
 
         return sym;
@@ -561,12 +602,59 @@ export class Symbol {
         // 模块名为self则是当前文档self:test()这种用法
         if ("self" === mdName) { return uri; }
 
-        // local M = require "abc" 这种用法
+        const symList = this.documentSymbol[uri];
+        if (!symList) {
+            return uri;
+        }
 
-        // local M = M 这种用法
+        let sym;
+        for (let one of symList) {
+            if (one.name === mdName) {
+                sym = one;
+            }
+        }
+        if (!sym) {
+            return uri;
+        }
+
+        // local M = require "abc" 这种用法
+        if (sym.refUri) {
+            return this.getRequireUri(sym.refUri);
+        }
+
+        // local N = M 这种用法
+        if (sym.refType) {
+            let symList = this.getGlobalModule(sym.refType);
+            // 如果查找到模块名为M的在多个文件，那
+        }
 
         // 都找不到，默认查找当前文档
         return uri;
+    }
+
+    // 查找经过本地化的原符号名字
+    public getRawModule(uri: string, mdName: string): string {
+        // 模块名为self则是当前文档self:test()这种用法
+        if ("self" === mdName) { return mdName; }
+
+        const symList = this.documentSymbol[uri];
+        if (!symList) {
+            return mdName;
+        }
+
+        let sym;
+        for (let one of symList) {
+            if (one.name === mdName) {
+                sym = one;
+            }
+        }
+        if (!sym) {
+            return mdName;
+        }
+
+        // local N = M 这种用法
+        // 都找不到，默认查找当前文档
+        return sym.refType || mdName;
     }
 
     // 检测是否结束作用局域
