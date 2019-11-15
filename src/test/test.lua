@@ -71,3 +71,6 @@ local LC = LiteConf
 -- 测试require文件时是否能跟踪类型，尤其是require的文件是匿名模块时
 local conf = require "conf.anno_conf"
 -- conf.
+
+-- 测试是否正常解析了超大的文件符号
+local LargeConf = LargeConf

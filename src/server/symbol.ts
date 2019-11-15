@@ -1,7 +1,7 @@
 // 符号处理
 
 import { g_utils } from "./utils";
-import { g_setting, FileType } from "./setting";
+import { g_setting, FileParseType } from "./setting";
 
 import {
     Options,
@@ -383,7 +383,7 @@ export class Symbol {
             case "CallExpression": {// local M = require("x")
                 let base = initNode.base;
                 if ("Identifier" === base.type && "require" === base.name) {
-                    let arg = initNode.arguments[0]
+                    let arg = initNode.arguments[0];
                     if (arg.type === "StringLiteral") {
                         sym.refUri = arg.value;
                     }
@@ -443,22 +443,14 @@ export class Symbol {
         return this.globalModule[mdName];
     }
 
-    // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string): SymbolInformation[] {
-        let ft = g_setting.getFileType(uri, text.length);
-        if (FileType.FT_NONE === ft) {
-            return [];
-        }
-
-        this.parseUri = uri;
-        this.parseScopeDeepth = 0;
-        this.parseNodeList = [];
-        this.parseSymList = [];
-        this.parseModule = {};
-
+    // 正常解析
+    private parseText(uri: string, text: string) {
         try {
             luaParse(text, this.options);
         } catch (e) {
+            // 这个会导致在写代码写一半的时候频繁报错，暂时不启用
+            // 后面在保存文件的时候lint一下就好了
+            /*
             const lines = text.split(/\r?\n/g);
             const line = lines[e.line - 1];
 
@@ -475,9 +467,30 @@ export class Symbol {
                 source: 'luaparse'
             };
 
-            // 这个会导致在写代码写一半的时候频繁报错，暂时不启用
-            // 后面在保存文件的时候lint一下就好了
-            // g_utils.diagnostics(uri, [diagnostic]);
+            g_utils.diagnostics(uri, [diagnostic]);
+            */
+            return false;
+        }
+
+        return true;
+    }
+
+    // 解析一段代码，如果这段代码有错误，会发给vs code
+    public parse(uri: string, text: string): SymbolInformation[] {
+        let ft = g_setting.getFileType(uri, text.length);
+        if (FileParseType.FPT_NONE === ft) {
+            return [];
+        }
+
+        this.parseUri = uri;
+        this.parseScopeDeepth = 0;
+        this.parseNodeList = [];
+        this.parseSymList = [];
+        this.parseModule = {};
+
+        let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
+            this.parseText(uri, text) : this.parseLarge(text);
+        if (!ok) {
             return [];
         }
 
@@ -486,7 +499,7 @@ export class Symbol {
         }
 
         // 不是工程文件，不要把符号添加到工程里
-        if (FileType.FT_SINGLE === ft) {
+        if (0 !== (FileParseType.FPT_SINGLE & ft)) {
             return this.parseSymList;
         }
 
@@ -580,9 +593,6 @@ export class Symbol {
     // 解析单个Lua文件
     public async parseFile(path: string) {
         if (!path.endsWith(".lua")) { return; }
-
-        let stat = await fs.stat(path);
-        if (stat.size > g_setting.maxFileSize) { return; }
 
         // uri总是用/来编码，在win下，路径是用\的
         // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
@@ -898,5 +908,67 @@ export class Symbol {
             start: { line: found.line, character: found.range[0] },
             end: { line: found.line, character: found.range[1] }
         });
+    }
+
+    // 解析大文件
+    // 一般是配置文件，为一个很大的lua table，参考测试中的large_conf.lua
+    // 只要尝试把这个table名解析出来就好
+    private parseLarge(text: string) {
+        // 只解析前512个字符，还找不到table名，就放弃
+        let head = text.substring(0, 512);
+        let parser: luaParser = luaParse(head, {
+            locations: true, // 是否记录语法节点的位置(node)
+            scope: false, // 是否记录作用域
+            wait: true, // 是否等待显示调用end函数
+            comments: false, // 是否记录注释
+            ranges: true, // 记录语法节点的字符位置(第几个字符开始，第几个结束)
+            luaVersion: g_setting.luaVersion
+        });
+
+        let token;
+        do {
+            token = parser.lex();
+
+            if (token.type === LuaTokenType.EOF) {
+                return false;
+            }
+
+            if (token.type === LuaTokenType.Keyword
+                && token.value === "return") {
+                return false;
+            }
+
+            if (token.type === LuaTokenType.Identifier) {
+                break;
+            }
+        } while (token.type !== LuaTokenType.EOF);
+
+        let node: LocalStatement = {
+            "type": "LocalStatement",
+            "variables": [
+                {
+                    type: "Identifier",
+                    "name": token.value,
+                    "loc": {
+                        "start": {
+                            "line": token.line,
+                            "column": token.range[0] - token.lineStart
+                        },
+                        "end": {
+                            "line": token.line,
+                            "column": token.range[1] - token.lineStart
+                        }
+                    }
+                }],
+            init: [
+                {
+                    type: "TableConstructorExpression",
+                    fields: []
+                }
+            ]
+        };
+
+        this.parseNodeList.push(node);
+        return true;
     }
 }
