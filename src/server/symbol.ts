@@ -97,6 +97,7 @@ export interface SymInfoEx extends SymbolInformation {
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
     parameters?: string[]; // 如果是函数，记录其参数
+    subSym?: SymInfoEx[][]; // 子符号，二维数组，第一层是使用域
 }
 
 type VSCodeSymbol = SymInfoEx | null;
@@ -119,7 +120,7 @@ export class Symbol {
 
     // 各个文档的符号缓存，uri为key
     private documentSymbol: SymInfoMap = {};
-    // 各个文档的符号缓存，第一层uri为key，第二层ider名为key
+    // 各个文档的符号缓存，第一层uri为key，第二层模块名为key
     private documentModule: { [key: string]: SymInfoMap } = {};
 
     // 下面是一些解析当前文档的辅助变量
@@ -231,6 +232,52 @@ export class Symbol {
         }
     }
 
+    private parseFunctionState(statement: Statement) {
+
+    }
+
+    // 解析函数的子符号
+    private parseStatement(states: Statement[], scopeDeepth: number) {
+        for (let stat of states) {
+            switch (stat.type) {
+                case "LocalStatement":
+                    {
+                        for (let index = 0; index < stat.variables.length; index++) {
+                            let subVar = stat.variables[index];
+                            let sym = this.toSym(subVar.name, subVar, stat.init[index]);
+                        }
+                        break;
+                    }
+                case "AssignmentStatement":
+                    {
+                        for (let index = 0; index < stat.variables.length; index++) {
+                            let subVar = stat.variables[index];
+                            // list[1]、M.var、ider = ... 只有ider对符号查询有用
+                            if (subVar.type === "Identifier") {
+                                let sym = this.toSym(subVar.name, subVar, stat.init[index]);
+                            }
+                        }
+                        break;
+                    }
+                case "ReturnStatement":
+                    {
+                        // 处理 return function(a,b,c) ... end 这种情况
+                        for (let sub of stat.arguments) {
+
+                        }
+                        break;
+                    }
+                case "IfStatement" : break;
+                case "WhileStatement" : break;
+                case "DoStatement" : break;
+                case "RepeatStatement" : break;
+                case "FunctionDeclaration" : break;
+                case "ForNumericStatement" : break;
+                case "ForGenericStatement" : break;
+            }
+        }
+    }
+
     // 解析函数声明
     private parseFunctionNode(node: FunctionDeclaration) {
         let identifier = node.identifier;
@@ -245,6 +292,7 @@ export class Symbol {
 
         let sym = this.toSym(name, node);
         this.pushParseSymbol(ider, sym);
+        g_utils.log(`function node = ${JSON.stringify(node)}`);
     }
 
     // 解析子变量

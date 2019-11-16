@@ -65,10 +65,12 @@ export class AutoCompletion {
         if (file) {
             item.detail = file[1];
 
+            // 如果是常量，显示常量值： test.lua: val = 999
             if (sym.value) {
                 item.detail += `: ${sym.name} = ${sym.value}`;
             }
 
+            // 如果是函数，显示参数: test.lua: function(a, b, c)
             if (sym.parameters) {
                 let parameters = sym.parameters.join(", ");
                 item.detail += `: function ${sym.name}(${parameters})`;
