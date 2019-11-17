@@ -286,11 +286,12 @@ export class Symbol {
         return [];
     }
 
-    // 解析函数的子符号
+    // 解析各种语句，现在只用来解析函数body
     private parseStatement(states: Statement[]): SymInfoEx[] {
         let symList: SymInfoEx[] = [];
         for (let stat of states) {
-
+            const subSymList = this.parseOneStatement(stat);
+            symList.push(...subSymList);
         }
 
         return symList;
@@ -356,8 +357,7 @@ export class Symbol {
     }
 
     // 解析变量声明
-    private parseVariableStatement(
-        stat: LocalStatement | AssignmentStatement, isSub: boolean = false) {
+    private parseVariableStatement(stat: LocalStatement | AssignmentStatement) {
         let symList: SymInfoEx[] = [];
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
@@ -370,24 +370,33 @@ export class Symbol {
             }
 
             const init = stat.init[index];
-            let sym = this.toSym(name, varNode, init);
+            let sym = this.toSym(name, varNode, init, baseName.base);
             if (!sym) {
                 continue;
             }
             symList.push(sym);
 
-            if (isSub) {
+            if (this.parseOptSub) {
                 sym.subSym = this.parseOneExpression(init);
                 continue;
             }
 
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
-            if (!sym || "TableConstructorExpression" !== init.type) {
-                continue;
+            if ("TableConstructorExpression" === init.type) {
+                sym.subSym = this.parserTableConstructorExpr(init);
+                // vs code在显示文档符号时，会自动判断各个符号的位置，如果发现某个符号
+                // 属于另一个符号的位置范围内，则认为这个符号是另一个符号的子符号，可以
+                // 把子符号折叠起来
+                // 但lua中允许这种写法 local x, y = {a = 1, b = 2}, 2
+                // 这时候如果想让a、b成为x的子符号，那么x的范围就必须包含y，这显然无法
+                // 接受，那么这里特殊处理local x = {a = 1, b = 2}这种情况即可
+                if (init.loc && 1 === stat.variables.length) {
+                    let endLoc = sym.location.range.end;
+                    endLoc.line = init.loc.end.line - 1;
+                    endLoc.character = init.loc.end.column;
+                }
             }
-
-            sym.subSym = this.parserTableConstructorExpr(init);
         }
 
         return symList;
