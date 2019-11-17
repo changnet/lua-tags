@@ -19,7 +19,8 @@ import {
     Expression,
     IndexExpression,
     ReturnStatement,
-    CallExpression
+    CallExpression,
+    TableConstructorExpression
 } from 'luaparse';
 
 import {
@@ -75,12 +76,6 @@ export interface SymbolQuery {
     text: string; // 符号所在的整行代码
 }
 
-// lua符号数据结构 M.val
-interface SymIdentifier {
-    name: string | null; // 变量名val
-    base: string | null; // 模块名M
-}
-
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
  * node: 语法节点，注意顺序和编译器一样，从右到左。其类型参考luaparse的ast.Node声明
@@ -97,11 +92,11 @@ export interface SymInfoEx extends SymbolInformation {
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
     parameters?: string[]; // 如果是函数，记录其参数
-    subSym?: SymInfoEx[][]; // 子符号，二维数组，第一层是使用域
+    subSym?: SymInfoEx[]; // 子符号
+    base?: string; // M.N时记录模块名M
 }
 
 type VSCodeSymbol = SymInfoEx | null;
-type VariableStatement = LocalStatement | AssignmentStatement;
 type SymInfoMap = { [key: string]: SymInfoEx[] };
 
 export class Symbol {
@@ -132,6 +127,9 @@ export class Symbol {
     private parseModule: { [key: string]: SymInfoEx[] } = {};
 
     private pathSlash: string = "/";
+
+    private parseOptSub = false; // 是否解析子符号
+    private parseOptAnonymous = false; // 是否解析匿名符号
 
     private constructor() {
         this.options = {
@@ -185,45 +183,61 @@ export class Symbol {
 
     // 解析节点
     private parseNode(node: Node) {
+        let symList;
         switch (node.type) {
             case "FunctionDeclaration": // 函数
-                this.parseFunctionNode(node);
+                symList = this.parseFunctionExpr(node);
                 break;
             case "LocalStatement": // local变量
             case "AssignmentStatement": // 全局变量
-                this.parseVariableStatement(node);
+                symList = this.parseVariableStatement(node);
                 break;
             case "ReturnStatement": // return { a = 111 } 这种情况
-                this.parseReturnStatement(node);
+                symList = this.parseReturnStatement(node);
                 break;
+        }
+
+        if (!symList) {
+            return;
+        }
+        for (const sym of symList) {
+            this.pushParseSymbol(sym);
         }
     }
 
     // 解析成员变量赋值
-    private parseIdentifier(ider: Identifier | MemberExpression | IndexExpression): SymIdentifier {
-        let name: string | null = null;
-        let base: string | null = null;
+    private parseBaseName(
+        ider: Identifier | MemberExpression | IndexExpression | null) {
+        let baseName = { name: "", base: "" };
+        if (!ider) {
+            return baseName;
+        }
+
         if (ider.type === "Identifier") {
             // function test() 这种直接声明函数的写法
-            name = ider.name;
+            baseName.name = ider.name;
         }
         else if (ider.type === "MemberExpression") {
             // function m:test()、M.val = xxx 或者 function m.test() 这种成员函数写法
-            name = ider.identifier.name;
+            baseName.name = ider.identifier.name;
             // 用json打印出来，这里明明有个name，但是导出的符号里没有
-            base = (ider.base as any).name;
+            baseName.base = (ider.base as any).name;
         }
+        // IndexExpression是list[idx]这种，暂时没用到
 
-        return { name: name, base: base };
+        return baseName;
     }
 
     // 把一个解析好的符号存到临时解析数组
-    private pushParseSymbol(ider: SymIdentifier, sym: SymbolInformation | null) {
-        if (!sym) { return; }
-
+    private pushParseSymbol(sym: SymInfoEx) {
         this.parseSymList.push(sym);
+        if (sym.subSym) {
+            for (let subSym of sym.subSym) {
+                this.parseSymList.push(subSym);
+            }
+        }
 
-        let base = ider.base;
+        const base = sym.base;
         if (base) {
             if (!this.parseModule[base]) {
                 this.parseModule[base] = [];
@@ -232,79 +246,81 @@ export class Symbol {
         }
     }
 
-    private parseFunctionState(statement: Statement) {
+    // 解析一个表达式
+    private parseOneExpression(expr: Expression): SymInfoEx[] {
+        switch (expr.type) {
+            case "FunctionDeclaration": {
+                return this.parseFunctionExpr(expr);
+            }
+            case "TableConstructorExpression": {
+                return this.parserTableConstructorExpr(expr);
+            }
+        }
 
+        return [];
+    }
+
+    private parseOneStatement(stat: Statement): SymInfoEx[] {
+        let symList: SymInfoEx[] = [];
+        switch (stat.type) {
+            case "LocalStatement":
+            case "AssignmentStatement": {
+                return this.parseVariableStatement(stat);
+            }
+            case "ReturnStatement": {
+                // 处理 return function(a,b,c) ... end 这种情况
+                for (let sub of stat.arguments) {
+
+                }
+                break;
+            }
+            case "IfStatement": break;
+            case "WhileStatement": break;
+            case "DoStatement": break;
+            case "RepeatStatement": break;
+            case "FunctionDeclaration": break;
+            case "ForNumericStatement": break;
+            case "ForGenericStatement": break;
+        }
+
+        return [];
     }
 
     // 解析函数的子符号
-    private parseStatement(states: Statement[], scopeDeepth: number) {
+    private parseStatement(states: Statement[]): SymInfoEx[] {
+        let symList: SymInfoEx[] = [];
         for (let stat of states) {
-            switch (stat.type) {
-                case "LocalStatement":
-                    {
-                        for (let index = 0; index < stat.variables.length; index++) {
-                            let subVar = stat.variables[index];
-                            let sym = this.toSym(subVar.name, subVar, stat.init[index]);
-                        }
-                        break;
-                    }
-                case "AssignmentStatement":
-                    {
-                        for (let index = 0; index < stat.variables.length; index++) {
-                            let subVar = stat.variables[index];
-                            // list[1]、M.var、ider = ... 只有ider对符号查询有用
-                            if (subVar.type === "Identifier") {
-                                let sym = this.toSym(subVar.name, subVar, stat.init[index]);
-                            }
-                        }
-                        break;
-                    }
-                case "ReturnStatement":
-                    {
-                        // 处理 return function(a,b,c) ... end 这种情况
-                        for (let sub of stat.arguments) {
 
-                        }
-                        break;
-                    }
-                case "IfStatement" : break;
-                case "WhileStatement" : break;
-                case "DoStatement" : break;
-                case "RepeatStatement" : break;
-                case "FunctionDeclaration" : break;
-                case "ForNumericStatement" : break;
-                case "ForGenericStatement" : break;
-            }
         }
+
+        return symList;
     }
 
     // 解析函数声明
-    private parseFunctionNode(node: FunctionDeclaration) {
-        let identifier = node.identifier;
-        if (!identifier) {
-            return;
+    private parseFunctionExpr(expr: FunctionDeclaration): SymInfoEx[] {
+        // return function() ... end 这种匿名函数没有identifier
+        let baseName = this.parseBaseName(expr.identifier);
+        if ("" === baseName.name && !this.parseOptAnonymous) {
+            return [];
         }
 
-        let ider = this.parseIdentifier(identifier);
+        let sym = this.toSym(baseName.name, expr, undefined, baseName.base);
+        if (!sym) {
+            return [];
+        }
 
-        let name = ider.name;
-        if (!name) { return; }
+        if (sym && this.parseOptSub) {
+            sym.subSym = this.parseStatement(expr.body);
+        }
 
-        let sym = this.toSym(name, node);
-        this.pushParseSymbol(ider, sym);
-        g_utils.log(`function node = ${JSON.stringify(node)}`);
+        return [sym];
     }
 
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
-    private parserTableConstructor(initExpr: Expression[], index: number) {
-        let init = initExpr[index];
-        if ("TableConstructorExpression" !== init.type) {
-            return [];
-        }
-
-        let symList: SymbolInformation[] = [];
-        for (let field of init.fields) {
+    private parserTableConstructorExpr(expr: TableConstructorExpression) {
+        let symList: SymInfoEx[] = [];
+        for (let field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
             // local M = { a = 1, [2] = 2}这种就只能处理有Key的那部分了
             if (("TableKey" !== field.type && "TableKeyString" !== field.type)
@@ -320,48 +336,67 @@ export class Symbol {
         return symList;
     }
 
-    // 解析 return {}这种情况
+    // 解析 return
     private parseReturnStatement(node: ReturnStatement) {
-        for (let index = 0; index < node.arguments.length; index++) {
-            let subSymList = this.parserTableConstructor(node.arguments, index);
-
-            for (let subSym of subSymList) {
-                this.parseSymList.push(subSym);
+        for (let argument of node.arguments) {
+            // 如果是用来显示文档符号的，只处理 return {}
+            if (!this.parseOptSub
+                && "TableConstructorExpression" === argument.type) {
+                return this.parserTableConstructorExpr(argument);
             }
+
+            // parseOptSub是用来处理局部符号的，只处理return function() ... end
+            if ("FunctionDeclaration" === argument.type) {
+                return this.parseFunctionExpr(argument);
+            }
+
         }
+
+        return [];
     }
 
     // 解析变量声明
-    private parseVariableStatement(node: VariableStatement) {
+    private parseVariableStatement(
+        stat: LocalStatement | AssignmentStatement, isSub: boolean = false) {
+        let symList: SymInfoEx[] = [];
         // lua支持同时初始化多个变量 local x,y = 1,2
-        for (let index = 0; index < node.variables.length; index++) {
-            let varNode = node.variables[index];
-            let ider = this.parseIdentifier(varNode);
+        for (let index = 0; index < stat.variables.length; index++) {
+            let varNode = stat.variables[index];
+            let baseName = this.parseBaseName(varNode);
 
-            let name = ider.name;
-            if (!name) { continue; }
+            let name = baseName.name;
+            if ("" === name && !this.parseOptAnonymous) {
+                continue;
+            }
 
-            let sym = this.toSym(name, varNode, node.init[index]);
+            const init = stat.init[index];
+            let sym = this.toSym(name, varNode, init);
+            if (!sym) {
+                continue;
+            }
+            symList.push(sym);
 
-            this.pushParseSymbol(ider, sym);
-
-            if (!sym || SymbolKind.Module !== sym.kind) { continue; }
+            if (isSub) {
+                sym.subSym = this.parseOneExpression(init);
+                continue;
+            }
 
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
-            if (!this.parseModule[name]) { this.parseModule[name] = []; }
-            let subSymList = this.parserTableConstructor(node.init, index);
-
-            for (let subSym of subSymList) {
-                this.parseSymList.push(subSym);
-                this.parseModule[name].push(subSym);
+            // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
+            if (!sym || "TableConstructorExpression" !== init.type) {
+                continue;
             }
+
+            sym.subSym = this.parserTableConstructorExpr(init);
         }
+
+        return symList;
     }
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
     private toSym(name: string, node: Statement | Expression,
-        init?: Statement | Expression): VSCodeSymbol {
+        init?: Statement | Expression, base?: string): VSCodeSymbol {
         const loc = node.loc;
         if (!loc) {
             return null;
@@ -369,6 +404,7 @@ export class Symbol {
 
         let sym: SymInfoEx = {
             name: name,
+            base: base,
             kind: SymbolKind.Variable,
             location: {
                 uri: this.parseUri,
@@ -535,6 +571,9 @@ export class Symbol {
         this.parseNodeList = [];
         this.parseSymList = [];
         this.parseModule = {};
+
+        this.parseOptSub = false; // 是否解析子符号
+        this.parseOptAnonymous = false; // 是否解析匿名符号
 
         let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
             this.parseText(uri, text) : this.parseLarge(text);
