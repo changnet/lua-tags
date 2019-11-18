@@ -24,7 +24,8 @@ import {
 
 import {
     Symbol,
-    SymbolQuery
+    SymbolQuery,
+    SymInfoEx
 } from "./symbol";
 
 export class GoToDefinition {
@@ -121,10 +122,82 @@ export class GoToDefinition {
         return this.checkSymDefinition(symList, query.symName, query.kind);
     }
 
+    // 对比符号位置
+    // -1sym的位置小于(line,pos)
+    // 0表示sym位置等于(line,pos)
+    // 1表示sym的位置大于(line,pos)
+    // 2表示sym范围包含(line,pos)
+    private compSymLocation(
+        sym: SymInfoEx, line: number, beg: number, end: number) {
+        const loc = sym.location.range;
+
+        const startLine = loc.start.line;
+        if (startLine > line
+            || (startLine === line && loc.start.character > end)) {
+            return 1;
+        }
+
+        const endLine = loc.end.line;
+        if (endLine < line || (endLine === line && loc.end.character < beg)) {
+            return -1;
+        }
+
+        if (endLine === line && startLine === line
+            && loc.start.character === beg && loc.end.character === end) {
+            return 0;
+        }
+        return 2;
+    }
+
+    // 查找子符号的位置
+    private searchSubSym(name: string,
+        line: number, beg: number, end: number, symList?: SymInfoEx[]) {
+        if (!symList) {
+            return null;
+        }
+
+        let index = 0;
+        let foundLocal = null;
+        let foundGlobal = null;
+        for (const sym of symList) {
+            index++;
+            // 这里名字对比要比compSymLocation，先不管位置
+            if (name !== sym.name) {
+                continue;
+            }
+            let comp = this.compSymLocation(sym, line, beg, end);
+            // 超出范围，不用找了
+            if (1 === comp) {
+                break;
+            }
+            if (sym.local) {
+                foundLocal = sym;
+            } else {
+                foundGlobal = sym;
+            }
+            if (0 === comp) {
+                return foundLocal || foundGlobal;
+            }
+        }
+
+        // 当前作用域没有查找到，查找下一个作用域
+        // 在所有符号中都没有找到，尝试函数参数
+    }
+
     // 获取局部变量位置
-    public getlocalDefinition(query: SymbolQuery, text: string[]) {
+    public getlocalDefinition(query: SymbolQuery, text: string) {
         let symbol = Symbol.instance();
-        return symbol.parselocalSymLocation(query.uri, query.symName, text);
+        const line = query.position.line;
+        const pos = query.position.end;
+        // return symbol.parselocalSymLocation(query.uri, query.symName, text);
+        const sym = symbol.getlocalSymList(query.uri, line, pos, text);
+        if (!sym) {
+            return null;
+        }
+
+        //
+
+        return null;
     }
 
     // require("aaa.bbb")这种，则打开对应的文件
@@ -166,7 +239,7 @@ export class GoToDefinition {
         let eqIdx = query.text.indexOf("=", startIdx);
 
         // 在等号右边就是本地化的符号，要查找原符号才行
-        return query.position.character > eqIdx ? true : false;
+        return query.position.end > eqIdx ? true : false;
     }
 
     // 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M

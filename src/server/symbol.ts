@@ -53,17 +53,18 @@ import { promises as fs } from "fs";
 // type expressed as an enum flag which can be matched with luaparse.tokenTypes.
 // 这些没有包里找到定义
 
-export const LuaTokenType = {
-    EOF: 1,
-    StringLiteral: 2,
-    Keyword: 4,
-    Identifier: 8,
-    NumericLiteral: 16,
-    Punctuator: 32,
-    BooleanLiteral: 64,
-    NilLiteral: 128,
-    VarargLiteral: 256
-};
+// LuaTokenType
+export enum LTT {
+    EOF = 1,
+    StringLiteral = 2,
+    Keyword = 4,
+    Identifier = 8,
+    NumericLiteral = 16,
+    Punctuator = 32,
+    BooleanLiteral = 64,
+    NilLiteral = 128,
+    VarargLiteral = 256
+}
 
 // 用于go to definition查询的数据结构
 export interface SymbolQuery {
@@ -72,7 +73,11 @@ export interface SymbolQuery {
     symName: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
     leftWords: string | null; // 光标左边分解得到需要查询的字符串
-    position: Position; // 光标位置
+    position: { //符号位置
+        line: number;
+        beg: number;
+        end: number;
+    };
     text: string; // 符号所在的整行代码
 }
 
@@ -94,6 +99,7 @@ export interface SymInfoEx extends SymbolInformation {
     parameters?: string[]; // 如果是函数，记录其参数
     subSym?: SymInfoEx[]; // 子符号
     base?: string; // M.N时记录模块名M
+    local?: boolean; // 是否Local符号
 }
 
 type VSCodeSymbol = SymInfoEx | null;
@@ -370,6 +376,7 @@ export class Symbol {
             }
 
             const init = stat.init[index];
+
             let sym = this.toSym(name, varNode, init, baseName.base);
             if (!sym) {
                 continue;
@@ -496,6 +503,11 @@ export class Symbol {
 
         }
 
+        // 用json打印整个node，发现有isLocal这个字段，但这里只有函数识别出这个字段
+        let anyNode = node as any;
+        if (initNode.loc) {
+            sym.local = anyNode.isLocal;
+        }
         return sym;
     }
 
@@ -569,28 +581,21 @@ export class Symbol {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string): SymbolInformation[] {
+    public parse(uri: string, text: string): SymInfoEx[] {
         let ft = g_setting.getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return [];
         }
 
-        this.parseUri = uri;
-        this.parseScopeDeepth = 0;
-        this.parseNodeList = [];
         this.parseSymList = [];
         this.parseModule = {};
 
         this.parseOptSub = false; // 是否解析子符号
         this.parseOptAnonymous = false; // 是否解析匿名符号
 
-        let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
-            this.parseText(uri, text) : this.parseLarge(text);
-        if (!ok) {
-            return [];
-        }
+        const nodeList = this.rawParse(uri, text, false, false);
 
-        for (let node of this.parseNodeList) {
+        for (let node of nodeList) {
             this.parseNode(node);
         }
 
@@ -609,6 +614,28 @@ export class Symbol {
         this.needUpdate = true;
 
         return this.parseSymList;
+    }
+
+
+    // 解析一段代码并查找局部变量
+    public rawParse(uri: string,
+        text: string, optSub: boolean, optAnon: boolean): Node[] {
+        let ft = g_setting.getFileType(uri, text.length);
+        if (FileParseType.FPT_NONE === ft) {
+            return [];
+        }
+
+        this.parseUri = uri;
+        this.parseScopeDeepth = 0;
+        this.parseNodeList = [];
+
+        this.parseOptSub = optSub; // 是否解析子符号
+        this.parseOptAnonymous = optAnon; // 是否解析匿名符号
+
+        let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
+            this.parseText(uri, text) : this.parseLarge(text);
+
+        return ok ? this.parseNodeList : [];
     }
 
     // 获取所有文档的uri
@@ -770,13 +797,13 @@ export class Symbol {
         // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
         // return function或者 var = function这种则继续查找upvalue
         if (token.value !== "function"
-            || token.type !== LuaTokenType.Keyword) {
+            || token.type !== LTT.Keyword) {
             return false;
         }
 
         // local function
         if (last && last.value === "local"
-            && last.type === LuaTokenType.Keyword) {
+            && last.type === LTT.Keyword) {
             return true;
         }
 
@@ -821,7 +848,7 @@ export class Symbol {
                 // 记录查询到的符号后面的词法
                 // m = M()查询m将记录= m()这几个词法
                 // 当然有可能会出现换行，这里也不考虑
-                if (found && token.type !== LuaTokenType.EOF) {
+                if (found && token.type !== LTT.EOF) {
                     foundToken.push(token);
                 }
 
@@ -829,17 +856,17 @@ export class Symbol {
 
                 // 查询到对应的符号赋值操作 m = ...
                 if (token.value === mdName
-                    && token.type === LuaTokenType.Identifier) {
+                    && token.type === LTT.Identifier) {
                     token = parser.lex();
                     if (token.value === "="
-                        && token.type === LuaTokenType.Punctuator) {
+                        && token.type === LTT.Punctuator) {
                         found = true;
                     }
                     continue;
                 }
 
                 last = token;
-            } while (token.type !== LuaTokenType.EOF);
+            } while (token.type !== LTT.EOF);
 
             if (found) { break; }
 
@@ -878,10 +905,10 @@ export class Symbol {
         if (token.length < 2 || "require" !== token[0].value) { return null; }
 
         let path = token[1].value; // m = require "xxx"
-        if (token[1].type !== LuaTokenType.StringLiteral) {
+        if (token[1].type !== LTT.StringLiteral) {
             // m = require("xxx")
             if (token.length < 4
-                || token[3].type !== LuaTokenType.StringLiteral) {
+                || token[3].type !== LTT.StringLiteral) {
                 return null;
             }
             path = token[3].value;
@@ -906,7 +933,7 @@ export class Symbol {
         // 4. require引用: m = require "xxx"
         if (token.length <= 0) { return null; }
 
-        if (token[0].type !== LuaTokenType.Identifier) { return null; }
+        if (token[0].type !== LTT.Identifier) { return null; }
 
         let newModuleName = token[0].value;
         // 1. 全局本地化: m = M
@@ -933,7 +960,7 @@ export class Symbol {
         // 不过get_somthing这个函数一般不会和模块名相同，所以也不会有太大问题，反正
         // 也无法继续推断m的类型了
         if (token[1].value === "("
-            && token[1].type === LuaTokenType.Punctuator) {
+            && token[1].type === LTT.Punctuator) {
             return { uri: null, mdName: newModuleName };
         }
 
@@ -942,11 +969,11 @@ export class Symbol {
         // 3. 通过new函数创建对象: m = M.new()
         // 如果有人定义了一个普通函数也叫new，那就会出错
         if (token[1].value === "."
-            && token[1].type === LuaTokenType.Punctuator
+            && token[1].type === LTT.Punctuator
             && (token[2].value === "new" || token[2].value === "new")
-            && token[2].type === LuaTokenType.Identifier
+            && token[2].type === LTT.Identifier
             && token[3].value === "("
-            && token[3].type === LuaTokenType.Punctuator) {
+            && token[3].type === LTT.Punctuator) {
             return { uri: null, iderName: newModuleName };
         }
 
@@ -980,18 +1007,18 @@ export class Symbol {
 
                 // 查询到对应的符号声明 local m
                 if (token.value === symName
-                    && token.type === LuaTokenType.Identifier) {
+                    && token.type === LTT.Identifier) {
                     found = token;
                     found.line = line;
                     if (last && last.value === "local"
-                        && last.type === LuaTokenType.Keyword) {
+                        && last.type === LTT.Keyword) {
                         stop = true;
                         break;
                     }
                 }
 
                 last = token;
-            } while (token.type !== LuaTokenType.EOF);
+            } while (token.type !== LTT.EOF);
 
             if (stop) { break; }
 
@@ -1025,19 +1052,19 @@ export class Symbol {
         do {
             token = parser.lex();
 
-            if (token.type === LuaTokenType.EOF) {
+            if (token.type === LTT.EOF) {
                 return false;
             }
 
-            if (token.type === LuaTokenType.Keyword
+            if (token.type === LTT.Keyword
                 && token.value === "return") {
                 return false;
             }
 
-            if (token.type === LuaTokenType.Identifier) {
+            if (token.type === LTT.Identifier) {
                 break;
             }
-        } while (token.type !== LuaTokenType.EOF);
+        } while (token.type !== LTT.EOF);
 
         let node: LocalStatement = {
             "type": "LocalStatement",
@@ -1066,5 +1093,46 @@ export class Symbol {
 
         this.parseNodeList.push(node);
         return true;
+    }
+
+
+    // 判断符号是否在该节点内
+    private checkOneNode(node: Node, line: number, pos: number) {
+        // 目前只查找函数的局部变量
+        if (node.type !== "FunctionDeclaration") {
+            return null;
+        }
+
+        const loc = node.loc;
+        if (!loc) {
+            return;
+        }
+
+        const startLine = loc.start.line - 1;
+        if (startLine > line
+            || (startLine === line && loc.start.column > pos)) {
+            return null;
+        }
+
+        const endLine = loc.end.line - 1;
+        if (endLine < line || (endLine === line && loc.end.column < pos)) {
+            return null;
+        }
+
+        return this.parseFunctionExpr(node);
+    }
+
+    // 获取局部变量
+    public getlocalSymList(uri: string,
+        line: number, pos: number, text: string): VSCodeSymbol {
+        const nodeList = this.rawParse(uri, text, true, true);
+        for (const node of nodeList) {
+            const symList = this.checkOneNode(node, line, pos);
+            if (symList) {
+                return symList[0];
+            }
+        }
+
+        return null;
     }
 }

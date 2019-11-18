@@ -27,6 +27,9 @@ import {
     SymbolQuery
 } from "./symbol";
 
+// can only be default-imported using the 'esModuleInterop' flag
+// import assert from "assert";
+
 import Uri from 'vscode-uri';
 import { g_utils } from "./utils";
 import { AutoCompletion } from "./autoCompletion";
@@ -189,6 +192,9 @@ class Server {
         // 匹配到的字符
         let matchWords: string | null = null;
 
+        let beg: number = pos.character;
+        let end: number = pos.character;
+
         /*
          * https://javascript.info/regexp-groups
          * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
@@ -202,16 +208,28 @@ class Server {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
             matchWords = leftWords[0];
-            if (leftWords[2]) { mdName = leftWords[2]; }
-            if (leftWords[4]) { symName = leftWords[4]; }
+            if (leftWords[2]) {
+                mdName = leftWords[2];
+            }
+            if (leftWords[4]) {
+                symName = leftWords[4];
+                beg -= symName.length;
+                // assert(beg >= 0);
+            }
         }
 
         // test()分解成test和(，如果不是函数调用，则第二个括号则不存在
         const rightWords = rightText.match(/^(\w+)\s*(\()?/);
         if (rightWords) {
             // test() 匹配到 ["test(","test","("]
-            if (rightWords[1]) { symName += rightWords[1]; }
-            if (rightWords[2]) { kind = SymbolKind.Function; }
+            const rightSym = rightWords[1];
+            if (rightSym) {
+                symName += rightSym;
+                end += rightSym.length;
+            }
+            if (rightWords[2]) {
+                kind = SymbolKind.Function;
+            }
         }
 
         return {
@@ -220,39 +238,15 @@ class Server {
             symName: symName,
             kind: kind,
             leftWords: matchWords,
-            position: pos,
+            position: { line: pos.line, beg: beg, end: end },
             text: text
         };
     }
 
     // 获取查询本地符号需要解析的文本内容
     private getLocalText(query: SymbolQuery): string[] {
-        const document = this.documents.get(query.uri);
-
-        if (!document) { return []; }
-
-        const line = query.position.line;
-        const matchWords = query.leftWords;
-
-        // 把当前整个文档内容按行分解
-        const allText = document.getText();
-        let lines = allText.split(/\r?\n/g);
-        if (lines.length < line + 1) {
-            g_utils.log(
-                `document lines error ${
-                query.uri} expect ${line} got ${lines.length}`);
-            return [];
-        }
-
-        // 去掉多余的行数
-        lines.length = line + 1;
-        // 把当前行中已匹配的内容去掉
-        if (matchWords) {
-            lines[line] = lines[line].substring(
-                0, query.position.character - matchWords.length);
-        }
-
-        return lines;
+        // TODO: delete
+        return [""];
     }
 
     // go to definetion
@@ -308,8 +302,10 @@ class Server {
         loc = definetion.localizationFilter(query, loc);
         if (loc) { return loc; }
         // 局部符号匹配
-        if (!localText) { localText = this.getLocalText(query); }
-        loc = definetion.getlocalDefinition(query, localText);
+        const document = this.documents.get(uri);
+        if (document) {
+            loc = definetion.getlocalDefinition(query, document.getText());
+        }
         if (loc) { return loc; }
 
         return [];
