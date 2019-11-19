@@ -187,7 +187,7 @@ class Server {
         let kind: SymbolKind = SymbolKind.Variable;
 
         // 模块名，即m:test()中的m
-        let mdName: string | null = null;
+        let mdName: string | undefined = undefined;
 
         // 匹配到的字符
         let matchWords: string | null = null;

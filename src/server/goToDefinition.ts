@@ -24,8 +24,9 @@ import {
 
 import {
     Symbol,
+    SymInfoEx,
     SymbolQuery,
-    SymInfoEx
+    VSCodeSymbol
 } from "./symbol";
 
 export class GoToDefinition {
@@ -150,69 +151,59 @@ export class GoToDefinition {
     }
 
     // 查找子符号的位置
-    private searchSubSym(name: string,
-        line: number, beg: number, end: number, baseSym: SymInfoEx) {
+    private searchSubSym(name: string, line: number, beg: number,
+        end: number, baseSym: SymInfoEx, base?: string, ): VSCodeSymbol {
 
-        const symList = baseSym.subSym || [];
-
-        let endIndex = 0;
         let foundLocal = null;
         let foundGlobal = null;
-        for (const sym of symList) {
-            // 这里名字对比要比compSymLocation快，先不管位置
-            if (name !== sym.name) {
-                endIndex++;
-                continue;
+        // 在函数参数中找一下
+        if (baseSym.parameters) {
+            for (const param of baseSym.parameters) {
+                if (param.name === name) {
+                    foundLocal = param;
+                }
             }
+        }
+        const symList = baseSym.subSym || [];
+
+        for (const sym of symList) {
             let comp = this.compSymLocation(sym, line, beg, end);
             // 超出范围，不用找了
             if (1 === comp) {
                 break;
             }
-            endIndex++;
-            if (sym.local) {
-                foundLocal = sym;
-            } else {
-                foundGlobal = sym;
+
+            if (name === sym.name) {
+                if (sym.local) {
+                    foundLocal = sym;
+                } else {
+                    foundGlobal = sym;
+                }
             }
-            // 找到了要查找的符号本身，返回之前查找到的符号
+
+            // 搜索到了要查找的符号本身，返回之前查找到的符号
             // 最后一个local优先，因为本地变量可以同名覆盖
             // 非local变量可能是赋值
             if (0 === comp) {
                 return foundLocal || foundGlobal;
             }
-        }
 
-        // 当前作用域没有查找到，查找子作用域
-        for (let index = 0; index < endIndex; index++) {
-            const subSym = symList[index];
-            const foundSym = this.searchSubSym(name, line, beg, end, subSym);
-            if (!foundSym) {
-                continue;
-            }
-            if (foundSym.local) {
-                foundLocal = foundSym;
-            } else {
-                foundGlobal = foundSym;
-            }
-        }
-
-        // 在所有符号中都没有找到，尝试函数参数
-        if (!baseSym.parameters) {
-            return null;
-        }
-
-        for (const param of baseSym.parameters) {
-            if (param.name !== name) {
-                continue;
-            }
-
-            if (0 === this.compSymLocation(param, line, beg, end)) {
-                return param;
+            // 要查找的符号包含在这个符号里，去子作用域找找
+            // 或者模块名和当前符号相等(比如一个table)
+            if (2 === comp || base === sym.name) {
+                const foundSym = this.searchSubSym(name, line, beg, end, sym);
+                if (!foundSym) {
+                    continue;
+                }
+                if (foundSym.local) {
+                    foundLocal = foundSym;
+                } else {
+                    foundGlobal = foundSym;
+                }
             }
         }
 
-        return null;
+        return foundLocal || foundGlobal;
     }
 
     // 获取局部变量位置
@@ -226,7 +217,8 @@ export class GoToDefinition {
         if (!sym) {
             return null;
         }
-        const foundSym = this.searchSubSym(query.symName, line, beg, end, sym);
+        const foundSym = this.searchSubSym(
+            query.symName, line, beg, end, sym, query.mdName);
 
         return foundSym ? [foundSym.location] : null;
     }

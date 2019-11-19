@@ -69,7 +69,7 @@ export enum LTT {
 // 用于go to definition查询的数据结构
 export interface SymbolQuery {
     uri: string; // 要查询的符号在哪个文档
-    mdName: string | null; // 模块名，m:test中的m
+    mdName?: string; // 模块名，m:test中的m
     symName: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
     leftWords: string | null; // 光标左边分解得到需要查询的字符串
@@ -103,7 +103,7 @@ export interface SymInfoEx extends SymbolInformation {
     local?: boolean; // 是否Local符号
 }
 
-type VSCodeSymbol = SymInfoEx | null;
+export type VSCodeSymbol = SymInfoEx | null;
 type SymInfoMap = { [key: string]: SymInfoEx[] };
 
 export class Symbol {
@@ -339,7 +339,7 @@ export class Symbol {
                 continue;
             }
 
-            let sym = this.toSym(field.key.name, field.value);
+            let sym = this.toSym(field.key.name, field.key, field.value);
 
             if (sym) { symList.push(sym); }
         }
