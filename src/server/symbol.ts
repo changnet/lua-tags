@@ -96,7 +96,8 @@ export interface SymInfoEx extends SymbolInformation {
     refType?: string; // local N = M时记录引用的类型M
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
-    parameters?: string[]; // 如果是函数，记录其参数
+    parameters?: SymInfoEx[]; // 如果是函数，记录其参数
+    paramShow?: string; // 拼接的函数参数，用来展示的
     subSym?: SymInfoEx[]; // 子符号
     base?: string; // M.N时记录模块名M
     local?: boolean; // 是否Local符号
@@ -266,8 +267,8 @@ export class Symbol {
         return [];
     }
 
+    // 解析一个语句，仅用于解析局部语句
     private parseOneStatement(stat: Statement): SymInfoEx[] {
-        let symList: SymInfoEx[] = [];
         switch (stat.type) {
             case "LocalStatement":
             case "AssignmentStatement": {
@@ -276,7 +277,10 @@ export class Symbol {
             case "ReturnStatement": {
                 // 处理 return function(a,b,c) ... end 这种情况
                 for (let sub of stat.arguments) {
-
+                    if (sub.type === "FunctionDeclaration") {
+                        // TODO: 理论上讲可以返回多个函数，但这里暂不处理
+                        return this.parseFunctionExpr(sub);
+                    }
                 }
                 break;
             }
@@ -470,12 +474,12 @@ export class Symbol {
 
                 sym.parameters = [];
                 for (let para of initNode.parameters) {
-                    // function(a, ...) a是name
-                    if ("Identifier" === para.type) {
-                        sym.parameters.push(para.name);
-                    }
-                    else if ("VarargLiteral" === para.type) {
-                        sym.parameters.push(para.value);
+                    let paramName =
+                        "Identifier" === para.type ? para.name : para.value;
+
+                    let paramSym = this.toSym(paramName, para);
+                    if (paramSym) {
+                        sym.parameters.push(paramSym);
                     }
                 }
                 break;

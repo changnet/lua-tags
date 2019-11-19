@@ -151,18 +151,17 @@ export class GoToDefinition {
 
     // 查找子符号的位置
     private searchSubSym(name: string,
-        line: number, beg: number, end: number, symList?: SymInfoEx[]) {
-        if (!symList) {
-            return null;
-        }
+        line: number, beg: number, end: number, baseSym: SymInfoEx) {
 
-        let index = 0;
+        const symList = baseSym.subSym || [];
+
+        let endIndex = 0;
         let foundLocal = null;
         let foundGlobal = null;
         for (const sym of symList) {
-            index++;
-            // 这里名字对比要比compSymLocation，先不管位置
+            // 这里名字对比要比compSymLocation快，先不管位置
             if (name !== sym.name) {
+                endIndex++;
                 continue;
             }
             let comp = this.compSymLocation(sym, line, beg, end);
@@ -170,34 +169,66 @@ export class GoToDefinition {
             if (1 === comp) {
                 break;
             }
+            endIndex++;
             if (sym.local) {
                 foundLocal = sym;
             } else {
                 foundGlobal = sym;
             }
+            // 找到了要查找的符号本身，返回之前查找到的符号
+            // 最后一个local优先，因为本地变量可以同名覆盖
+            // 非local变量可能是赋值
             if (0 === comp) {
                 return foundLocal || foundGlobal;
             }
         }
 
-        // 当前作用域没有查找到，查找下一个作用域
+        // 当前作用域没有查找到，查找子作用域
+        for (let index = 0; index < endIndex; index++) {
+            const subSym = symList[index];
+            const foundSym = this.searchSubSym(name, line, beg, end, subSym);
+            if (!foundSym) {
+                continue;
+            }
+            if (foundSym.local) {
+                foundLocal = foundSym;
+            } else {
+                foundGlobal = foundSym;
+            }
+        }
+
         // 在所有符号中都没有找到，尝试函数参数
+        if (!baseSym.parameters) {
+            return null;
+        }
+
+        for (const param of baseSym.parameters) {
+            if (param.name !== name) {
+                continue;
+            }
+
+            if (0 === this.compSymLocation(param, line, beg, end)) {
+                return param;
+            }
+        }
+
+        return null;
     }
 
     // 获取局部变量位置
     public getlocalDefinition(query: SymbolQuery, text: string) {
         let symbol = Symbol.instance();
         const line = query.position.line;
-        const pos = query.position.end;
+        const beg = query.position.beg;
+        const end = query.position.end;
         // return symbol.parselocalSymLocation(query.uri, query.symName, text);
-        const sym = symbol.getlocalSymList(query.uri, line, pos, text);
+        const sym = symbol.getlocalSymList(query.uri, line, end, text);
         if (!sym) {
             return null;
         }
+        const foundSym = this.searchSubSym(query.symName, line, beg, end, sym);
 
-        //
-
-        return null;
+        return foundSym ? [foundSym.location] : null;
     }
 
     // require("aaa.bbb")这种，则打开对应的文件

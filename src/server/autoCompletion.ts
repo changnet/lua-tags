@@ -72,8 +72,11 @@ export class AutoCompletion {
 
             // 如果是函数，显示参数: test.lua: function(a, b, c)
             if (sym.parameters) {
-                let parameters = sym.parameters.join(", ");
-                item.detail += `: function ${sym.name}(${parameters})`;
+                if (!sym.paramShow) {
+                    sym.paramShow = sym.parameters.map(e => e.name).join(", ");
+                }
+                item.detail +=
+                    `: ${sym.local || ""}function ${sym.name}(${sym.paramShow})`;
             }
         }
 
