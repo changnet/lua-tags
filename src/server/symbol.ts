@@ -66,6 +66,13 @@ export enum LTT {
     VarargLiteral = 256
 }
 
+//符号位置
+export interface QueryPos {
+    line: number;
+    beg: number;
+    end: number;
+}
+
 // 用于go to definition查询的数据结构
 export interface SymbolQuery {
     uri: string; // 要查询的符号在哪个文档
@@ -73,11 +80,7 @@ export interface SymbolQuery {
     symName: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
     leftWords: string | null; // 光标左边分解得到需要查询的字符串
-    position: { //符号位置
-        line: number;
-        beg: number;
-        end: number;
-    };
+    position: QueryPos; //符号位置
     text: string; // 符号所在的整行代码
 }
 
@@ -284,7 +287,10 @@ export class Symbol {
                 }
                 break;
             }
-            case "IfStatement": break;
+            case "IfStatement": {
+                //return this.parseStatement(stat.clauses)
+                break;
+            }
             case "WhileStatement": break;
             case "DoStatement": break;
             case "RepeatStatement": break;

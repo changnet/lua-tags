@@ -29,6 +29,11 @@ import {
     VSCodeSymbol
 } from "./symbol";
 
+import {
+    Search
+} from "./search";
+import { g_utils } from './utils';
+
 export class GoToDefinition {
     private static ins: GoToDefinition;
 
@@ -72,7 +77,6 @@ export class GoToDefinition {
 
         return this.checkSymDefinition(symList, query.symName, query.kind);
     }
-
 
     // 根据模块名查找某个文档的符号位置
     public getDocumentModuleDefinition(query: SymbolQuery) {
@@ -191,7 +195,8 @@ export class GoToDefinition {
             // 要查找的符号包含在这个符号里，去子作用域找找
             // 或者模块名和当前符号相等(比如一个table)
             if (2 === comp || base === sym.name) {
-                const foundSym = this.searchSubSym(name, line, beg, end, sym);
+                const foundSym =
+                    this.searchSubSym(name, line, beg, end, sym, base);
                 if (!foundSym) {
                     continue;
                 }
@@ -213,14 +218,34 @@ export class GoToDefinition {
         const beg = query.position.beg;
         const end = query.position.end;
         // return symbol.parselocalSymLocation(query.uri, query.symName, text);
-        const sym = symbol.getlocalSymList(query.uri, line, end, text);
-        if (!sym) {
-            return null;
-        }
-        const foundSym = this.searchSubSym(
-            query.symName, line, beg, end, sym, query.mdName);
+        // const sym = symbol.getlocalSymList(query.uri, line, end, text);
+        // if (!sym) {
+        //     return null;
+        // }
+        // const foundSym = this.searchSubSym(
+        //     query.symName, line, beg, end, sym, query.mdName);
 
-        return foundSym ? [foundSym.location] : null;
+        // return foundSym ? [foundSym.location] : null;
+        const nodeList = symbol.rawParse(query.uri, text, false, false);
+
+        let local;
+        let global;
+        Search.instance().search(nodeList, query.position,
+            (node, isLocal, name) => {
+                if (name === query.symName) {
+                    if (isLocal) {
+                        local = node;
+                    } else {
+                        global = node;
+                    }
+                }
+            }
+        );
+
+        g_utils.log(`check local ${JSON.stringify(local)}`);
+        g_utils.log(`check global ${JSON.stringify(global)}`);
+
+        return null;
     }
 
     // require("aaa.bbb")这种，则打开对应的文件
