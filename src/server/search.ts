@@ -22,7 +22,8 @@ import {
     SymbolQuery
 } from "./symbol";
 
-export type Filter = (node: Node, local: boolean, name: string) => void;
+export type Filter = (node: Node,
+    local: boolean, name: string, base?: string) => void;
 
 export class Search {
     private static ins: Search;
@@ -71,12 +72,13 @@ export class Search {
         return 2;
     }
 
-    private searchExpression(expr: Expression) {
+    // local X = { a = 1 }，需要X来定位
+    private searchExpression(expr: Expression, base?: string) {
         if (expr.type === "FunctionDeclaration"
             && !this.searchFunctionDeclaration(expr)) {
             return false;
         } else if (expr.type === "TableConstructorExpression"
-            && !this.searchTableExpression(expr)) {
+            && !this.searchTableExpression(expr, base)) {
             return false;
         }
 
@@ -84,7 +86,23 @@ export class Search {
         return true;
     }
 
-    private searchTableExpression(expr: TableConstructorExpression) {
+    private searchStatement(stat: Statement) {
+        switch (stat.type) {
+            case "LocalStatement":
+                return this.searchLocalStatement(stat);
+            case "AssignmentStatement":
+                return this.searchAssignmentStatement(stat);
+            case "FunctionDeclaration":
+                return this.searchFunctionDeclaration(stat);
+            case "ReturnStatement":
+                return this.searchReturnStatement(stat);
+        }
+
+        return true;
+    }
+
+    private searchTableExpression(
+        expr: TableConstructorExpression, base?: string) {
         for (const field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
             if (("TableKey" !== field.type && "TableKeyString" !== field.type)
@@ -92,7 +110,7 @@ export class Search {
                 continue;
             }
 
-            if (!this.searchOne(field, false, field.key.name)) {
+            if (!this.searchOne(field, false, field.key.name, base)) {
                 return false;
             }
         }
@@ -100,13 +118,13 @@ export class Search {
         return true;
     }
 
-    // 解析变量声明
+    // 解析变量声明 local x,y = ...
     private searchLocalStatement(stat: LocalStatement) {
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
             let varNode = stat.variables[index];
             if (!this.searchOne(varNode, true, varNode.name)
-                || !this.searchExpression(stat.init[index])) {
+                || !this.searchExpression(stat.init[index], varNode.name)) {
                 return false;
             }
         }
@@ -114,22 +132,35 @@ export class Search {
         return true;
     }
 
+    // x = ... list[1] = ... m.n = ...
     private searchAssignmentStatement(stat: AssignmentStatement) {
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
             let varNode = stat.variables[index];
-            // list[1] = ... 这种没名字的，就不用搜索
-            if (varNode.type === "Identifier"
-                && !this.searchOne(varNode, false, varNode.name)) {
-                return false;
+
+            let baseName;
+            if (varNode.type === "Identifier") {
+                baseName = varNode.name;
+                if (!this.searchOne(varNode, false, baseName)) {
+                    return false;
+                }
             }
 
-            if (!this.searchOne(stat.init[index], false)) {
+            if (!this.searchExpression(stat.init[index], baseName)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    // 解析返回语句，仅处理 return function() ... end 这种情况
+    private searchReturnStatement(stat: ReturnStatement) {
+        for (const expr of stat.arguments) {
+            if (expr.type === "FunctionDeclaration") {
+                return this.searchFunctionDeclaration(expr);
+            }
+        }
     }
 
     private searchFunctionDeclaration(expr: FunctionDeclaration) {
@@ -148,7 +179,7 @@ export class Search {
         }
         // 扫完函数局部变量
         for (const stat of expr.body) {
-            if (!this.searchOne(stat, stat.type === "LocalStatement")) {
+            if (!this.searchStatement(stat)) {
                 return false;
             }
         }
@@ -157,17 +188,14 @@ export class Search {
     }
 
     // 搜索某个节点，返回是否继续搜索
-    private searchOne(node: Node, local: boolean, name?: string) {
+    private searchOne(node: Node, local: boolean, name: string, base?: string) {
         const comp = this.compNodePos(node, this.pos!);
         // 搜索位置已超过目标位置，不再搜索
         if (1 === comp) {
             return false;
         }
 
-        // 有些节点是没有名字的，比如return function() ... end
-        if (name && "" !== name) {
-            this.filter!(node, local, name);
-        }
+        this.filter!(node, local, name, base);
 
         // 已到达搜索位置，中止搜索
         if (0 === comp) {

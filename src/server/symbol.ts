@@ -66,6 +66,18 @@ export enum LTT {
     VarargLiteral = 256
 }
 
+// lua parser的位置格式
+export interface LuaLocation {
+    start: {
+        line: number;
+        column: number;
+    };
+    end: {
+        line: number;
+        column: number;
+    };
+}
+
 //符号位置
 export interface QueryPos {
     line: number;
@@ -419,6 +431,18 @@ export class Symbol {
         return symList;
     }
 
+    public static toLocation(uri: string, loc: LuaLocation): Location {
+        return {
+            uri: uri,
+            range: {
+                start: {
+                    line: loc.start.line - 1, character: loc.start.column
+                },
+                end: { line: loc.end.line - 1, character: loc.end.column }
+            }
+        };
+    }
+
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
     private toSym(name: string, node: Statement | Expression,
@@ -432,15 +456,7 @@ export class Symbol {
             name: name,
             base: base,
             kind: SymbolKind.Variable,
-            location: {
-                uri: this.parseUri,
-                range: {
-                    start: {
-                        line: loc.start.line - 1, character: loc.start.column
-                    },
-                    end: { line: loc.end.line - 1, character: loc.end.column }
-                }
-            }
+            location: Symbol.toLocation(this.parseUri, loc),
         };
 
         let initNode = init || node;

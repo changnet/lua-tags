@@ -30,8 +30,13 @@ import {
 } from "./symbol";
 
 import {
+    Node
+} from 'luaparse';
+
+import {
     Search
 } from "./search";
+
 import { g_utils } from './utils';
 
 export class GoToDefinition {
@@ -228,22 +233,31 @@ export class GoToDefinition {
         // return foundSym ? [foundSym.location] : null;
         const nodeList = symbol.rawParse(query.uri, text, false, false);
 
-        let local;
-        let global;
+        let foundLocal: Node | null = null;
+        let foundGlobal: Node | null = null;
         Search.instance().search(nodeList, query.position,
-            (node, isLocal, name) => {
-                if (name === query.symName) {
+            (node, isLocal, name, base) => {
+                if (name === query.symName && base === query.mdName) {
                     if (isLocal) {
-                        local = node;
+                        foundLocal = node;
                     } else {
-                        global = node;
+                        foundGlobal = node;
                     }
                 }
             }
         );
 
-        g_utils.log(`check local ${JSON.stringify(local)}`);
-        g_utils.log(`check global ${JSON.stringify(global)}`);
+        g_utils.log(`check local ${JSON.stringify(foundLocal)}`);
+        g_utils.log(`check global ${JSON.stringify(foundGlobal)}`);
+
+        // 这里foundLocal、foundGlobal会被识别为null类型，因为它们是在lambda中被
+        // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
+        // https://github.com/Microsoft/TypeScript/issues/15631
+
+        const found: Node | null = foundLocal || foundGlobal;
+        if (found && found!.loc) {
+            return [Symbol.toLocation(query.uri, found!.loc)];
+        }
 
         return null;
     }
