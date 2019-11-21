@@ -159,83 +159,11 @@ export class GoToDefinition {
         return 2;
     }
 
-    // 查找子符号的位置
-    private searchSubSym(name: string, line: number, beg: number,
-        end: number, baseSym: SymInfoEx, base?: string, ): VSCodeSymbol {
-
-        let foundLocal = null;
-        let foundGlobal = null;
-        // 在函数参数中找一下
-        if (baseSym.parameters) {
-            for (const param of baseSym.parameters) {
-                if (param.name === name) {
-                    foundLocal = param;
-                }
-            }
-        }
-        const symList = baseSym.subSym || [];
-
-        for (const sym of symList) {
-            let comp = this.compSymLocation(sym, line, beg, end);
-            // 超出范围，不用找了
-            if (1 === comp) {
-                break;
-            }
-
-            if (name === sym.name) {
-                if (sym.local) {
-                    foundLocal = sym;
-                } else {
-                    foundGlobal = sym;
-                }
-            }
-
-            // 搜索到了要查找的符号本身，返回之前查找到的符号
-            // 最后一个local优先，因为本地变量可以同名覆盖
-            // 非local变量可能是赋值
-            if (0 === comp) {
-                return foundLocal || foundGlobal;
-            }
-
-            // 要查找的符号包含在这个符号里，去子作用域找找
-            // 或者模块名和当前符号相等(比如一个table)
-            if (2 === comp || base === sym.name) {
-                const foundSym =
-                    this.searchSubSym(name, line, beg, end, sym, base);
-                if (!foundSym) {
-                    continue;
-                }
-                if (foundSym.local) {
-                    foundLocal = foundSym;
-                } else {
-                    foundGlobal = foundSym;
-                }
-            }
-        }
-
-        return foundLocal || foundGlobal;
-    }
-
     // 获取局部变量位置
-    public getlocalDefinition(query: SymbolQuery, text: string) {
-        let symbol = Symbol.instance();
-        const line = query.position.line;
-        const beg = query.position.beg;
-        const end = query.position.end;
-        // return symbol.parselocalSymLocation(query.uri, query.symName, text);
-        // const sym = symbol.getlocalSymList(query.uri, line, end, text);
-        // if (!sym) {
-        //     return null;
-        // }
-        // const foundSym = this.searchSubSym(
-        //     query.symName, line, beg, end, sym, query.mdName);
-
-        // return foundSym ? [foundSym.location] : null;
-        const nodeList = symbol.rawParse(query.uri, text, false, false);
-
+    public getlocalDefinition(query: SymbolQuery) {
         let foundLocal: Node | null = null;
         let foundGlobal: Node | null = null;
-        Search.instance().search(nodeList, query.position,
+        Search.instance().search(query.uri, query.position,
             (node, isLocal, name, base) => {
                 if (name === query.symName && base === query.mdName) {
                     if (isLocal) {
@@ -246,9 +174,6 @@ export class GoToDefinition {
                 }
             }
         );
-
-        g_utils.log(`check local ${JSON.stringify(foundLocal)}`);
-        g_utils.log(`check global ${JSON.stringify(foundGlobal)}`);
 
         // 这里foundLocal、foundGlobal会被识别为null类型，因为它们是在lambda中被
         // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!

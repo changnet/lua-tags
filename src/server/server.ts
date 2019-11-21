@@ -101,23 +101,22 @@ class Server {
             }
         };
     }
-    private onInitialized() {
+    private async onInitialized() {
         g_utils.log(`Lua LSP Server started:${this.rootUri}`);
+        if (!this.rootUri) {
+            return;
+        }
 
-        /* non-null assertion operator
-         * A new ! post-fix expression operator may be used to assert that its
-         * operand is non-null and non-undefined in contexts where the type
-         * checker is unable to conclude that fact. Specifically, the operation
-         * x! produces a value of the type of x with null and undefined excluded.
-         * The description contains many fancy words, but in plain English, it
-         * means: when you add an exclamation mark after variable/property name,
-         * you're telling to TypeScript that you're certain that value is not
-         * null or undefined.
-         */
-        const uri = Uri.parse(this.rootUri!);
-        Symbol.instance().parseRoot(uri.fsPath);
+        const uri = Uri.parse(this.rootUri);
+        let symbol = Symbol.instance();
 
-        g_utils.log(`Lua initialized done:${this.rootUri}`);
+        let beg = Date.now();
+
+        await symbol.parseRoot(uri.fsPath);
+        symbol.setCacheOpen();
+
+        let end = Date.now();
+        g_utils.log(`Lua initialized done:${this.rootUri}, msec:${end - beg}`);
     }
 
     // 返回当前文档的符号
@@ -249,6 +248,19 @@ class Server {
         return [""];
     }
 
+    // 确定有当前符号的缓存，没有则解析
+    private ensureSymbolCache(uri: string) {
+        if (Symbol.instance().getCache(uri)) {
+            return;
+        }
+        const document = this.documents.get(uri);
+        if (!document) {
+            return;
+        }
+
+        Symbol.instance().rawParse(uri, document.getText(), false, false);
+    }
+
     // go to definetion
     private onDefinition(handler: TextDocumentPositionParams): Definition {
         const uri = handler.textDocument.uri;
@@ -302,10 +314,8 @@ class Server {
         loc = definetion.localizationFilter(query, loc);
         if (loc) { return loc; }
         // 局部符号匹配
-        const document = this.documents.get(uri);
-        if (document) {
-            loc = definetion.getlocalDefinition(query, document.getText());
-        }
+        this.ensureSymbolCache(uri);
+        loc = definetion.getlocalDefinition(query);
         if (loc) { return loc; }
 
         return [];

@@ -121,6 +121,11 @@ export interface SymInfoEx extends SymbolInformation {
 export type VSCodeSymbol = SymInfoEx | null;
 type SymInfoMap = { [key: string]: SymInfoEx[] };
 
+interface NodeCache {
+    uri: string;
+    nodes: Node[];
+}
+
 export class Symbol {
     private static ins: Symbol;
 
@@ -149,6 +154,10 @@ export class Symbol {
     private parseModule: { [key: string]: SymInfoEx[] } = {};
 
     private pathSlash: string = "/";
+
+    private openCache = false;
+    // 缓存8个文档的符号数据，用于本地符号的查找等
+    private docNodeCache = new Array<NodeCache>();
 
     private parseOptSub = false; // 是否解析子符号
     private parseOptAnonymous = false; // 是否解析匿名符号
@@ -642,6 +651,41 @@ export class Symbol {
         return this.parseSymList;
     }
 
+    public setCacheOpen() {
+        this.openCache = true;
+    }
+
+    public getCache(uri: string): Node[] | null {
+        for (const cache of this.docNodeCache) {
+            if (uri === cache.uri) {
+                return cache.nodes;
+            }
+        }
+
+        return null;
+    }
+
+    // 更新文档缓存
+    private updateCache(uri: string, nodes: Node[]) {
+        if (!this.openCache) {
+            return;
+        }
+
+        let index = -1;
+        for (let e of this.docNodeCache) {
+            index++;
+            if (e.uri === uri) {
+                break;
+            }
+        }
+        if (index >= 0) {
+            this.docNodeCache.splice(index, 1);
+        }
+        if (this.docNodeCache.length >= 8) {
+            this.docNodeCache.splice(0, 1);
+        }
+        this.docNodeCache.push({ uri: uri, nodes: nodes });
+    }
 
     // 解析一段代码并查找局部变量
     public rawParse(uri: string,
@@ -661,7 +705,13 @@ export class Symbol {
         let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
             this.parseText(uri, text) : this.parseLarge(text);
 
-        return ok ? this.parseNodeList : [];
+        if (!ok) {
+            return [];
+        }
+
+        this.updateCache(uri, this.parseNodeList);
+
+        return this.parseNodeList;
     }
 
     // 获取所有文档的uri

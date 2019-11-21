@@ -283,12 +283,19 @@ export class Search {
 
     // 在list中搜索符号
     // @filter: 过滤函数，主要用于回调
-    public search(list: Node[], pos: QueryPos, filter: Filter) {
+    public search(uri: string, pos: QueryPos, filter: Filter) {
+        let symbol = Symbol.instance();
+
+        const nodeList = symbol.getCache(uri);
+        if (!nodeList) {
+            return null;
+        }
+
         this.pos = pos;
         this.filter = filter;
 
         // 从函数开始搜索，非函数会在文档符号中查找
-        for (const node of list) {
+        for (const node of nodeList) {
             if (node.type === "FunctionDeclaration"
                 && !this.searchFunctionDeclaration(node)) {
                 return;
