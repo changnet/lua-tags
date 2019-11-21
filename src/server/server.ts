@@ -242,12 +242,6 @@ class Server {
         };
     }
 
-    // 获取查询本地符号需要解析的文本内容
-    private getLocalText(query: SymbolQuery): string[] {
-        // TODO: delete
-        return [""];
-    }
-
     // 确定有当前符号的缓存，没有则解析
     private ensureSymbolCache(uri: string) {
         if (Symbol.instance().getCache(uri)) {
@@ -292,15 +286,6 @@ class Server {
         // 根据模块名匹配当前文档
         loc = definetion.getDocumentModuleDefinition(query);
         if (loc) { return loc; }
-
-        // 根据模块名匹配局部变量
-        let localText: string[] | null = null;
-
-        if (query.mdName) {
-            localText = this.getLocalText(query);
-            loc = definetion.getLocalModuleDefinition(query, localText);
-            if (loc) { return loc; }
-        }
 
         // 上面的方法都找不到，可能是根本没有模块名mdName
         // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
@@ -361,15 +346,6 @@ class Server {
         items = completion.getDocumentModuleCompletion(query);
         if (items) { return items; }
 
-        // 根据局部模块名，匹配符号
-        let localText: string[] | null = null;
-
-        if (query.mdName) {
-            localText = this.getLocalText(query);
-            items = completion.getLocalModuleCompletion(query, localText);
-            if (items) { return items; }
-        }
-
         if (query.symName.length <= 0) { return []; }
 
         // 根据模块名无法匹配到，下面开始忽略模块名
@@ -380,8 +356,7 @@ class Server {
         items = completion.getGlobalCompletion(query);
         if (items) { return items; }
         // 局部符号匹配
-        if (!localText) { localText = this.getLocalText(query); }
-        items = completion.getlocalCompletion(query, localText);
+        items = completion.getlocalCompletion(query);
         if (items) { return items; }
 
         return [];

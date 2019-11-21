@@ -132,28 +132,6 @@ export class AutoCompletion {
             symbol.getDocumentModule(rawUri, mdName), query.symName);
     }
 
-    // 根据模块名查询局部变量位置
-    public getLocalModuleCompletion(query: SymbolQuery, text: string[]) {
-        let mdName = query.mdName;
-        if (!mdName) { return null; }
-
-        let symbol = Symbol.instance();
-        let iderInfo = symbol.getLocalRawModule(mdName, text);
-        if (!iderInfo) { return null; }
-
-        if (iderInfo.uri) {
-            let symList = symbol.getDocumentSymbol(iderInfo.uri);
-            return this.checkSymCompletion(symList, query.symName);
-        }
-
-        if (iderInfo.mdName) {
-            let newQuery = Object.assign({}, query);
-            newQuery.mdName = iderInfo.mdName;
-            return this.getGlobalModuleCompletion(newQuery);
-        }
-        return null;
-    }
-
     // 从全局符号获取符号定义
     public getGlobalCompletion(query: SymbolQuery) {
         let symList = Symbol.instance().getGlobalSymbol();
@@ -171,7 +149,7 @@ export class AutoCompletion {
     // 获取局部变量位置
     // TODO: 局部变量不处理自动完成了，vs code会自动把当前文档的单词提示出来
     // 不地ts的是有提示的，以后看要不要做
-    public getlocalCompletion(query: SymbolQuery, text: string[]) {
+    public getlocalCompletion(query: SymbolQuery) {
         return null;
     }
 

@@ -259,8 +259,15 @@ export class Symbol {
     private pushParseSymbol(sym: SymInfoEx) {
         this.parseSymList.push(sym);
         if (sym.subSym) {
+            // 如果这个符号包含子符号，则一定被当作模块
+            // 目前只有table这样处理
+            const base = sym.name;
+            if (!this.parseModule[base]) {
+                this.parseModule[base] = [];
+            }
             for (let subSym of sym.subSym) {
                 this.parseSymList.push(subSym);
+                this.parseModule[base].push(subSym);
             }
         }
 
@@ -291,7 +298,7 @@ export class Symbol {
 
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
-    private parserTableConstructorExpr(expr: TableConstructorExpression) {
+    private parseTableConstructorExpr(expr: TableConstructorExpression) {
         let symList: SymInfoEx[] = [];
         for (let field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
@@ -314,7 +321,7 @@ export class Symbol {
         for (let argument of node.arguments) {
             // 如果是用来显示文档符号的，只处理 return {}
             if ("TableConstructorExpression" === argument.type) {
-                return this.parserTableConstructorExpr(argument);
+                return this.parseTableConstructorExpr(argument);
             }
 
             // parseOptSub是用来处理局部符号的，只处理return function() ... end
@@ -351,7 +358,7 @@ export class Symbol {
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
             if ("TableConstructorExpression" === init.type) {
-                sym.subSym = this.parserTableConstructorExpr(init);
+                sym.subSym = this.parseTableConstructorExpr(init);
                 // vs code在显示文档符号时，会自动判断各个符号的位置，如果发现某个符号
                 // 属于另一个符号的位置范围内，则认为这个符号是另一个符号的子符号，可以
                 // 把子符号折叠起来
@@ -400,18 +407,17 @@ export class Symbol {
         let initNode = init || node;
         switch (initNode.type) {
             case "Identifier": {
-                // 在顶层作用域中 local N = M 会被视为把模块M本地化为N
+                // local N = M 会被视为把模块M本地化为N
                 // 在跟踪N的符号时会在M查找
                 // 如果是local M = M这种同名的，则不处理，反正都是根据名字去查找
-                if (1 === this.parseScopeDeepth) {
-                    if (name !== initNode.name) {
-                        sym.refType = initNode.name;
-                    }
+                // TODO: 仅仅处理文件顶层作用域
+                if (name !== initNode.name) {
+                    sym.refType = initNode.name;
                 }
                 break;
             }
             case "StringLiteral": {
-                sym.value = initNode.value;
+                sym.value = initNode.raw;
                 sym.kind = SymbolKind.String;
                 break;
             }
@@ -774,6 +780,7 @@ export class Symbol {
         for (let one of symList) {
             if (one.name === mdName) {
                 sym = one;
+                break;
             }
         }
         if (!sym) {
@@ -783,92 +790,6 @@ export class Symbol {
         // local N = M 这种用法
         // 都找不到，默认查找当前文档
         return sym.refType || mdName;
-    }
-
-    // 检测是否结束作用局域
-    // 当遇到本地函数:local function 或者 全局函数:function 时结束
-    private isLocalScopeEnd(token: Token,
-        last: Token | null, text: string[], line: number): boolean {
-        // 遇到 function行首的，是函数声明，作用域已经结束，不再查找
-        // return function或者 var = function这种则继续查找upvalue
-        if (token.value !== "function"
-            || token.type !== LTT.Keyword) {
-            return false;
-        }
-
-        // local function
-        if (last && last.value === "local"
-            && last.type === LTT.Keyword) {
-            return true;
-        }
-
-        // 没有last，则表明function在行首的，简单处理下面这种换行
-        // local x =
-        //      function()
-        // 加了注释的情况，暂时不考虑。如果要处理这里得用lexer来解析了
-        while (line >= 0) {
-            line = line - 1;
-            let lineText = text[line];
-            if (lineText.length > 0) {
-                let isMatch = lineText.match(/[return|=]\s*$/g);
-                return isMatch ? false : true;
-            }
-        }
-
-        return false;
-    }
-
-    // 解析对应符号的词法
-    // 返回 m = ... 之后 ... 的词法
-    private parseLexerToken(mdName: string, text: string[]): Token[] {
-        if (text.length <= 0) { return []; }
-
-        // 反向一行行地查找符号所在的位置
-        let line = text.length - 1;
-        let foundToken: Token[] = [];
-        // 注意下，这里用一个parser持续write得到的token值是对的
-        // 但token里的line和range是错的，不过这里没用到位置信息可以这样用
-        // 正确的用法是每行创建一个parser
-        let parser: luaParser = luaParse("", { wait: true });
-        do {
-            parser.write(text[line]);
-
-            let last = null;
-            let found = false;
-            let token: Token | null = null;
-
-            do {
-                token = parser.lex();
-
-                // 记录查询到的符号后面的词法
-                // m = M()查询m将记录= m()这几个词法
-                // 当然有可能会出现换行，这里也不考虑
-                if (found && token.type !== LTT.EOF) {
-                    foundToken.push(token);
-                }
-
-                if (this.isLocalScopeEnd(token, last, text, line)) { return []; }
-
-                // 查询到对应的符号赋值操作 m = ...
-                if (token.value === mdName
-                    && token.type === LTT.Identifier) {
-                    token = parser.lex();
-                    if (token.value === "="
-                        && token.type === LTT.Punctuator) {
-                        found = true;
-                    }
-                    continue;
-                }
-
-                last = token;
-            } while (token.type !== LTT.EOF);
-
-            if (found) { break; }
-
-            line--;
-        } while (line >= 0);
-
-        return foundToken;
     }
 
     // 转换成uri路径格式
@@ -893,86 +814,6 @@ export class Symbol {
         }
 
         return "";
-    }
-
-    // 获取 m = require("xxx")对应的模块名
-    private getRequireFromLexer(token: Token[]): string | null {
-        if (token.length < 2 || "require" !== token[0].value) { return null; }
-
-        let path = token[1].value; // m = require "xxx"
-        if (token[1].type !== LTT.StringLiteral) {
-            // m = require("xxx")
-            if (token.length < 4
-                || token[3].type !== LTT.StringLiteral) {
-                return null;
-            }
-            path = token[3].value;
-        }
-
-        // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式，把路径转换为uri形式
-        return this.getRequireUri(path);
-    }
-
-    /* local M = GlobalSymbol
-     * M:test()
-     * 查询局部模块名M真正的模块名GlobalSymbol，注意只是局部的，比如一个函数里的。
-     * 不查询整个文档local化的那种，那种在上面的getDocumentIderDefinition处理
-     */
-    public getLocalRawModule(mdName: string, text: string[]) {
-        let token = this.parseLexerToken(mdName, text);
-
-        // 尝试根据下面几种情况推断出真正的类型
-        // 1. 全局本地化: m = M
-        // 2. 通过__call创建新对象: m = M()
-        // 3. 通过new函数创建对象: m = M.new()
-        // 4. require引用: m = require "xxx"
-        if (token.length <= 0) { return null; }
-
-        if (token[0].type !== LTT.Identifier) { return null; }
-
-        let newModuleName = token[0].value;
-        // 1. 全局本地化: m = M
-        if (1 === token.length) {
-            return { uri: null, mdName: newModuleName };
-        }
-
-        // 4. require引用: m = require "xxx"
-        // require 只能定位到uri，m这个不一定是模块名
-        if ("require" === newModuleName) {
-            let uri = this.getRequireFromLexer(token);
-            if (!uri) { return null; }
-
-            return {
-                uri: uri,
-                mdName: null
-            };
-        }
-
-        if (token.length < 2) { return null; }
-
-        // 2. 通过__call创建新对象: m = M()
-        // 当然很多情况下，也有可能是 m = get_something()这样调用普通函数，这时
-        // 不过get_somthing这个函数一般不会和模块名相同，所以也不会有太大问题，反正
-        // 也无法继续推断m的类型了
-        if (token[1].value === "("
-            && token[1].type === LTT.Punctuator) {
-            return { uri: null, mdName: newModuleName };
-        }
-
-        if (token.length < 4) { return null; }
-
-        // 3. 通过new函数创建对象: m = M.new()
-        // 如果有人定义了一个普通函数也叫new，那就会出错
-        if (token[1].value === "."
-            && token[1].type === LTT.Punctuator
-            && (token[2].value === "new" || token[2].value === "new")
-            && token[2].type === LTT.Identifier
-            && token[3].value === "("
-            && token[3].type === LTT.Punctuator) {
-            return { uri: null, iderName: newModuleName };
-        }
-
-        return null;
     }
 
     // 解析大文件

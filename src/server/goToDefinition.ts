@@ -95,29 +95,6 @@ export class GoToDefinition {
             symbol.getDocumentModule(rawUri, mdName), query.symName, query.kind);
     }
 
-
-    // 根据模块名查询局部变量位置
-    public getLocalModuleDefinition(query: SymbolQuery, text: string[]) {
-        let mdName = query.mdName;
-        if (!mdName) { return null; }
-
-        let symbol = Symbol.instance();
-        let iderInfo = symbol.getLocalRawModule(mdName, text);
-        if (!iderInfo) { return null; }
-
-        if (iderInfo.uri) {
-            let symList = symbol.getDocumentSymbol(iderInfo.uri);
-            return this.checkSymDefinition(symList, query.symName, query.kind);
-        }
-
-        if (iderInfo.mdName) {
-            let newQuery = Object.assign({}, query);
-            newQuery.mdName = iderInfo.mdName;
-            return this.getGlobalModuleDefinition(newQuery);
-        }
-        return null;
-    }
-
     // 从全局符号获取符号定义
     public getGlobalDefinition(query: SymbolQuery) {
         let symList = Symbol.instance().getGlobalSymbol(query.symName);
@@ -151,7 +128,8 @@ export class GoToDefinition {
         // 这里foundLocal、foundGlobal会被识别为null类型，因为它们是在lambda中被
         // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
         // https://github.com/Microsoft/TypeScript/issues/15631
-
+        g_utils.log(`check local ${JSON.stringify(foundLocal)}`);
+        g_utils.log(`check global ${JSON.stringify(foundGlobal)}`);
         const found: Node | null = foundLocal || foundGlobal;
         if (found && found!.loc) {
             return [Symbol.toLocation(query.uri, found!.loc)];
