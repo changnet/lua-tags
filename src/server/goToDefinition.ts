@@ -132,33 +132,6 @@ export class GoToDefinition {
         return this.checkSymDefinition(symList, query.symName, query.kind);
     }
 
-    // 对比符号位置
-    // -1sym的位置小于(line,pos)
-    // 0表示sym位置等于(line,pos)
-    // 1表示sym的位置大于(line,pos)
-    // 2表示sym范围包含(line,pos)
-    private compSymLocation(
-        sym: SymInfoEx, line: number, beg: number, end: number) {
-        const loc = sym.location.range;
-
-        const startLine = loc.start.line;
-        if (startLine > line
-            || (startLine === line && loc.start.character > end)) {
-            return 1;
-        }
-
-        const endLine = loc.end.line;
-        if (endLine < line || (endLine === line && loc.end.character < beg)) {
-            return -1;
-        }
-
-        if (endLine === line && startLine === line
-            && loc.start.character === beg && loc.end.character === end) {
-            return 0;
-        }
-        return 2;
-    }
-
     // 获取局部变量位置
     public getlocalDefinition(query: SymbolQuery) {
         let foundLocal: Node | null = null;

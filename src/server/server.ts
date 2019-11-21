@@ -258,7 +258,7 @@ class Server {
             return;
         }
 
-        Symbol.instance().rawParse(uri, document.getText(), false, false);
+        Symbol.instance().rawParse(uri, document.getText());
     }
 
     // go to definetion

@@ -111,8 +111,7 @@ export interface SymInfoEx extends SymbolInformation {
     refType?: string; // local N = M时记录引用的类型M
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
-    parameters?: SymInfoEx[]; // 如果是函数，记录其参数
-    paramShow?: string; // 拼接的函数参数，用来展示的
+    parameters?: string[]; // 如果是函数，记录其参数
     subSym?: SymInfoEx[]; // 子符号
     base?: string; // M.N时记录模块名M
     local?: boolean; // 是否Local符号
@@ -158,9 +157,6 @@ export class Symbol {
     private openCache = false;
     // 缓存8个文档的符号数据，用于本地符号的查找等
     private docNodeCache = new Array<NodeCache>();
-
-    private parseOptSub = false; // 是否解析子符号
-    private parseOptAnonymous = false; // 是否解析匿名符号
 
     private constructor() {
         this.options = {
@@ -277,78 +273,17 @@ export class Symbol {
         }
     }
 
-    // 解析一个表达式
-    private parseOneExpression(expr: Expression): SymInfoEx[] {
-        switch (expr.type) {
-            case "FunctionDeclaration": {
-                return this.parseFunctionExpr(expr);
-            }
-            case "TableConstructorExpression": {
-                return this.parserTableConstructorExpr(expr);
-            }
-        }
-
-        return [];
-    }
-
-    // 解析一个语句，仅用于解析局部语句
-    private parseOneStatement(stat: Statement): SymInfoEx[] {
-        switch (stat.type) {
-            case "LocalStatement":
-            case "AssignmentStatement": {
-                return this.parseVariableStatement(stat);
-            }
-            case "ReturnStatement": {
-                // 处理 return function(a,b,c) ... end 这种情况
-                for (let sub of stat.arguments) {
-                    if (sub.type === "FunctionDeclaration") {
-                        // TODO: 理论上讲可以返回多个函数，但这里暂不处理
-                        return this.parseFunctionExpr(sub);
-                    }
-                }
-                break;
-            }
-            case "IfStatement": {
-                //return this.parseStatement(stat.clauses)
-                break;
-            }
-            case "WhileStatement": break;
-            case "DoStatement": break;
-            case "RepeatStatement": break;
-            case "FunctionDeclaration": break;
-            case "ForNumericStatement": break;
-            case "ForGenericStatement": break;
-        }
-
-        return [];
-    }
-
-    // 解析各种语句，现在只用来解析函数body
-    private parseStatement(states: Statement[]): SymInfoEx[] {
-        let symList: SymInfoEx[] = [];
-        for (let stat of states) {
-            const subSymList = this.parseOneStatement(stat);
-            symList.push(...subSymList);
-        }
-
-        return symList;
-    }
-
     // 解析函数声明
     private parseFunctionExpr(expr: FunctionDeclaration): SymInfoEx[] {
         // return function() ... end 这种匿名函数没有identifier
         let baseName = this.parseBaseName(expr.identifier);
-        if ("" === baseName.name && !this.parseOptAnonymous) {
+        if ("" === baseName.name) {
             return [];
         }
 
         let sym = this.toSym(baseName.name, expr, undefined, baseName.base);
         if (!sym) {
             return [];
-        }
-
-        if (sym && this.parseOptSub) {
-            sym.subSym = this.parseStatement(expr.body);
         }
 
         return [sym];
@@ -378,8 +313,7 @@ export class Symbol {
     private parseReturnStatement(node: ReturnStatement) {
         for (let argument of node.arguments) {
             // 如果是用来显示文档符号的，只处理 return {}
-            if (!this.parseOptSub
-                && "TableConstructorExpression" === argument.type) {
+            if ("TableConstructorExpression" === argument.type) {
                 return this.parserTableConstructorExpr(argument);
             }
 
@@ -402,7 +336,7 @@ export class Symbol {
             let baseName = this.parseBaseName(varNode);
 
             let name = baseName.name;
-            if ("" === name && !this.parseOptAnonymous) {
+            if ("" === name) {
                 continue;
             }
 
@@ -413,11 +347,6 @@ export class Symbol {
                 continue;
             }
             symList.push(sym);
-
-            if (this.parseOptSub) {
-                sym.subSym = this.parseOneExpression(init);
-                continue;
-            }
 
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
@@ -508,10 +437,7 @@ export class Symbol {
                     let paramName =
                         "Identifier" === para.type ? para.name : para.value;
 
-                    let paramSym = this.toSym(paramName, para);
-                    if (paramSym) {
-                        sym.parameters.push(paramSym);
-                    }
+                    sym.parameters.push(paramName);
                 }
                 break;
             }
@@ -625,10 +551,7 @@ export class Symbol {
         this.parseSymList = [];
         this.parseModule = {};
 
-        this.parseOptSub = false; // 是否解析子符号
-        this.parseOptAnonymous = false; // 是否解析匿名符号
-
-        const nodeList = this.rawParse(uri, text, false, false);
+        const nodeList = this.rawParse(uri, text);
 
         for (let node of nodeList) {
             this.parseNode(node);
@@ -688,8 +611,7 @@ export class Symbol {
     }
 
     // 解析一段代码并查找局部变量
-    public rawParse(uri: string,
-        text: string, optSub: boolean, optAnon: boolean): Node[] {
+    public rawParse(uri: string, text: string): Node[] {
         let ft = g_setting.getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return [];
@@ -698,9 +620,6 @@ export class Symbol {
         this.parseUri = uri;
         this.parseScopeDeepth = 0;
         this.parseNodeList = [];
-
-        this.parseOptSub = optSub; // 是否解析子符号
-        this.parseOptAnonymous = optAnon; // 是否解析匿名符号
 
         let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
             this.parseText(uri, text) : this.parseLarge(text);
@@ -1056,59 +975,6 @@ export class Symbol {
         return null;
     }
 
-
-    // 获取局部变量位置
-    public parselocalSymLocation(uri: string, symName: string, text: string[]) {
-        if (text.length <= 0) { return []; }
-
-        // 反向一行行地查找符号所在的位置
-        let line = text.length - 1;
-        let found: Token | null = null;
-        // 用一个全局parser的话,token的range不准确
-        //let parser: luaParser = luaParse("",{ wait: true })
-        do {
-            //parser.write(text[line]);
-            let parser: luaParser = luaParse(text[line], { wait: true });
-            // parser.write("\n");
-
-            let last = null;
-            let stop = false;
-            let token: Token | null = null;
-
-            do {
-                token = parser.lex();
-
-                // 作用域结束，但这个符号仍有可能是这个函数的参数，继续查找这一行
-                if (this.isLocalScopeEnd(token, last, text, line)) { stop = true; }
-
-                // 查询到对应的符号声明 local m
-                if (token.value === symName
-                    && token.type === LTT.Identifier) {
-                    found = token;
-                    found.line = line;
-                    if (last && last.value === "local"
-                        && last.type === LTT.Keyword) {
-                        stop = true;
-                        break;
-                    }
-                }
-
-                last = token;
-            } while (token.type !== LTT.EOF);
-
-            if (stop) { break; }
-
-            line--;
-        } while (line >= 0);
-
-        if (!found) { return null; }
-
-        return Location.create(uri, {
-            start: { line: found.line, character: found.range[0] },
-            end: { line: found.line, character: found.range[1] }
-        });
-    }
-
     // 解析大文件
     // 一般是配置文件，为一个很大的lua table，参考测试中的large_conf.lua
     // 只要尝试把这个table名解析出来就好
@@ -1169,46 +1035,5 @@ export class Symbol {
 
         this.parseNodeList.push(node);
         return true;
-    }
-
-
-    // 判断符号是否在该节点内
-    private checkOneNode(node: Node, line: number, pos: number) {
-        // 目前只查找函数的局部变量
-        if (node.type !== "FunctionDeclaration") {
-            return null;
-        }
-
-        const loc = node.loc;
-        if (!loc) {
-            return;
-        }
-
-        const startLine = loc.start.line - 1;
-        if (startLine > line
-            || (startLine === line && loc.start.column > pos)) {
-            return null;
-        }
-
-        const endLine = loc.end.line - 1;
-        if (endLine < line || (endLine === line && loc.end.column < pos)) {
-            return null;
-        }
-
-        return this.parseFunctionExpr(node);
-    }
-
-    // 获取局部变量
-    public getlocalSymList(uri: string,
-        line: number, pos: number, text: string): VSCodeSymbol {
-        const nodeList = this.rawParse(uri, text, true, true);
-        for (const node of nodeList) {
-            const symList = this.checkOneNode(node, line, pos);
-            if (symList) {
-                return symList[0];
-            }
-        }
-
-        return null;
     }
 }
