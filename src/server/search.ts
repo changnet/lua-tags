@@ -13,7 +13,10 @@ import {
     IndexExpression,
     ReturnStatement,
     CallExpression,
-    TableConstructorExpression
+    TableConstructorExpression,
+    IfStatement,
+    ForGenericStatement,
+    ForNumericStatement
 } from 'luaparse';
 
 import {
@@ -96,6 +99,25 @@ export class Search {
                 return this.searchFunctionDeclaration(stat);
             case "ReturnStatement":
                 return this.searchReturnStatement(stat);
+            case "IfStatement":
+                return this.searchIfStatement(stat);
+            case "DoStatement":
+            case "WhileStatement":
+            case "RepeatStatement": {
+                if (2 !== this.compNodePos(stat, this.pos!)) {
+                    return true;
+                }
+                stat.body.forEach(sub => {
+                    if (!this.searchStatement(sub)) {
+                        return;
+                    }
+                });
+                break;
+            }
+            case "ForGenericStatement":
+                return this.searchForGenericStatement(stat);
+            case "ForNumericStatement":
+                return this.searchForNumbericStatement(stat);
         }
 
         return true;
@@ -111,6 +133,54 @@ export class Search {
             }
 
             if (!this.searchOne(field, false, field.key.name, base)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private searchIfStatement(stat: IfStatement) {
+        for (const clause of stat.clauses) {
+            for (const sub of clause.body) {
+                if (!this.searchStatement(sub)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private searchForNumbericStatement(stat: ForNumericStatement) {
+        if (2 !== this.compNodePos(stat, this.pos!)) {
+            return true;
+        }
+
+        if (!this.searchOne(stat.variable, true, stat.variable.name)) {
+            return false;
+        }
+        for (const sub of stat.body) {
+            if (!this.searchStatement(sub)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private searchForGenericStatement(stat: ForGenericStatement) {
+        if (2 !== this.compNodePos(stat, this.pos!)) {
+            return true;
+        }
+        for (const variable of stat.variables) {
+            if (!this.searchOne(variable, true, variable.name)) {
+                return false;
+            }
+        }
+
+        for (const sub of stat.body) {
+            if (!this.searchStatement(sub)) {
                 return false;
             }
         }
@@ -212,7 +282,7 @@ export class Search {
     }
 
     // 在list中搜索符号
-    // @filter: 过滤函数，return 0
+    // @filter: 过滤函数，主要用于回调
     public search(list: Node[], pos: QueryPos, filter: Filter) {
         this.pos = pos;
         this.filter = filter;
