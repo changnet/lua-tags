@@ -489,11 +489,18 @@ export class Symbol {
 
         for (let uri in this.documentSymbol) {
             for (let sym of this.documentSymbol[uri]) {
-                if (!globalSymbol[sym.name]) {
-                    globalSymbol[sym.name] = [];
+                // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
+                // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
+                // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
+                if (sym.scope > 0) {
+                    continue;
+                }
+                const name = sym.name;
+                if (!globalSymbol[name]) {
+                    globalSymbol[name] = [];
                 }
 
-                globalSymbol[sym.name].push(sym);
+                globalSymbol[name].push(sym);
             }
         }
 

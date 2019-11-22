@@ -49,7 +49,7 @@ local function test_upvalue(param1, param2,param3)
         local A = "88"
 
         -- 测试参数、upvalue跳转、局部变量自动补全
-        local x = param1 + param11 + Hash.A
+        local x = param1 + param11 + Hash.A + LiteConf.level
         ins:show(x)
 
         local other = no_such_func()

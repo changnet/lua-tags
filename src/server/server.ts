@@ -1,5 +1,6 @@
 
 import {
+    Hover,
     Definition,
     createConnection,
     TextDocuments,
@@ -19,7 +20,8 @@ import {
     Position,
     DidChangeWatchedFilesParams,
     TextDocumentChangeEvent,
-    FileChangeType
+    FileChangeType,
+    MarkupKind
 } from 'vscode-languageserver';
 
 import {
@@ -46,11 +48,6 @@ class Server {
     // supports full document sync only
     private documents: TextDocuments = new TextDocuments();
 
-    // 检测文件增删
-    // private fileWatcher =
-    //     vscode.workspace.createFileSystemWatcher(
-    //         "**/*.lua", false, true, false);
-
     private rootUri: string | null = null;
 
     public constructor() {
@@ -65,6 +62,7 @@ class Server {
         conn.onWorkspaceSymbol(handler => this.onWorkspaceSymbol(handler));
         conn.onDefinition(handler => this.onDefinition(handler));
         conn.onDidChangeWatchedFiles(handler => this.onFilesChange(handler));
+        conn.onHover(handler => this.onHover(handler));
 
         let doc = this.documents;
         doc.onDidChangeContent(handler => this.onDocumentChange(handler));
@@ -95,7 +93,8 @@ class Server {
                     // 默认情况下，vs code是代码部分都会请求自动补全
                     // 但在字符串里，只有这些特殊字符才会触发，比如做路径补全时用到
                     triggerCharacters: ['.', ':']
-                }
+                },
+                hoverProvider: true,
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分
             }
@@ -397,6 +396,20 @@ class Server {
                 }
             } // switch
         } // for
+    }
+
+    private onHover(handler: TextDocumentPositionParams): Hover {
+        return {
+            contents: {
+                //language: "lua",
+                kind: MarkupKind.Markdown,
+                value: "```lua\nfunction(a, b) return a + b end\n```"
+            },
+            range: {
+                start: { line: 0, character: 0 },
+                end: { line: 1, character: 0 }
+            }
+        };
     }
 }
 
