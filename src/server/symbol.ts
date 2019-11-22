@@ -91,7 +91,6 @@ export interface SymbolQuery {
     mdName?: string; // 模块名，m:test中的m
     symName: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
-    leftWords: string | null; // 光标左边分解得到需要查询的字符串
     position: QueryPos; //符号位置
     text: string; // 符号所在的整行代码
 }
@@ -108,6 +107,7 @@ export interface SymbolQuery {
 
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
 export interface SymInfoEx extends SymbolInformation {
+    scope: number; // 第几层作用域
     refType?: string; // local N = M时记录引用的类型M
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
@@ -300,6 +300,8 @@ export class Symbol {
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
     private parseTableConstructorExpr(expr: TableConstructorExpression) {
         let symList: SymInfoEx[] = [];
+
+        this.parseScopeDeepth++;
         for (let field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
             // local M = { a = 1, [2] = 2}这种就只能处理有Key的那部分了
@@ -312,6 +314,7 @@ export class Symbol {
 
             if (sym) { symList.push(sym); }
         }
+        this.parseScopeDeepth--;
 
         return symList;
     }
@@ -400,6 +403,7 @@ export class Symbol {
         let sym: SymInfoEx = {
             name: name,
             base: base,
+            scope: this.parseScopeDeepth,
             kind: SymbolKind.Variable,
             location: Symbol.toLocation(this.parseUri, loc),
         };
@@ -410,8 +414,8 @@ export class Symbol {
                 // local N = M 会被视为把模块M本地化为N
                 // 在跟踪N的符号时会在M查找
                 // 如果是local M = M这种同名的，则不处理，反正都是根据名字去查找
-                // TODO: 仅仅处理文件顶层作用域
-                if (name !== initNode.name) {
+                // 仅仅处理文件顶层作用域
+                if (0 === sym.scope && name !== initNode.name) {
                     sym.refType = initNode.name;
                 }
                 break;
@@ -559,6 +563,7 @@ export class Symbol {
 
         const nodeList = this.rawParse(uri, text);
 
+        this.parseScopeDeepth = 0;
         for (let node of nodeList) {
             this.parseNode(node);
         }
@@ -656,8 +661,8 @@ export class Symbol {
     }
 
     // 获取某个文档的符号
-    public getDocumentSymbol(uri: string): SymbolInformation[] | null {
-        let symList: SymbolInformation[] = this.documentSymbol[uri];
+    public getDocumentSymbol(uri: string): SymInfoEx[] | null {
+        let symList: SymInfoEx[] = this.documentSymbol[uri];
 
         return symList;
     }
@@ -671,12 +676,12 @@ export class Symbol {
     }
 
     // 获取全局符号
-    public getGlobalSymbol(query?: string): SymbolInformation[] {
+    public getGlobalSymbol(query?: string): SymInfoEx[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }
 
-        let symList: SymbolInformation[] = [];
+        let symList: SymInfoEx[] = [];
         for (let name in this.globalSymbol) {
             for (let sym of this.globalSymbol[name]) {
                 if (!query || sym.name === query) { symList.push(sym); }

@@ -236,7 +236,6 @@ class Server {
             mdName: mdName,
             symName: symName,
             kind: kind,
-            leftWords: matchWords,
             position: { line: pos.line, beg: beg, end: end },
             text: text
         };

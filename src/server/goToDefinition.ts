@@ -55,7 +55,7 @@ export class GoToDefinition {
 
 
     private checkSymDefinition(
-        symList: SymbolInformation[] | null, symName: string, kind: SymbolKind) {
+        symList: SymInfoEx[] | null, symName: string, kind: SymbolKind) {
         if (!symList) { return null; }
 
         let loc: Definition = [];
