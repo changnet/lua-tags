@@ -393,7 +393,7 @@ export class Symbol {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    private toSym(name: string, node: Statement | Expression,
+    public toSym(name: string, node: Statement | Expression,
         init?: Statement | Expression, base?: string): VSCodeSymbol {
         const loc = node.loc;
         if (!loc) {

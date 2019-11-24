@@ -39,7 +39,7 @@ import { GoToDefinition } from "./goToDefinition";
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
-class Server {
+export class Server {
     // Create a connection for the server. The connection uses Node's IPC as a transport.
     // Also include all preview / proposed LSP features.
     private connection = createConnection(ProposedFeatures.all);
@@ -159,7 +159,7 @@ class Server {
     }
 
     // 获取查询符号所在行的文本内容
-    private getQueryLineText(uri: string, pos: Position): string | null {
+    public getQueryLineText(uri: string, pos: Position): string | null {
         const document = this.documents.get(uri);
 
         if (!document) { return null; }
@@ -174,7 +174,7 @@ class Server {
     }
 
     // 根据光标位置分解出要查询的符号信息
-    private getSymbolQuery(
+    public getSymbolQuery(
         uri: string, text: string, pos: Position): SymbolQuery | null {
         // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
         const leftText = text.substring(0, pos.character);
@@ -241,7 +241,7 @@ class Server {
     }
 
     // 确定有当前符号的缓存，没有则解析
-    private ensureSymbolCache(uri: string) {
+    public ensureSymbolCache(uri: string) {
         if (Symbol.instance().getCache(uri)) {
             return;
         }
@@ -255,53 +255,8 @@ class Server {
 
     // go to definetion
     private onDefinition(handler: TextDocumentPositionParams): Definition {
-        const uri = handler.textDocument.uri;
-
-        let line = this.getQueryLineText(uri, handler.position);
-        if (!line) { return []; }
-
-        let loc: Definition | null = null;
-        let definetion = GoToDefinition.instance();
-
-        // require("a.b.c") 跳转到对应的文件
-        loc = definetion.getRequireDefinition(line, handler.position);
-        if (loc) { return loc; }
-
-        let query = this.getSymbolQuery(uri, line, handler.position);
-        if (!query || query.symName === "") { return []; }
-
-        g_utils.log(`goto definition ${JSON.stringify(query)}`);
-
-        /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
-         * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
-         * 全局和文档都做了符号hash缓存，因此优先匹配
-         */
-
-        // 根据模块名匹配全局
-        loc = definetion.getGlobalModuleDefinition(query);
-        if (loc) { return loc; }
-
-        // 根据模块名匹配当前文档
-        loc = definetion.getDocumentModuleDefinition(query);
-        if (loc) { return loc; }
-
-        // 上面的方法都找不到，可能是根本没有模块名mdName
-        // 或者按模块名没有匹配到任何符号，下面开始忽略模块名
-
-        // 当前文档符号匹配
-        loc = definetion.getDocumentDefinition(query);
-        loc = definetion.localizationFilter(query, loc);
-        if (loc) { return loc; }
-        // 全局符号匹配
-        loc = definetion.getGlobalDefinition(query);
-        loc = definetion.localizationFilter(query, loc);
-        if (loc) { return loc; }
-        // 局部符号匹配
-        this.ensureSymbolCache(uri);
-        loc = definetion.getlocalDefinition(query);
-        if (loc) { return loc; }
-
-        return [];
+        return GoToDefinition.instance().doDefinition(
+            this, handler.textDocument.uri, handler.position);
     }
 
     // 代码自动补全

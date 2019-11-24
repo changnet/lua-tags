@@ -37,6 +37,10 @@ import {
     Search
 } from "./search";
 
+import {
+    Server
+} from "./server";
+
 import { g_utils } from './utils';
 
 export class GoToDefinition {
@@ -55,62 +59,23 @@ export class GoToDefinition {
 
 
     private checkSymDefinition(
-        symList: SymInfoEx[] | null, symName: string, kind: SymbolKind) {
+        symList: SymInfoEx[] | null, name: string, kind: SymbolKind) {
         if (!symList) { return null; }
 
-        let loc: Definition = [];
+        let foundList: SymInfoEx[] = [];
         for (let sym of symList) {
-            if (sym.name === symName) { loc.push(sym.location); }
+            if (sym.name === name) { foundList.push(sym); }
         }
 
-        if (loc.length > 0) { return loc; }
+        if (foundList.length > 0) { return foundList; }
 
         return null;
     }
 
-    // 根据模块名查找符号
-    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
-    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalModuleDefinition(query: SymbolQuery) {
-        let mdName = query.mdName;
-        if (!mdName || "self" === mdName) { return null; }
-
-        let symbol = Symbol.instance();
-
-        let rawName = symbol.getRawModule(query.uri, mdName);
-        let symList = symbol.getGlobalModule(rawName);
-
-        return this.checkSymDefinition(symList, query.symName, query.kind);
-    }
-
-    // 根据模块名查找某个文档的符号位置
-    public getDocumentModuleDefinition(query: SymbolQuery) {
-        let mdName = query.mdName;
-        if (!mdName) { return null; }
-
-        let symbol = Symbol.instance();
-        let rawUri = symbol.getRawUri(query.uri, mdName);
-
-        return this.checkSymDefinition(
-            symbol.getDocumentModule(rawUri, mdName), query.symName, query.kind);
-    }
-
-    // 从全局符号获取符号定义
-    public getGlobalDefinition(query: SymbolQuery) {
-        let symList = Symbol.instance().getGlobalSymbol(query.symName);
-
-        return this.checkSymDefinition(symList, query.symName, query.kind);
-    }
-
-    // 获取当前文档的符号定义
-    public getDocumentDefinition(query: SymbolQuery) {
-        let symList = Symbol.instance().getDocumentSymbol(query.uri);
-
-        return this.checkSymDefinition(symList, query.symName, query.kind);
-    }
-
     // 获取局部变量位置
-    public getlocalDefinition(query: SymbolQuery) {
+    private getlocalDefinition(query: SymbolQuery) {
+        let localName: string | null = null;
+        let globalName: string | null = null;
         let foundLocal: Node | null = null;
         let foundGlobal: Node | null = null;
         Search.instance().searchLocal(query.uri, query.position,
@@ -118,8 +83,10 @@ export class GoToDefinition {
                 if (name === query.symName && base === query.mdName) {
                     if (isLocal) {
                         foundLocal = node;
+                        localName = name;
                     } else {
                         foundGlobal = node;
+                        globalName = name;
                     }
                 }
             }
@@ -128,18 +95,19 @@ export class GoToDefinition {
         // 这里foundLocal、foundGlobal会被识别为null类型，因为它们是在lambda中被
         // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
         // https://github.com/Microsoft/TypeScript/issues/15631
-        g_utils.log(`check local ${JSON.stringify(foundLocal)}`);
-        g_utils.log(`check global ${JSON.stringify(foundGlobal)}`);
-        const found: Node | null = foundLocal || foundGlobal;
-        if (found && found!.loc) {
-            return [Symbol.toLocation(query.uri, found!.loc)];
+
+        let found: SymInfoEx | null = null;
+        if (foundLocal && localName) {
+            found = Symbol.instance().toSym(localName, foundLocal);
+        } else if (foundGlobal && globalName) {
+            found = Symbol.instance().toSym(globalName, foundGlobal);
         }
 
-        return null;
+        return found ? [found] : null;
     }
 
     // require("aaa.bbb")这种，则打开对应的文件
-    public getRequireDefinition(text: string, pos: Position) {
+    private getRequireDefinition(text: string, pos: Position) {
         // 注意特殊情况下，可能会有 require "a/b" require "a\b"
         let found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)"\s*[)]?/);
         if (!found || !found[1]) { return null; }
@@ -163,7 +131,8 @@ export class GoToDefinition {
     }
 
     // 判断是否本地化
-    private isLocalization(query: SymbolQuery, loc: Location) {
+    private isLocalization(query: SymbolQuery, sym: SymInfoEx) {
+        const loc: Location = sym.location;
         if (query.uri !== loc.uri) { return false; }
         if (query.position.line !== loc.range.start.line) { return false; }
 
@@ -181,15 +150,43 @@ export class GoToDefinition {
     }
 
     // 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M
-    public localizationFilter(query: SymbolQuery, loc: Definition | null) {
-        if (!loc) { return null; }
+    private localizationFilter(query: SymbolQuery, symList: SymInfoEx[] | null) {
+        if (!symList) { return null; }
 
-        if (!(loc instanceof Array)) {
-            return this.isLocalization(query, loc) ? null : loc;
+        let newList = symList.filter(sym => !this.isLocalization(query, sym));
+
+        return newList.length > 0 ? newList : null;
+    }
+
+    public doDefinition(srv: Server, uri: string, pos: Position) {
+        let line = srv.getQueryLineText(uri, pos);
+        if (!line) { return []; }
+
+        // require("a.b.c") 跳转到对应的文件
+        let loc: Definition | null = this.getRequireDefinition(line, pos);
+        if (loc) { return loc; }
+
+        let query = srv.getSymbolQuery(uri, line, pos);
+        if (!query || query.symName === "") { return []; }
+
+        let list = Search.instance().search(query, symList => {
+            return this.localizationFilter(query!,
+                this.checkSymDefinition(symList, query!.symName, query!.kind)
+            );
+        }, () => {
+            srv.ensureSymbolCache(query!.uri);
+            return this.getlocalDefinition(query!);
+        });
+
+        if (!list) {
+            return [];
         }
 
-        let newLoc = loc.filter(oneLoc => !this.isLocalization(query, oneLoc));
+        loc = [];
+        for (let sym of list) {
+            loc.push(sym.location);
+        }
 
-        return newLoc.length > 0 ? newLoc : null;
+        return loc;
     }
 }

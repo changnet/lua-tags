@@ -26,11 +26,15 @@ import {
     SymInfoEx
 } from "./symbol";
 
+import {
+    Server
+} from "./server";
+
 // 搜索局部变量回调函数
 export type CallBack = (node: Node,
     local: boolean, name: string, base?: string) => void;
 // 搜索符号时过滤函数
-export type Filter = (symList: SymInfoEx[] | null) => SymInfoEx[];
+export type Filter = (symList: SymInfoEx[] | null) => SymInfoEx[] | null;
 
 export class Search {
     private static ins: Search;
@@ -337,9 +341,14 @@ export class Search {
     }
 
     // 搜索符号
-    public search(query: SymbolQuery, filter: Filter) {
+    public search(query: SymbolQuery, filter: Filter, localSearch: Function) {
         this.filter = filter;
         let symbol = Symbol.instance();
+
+        /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
+         * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
+         * 全局和文档都做了符号hash缓存，因此优先匹配
+         */
 
         // 优先根据模块名匹配全局符号
         let items = this.searchGlobalModule(query);
@@ -352,5 +361,25 @@ export class Search {
         if (items) {
             return items;
         }
+
+        // 查找局部变量
+        items = localSearch();
+        if (items) {
+            return items;
+        }
+
+        // 忽略模块名，直接查找全局符号
+        items = filter(symbol.getDocumentSymbol(query.uri));
+        if (items) {
+            return items;
+        }
+
+        // 忽略模块名，直接查找全局符号
+        items = filter(symbol.getGlobalSymbol(query.symName));
+        if (items) {
+            return items;
+        }
+
+        return null;
     }
 }
