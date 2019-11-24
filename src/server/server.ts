@@ -312,7 +312,7 @@ class Server {
         if (!line) { return []; }
 
         let completion = AutoCompletion.instance();
-        // 根据模块名，匹配全局符号
+        // require "a.b.c" 路径补全
         let items = completion.getRequireCompletion(
             line, handler.position.character);
         if (items) { return items; }
@@ -321,19 +321,6 @@ class Server {
 
         // g_utils.log(`check uri =====${JSON.stringify(query)}`);
         if (!query) { return []; }
-
-        // return [
-        //     {
-        //         label: 'TypeScript',
-        //         kind: CompletionItemKind.Text,
-        //         data: 1
-        //     },
-        //     {
-        //         label: 'JavaScript',
-        //         kind: CompletionItemKind.Text,
-        //         data: 2
-        //     }
-        // ];
 
 
         // 根据模块名，匹配全局符号

@@ -22,17 +22,23 @@ import {
 import {
     Symbol,
     QueryPos,
-    SymbolQuery
+    SymbolQuery,
+    SymInfoEx
 } from "./symbol";
 
-export type Filter = (node: Node,
+// 搜索局部变量回调函数
+export type CallBack = (node: Node,
     local: boolean, name: string, base?: string) => void;
+// 搜索符号时过滤函数
+export type Filter = (symList: SymInfoEx[] | null) => SymInfoEx[];
 
 export class Search {
     private static ins: Search;
 
-    private pos: QueryPos | undefined = undefined;
-    private filter: Filter | undefined = undefined;
+    private pos: QueryPos | null = null;
+    private callBack: CallBack | null = null;
+
+    private filter: Filter | null = null;
     private constructor() {
     }
 
@@ -265,7 +271,7 @@ export class Search {
             return false;
         }
 
-        this.filter!(node, local, name, base);
+        this.callBack!(node, local, name, base);
 
         // 已到达搜索位置，中止搜索
         if (0 === comp) {
@@ -281,9 +287,9 @@ export class Search {
         return true;
     }
 
-    // 在list中搜索符号
-    // @filter: 过滤函数，主要用于回调
-    public search(uri: string, pos: QueryPos, filter: Filter) {
+    // 搜索局部符号
+    // @callBack: 过滤函数，主要用于回调
+    public searchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
         let symbol = Symbol.instance();
 
         const nodeList = symbol.getCache(uri);
@@ -292,7 +298,7 @@ export class Search {
         }
 
         this.pos = pos;
-        this.filter = filter;
+        this.callBack = callBack;
 
         // 从函数开始搜索，非函数会在文档符号中查找
         for (const node of nodeList) {
@@ -300,6 +306,51 @@ export class Search {
                 && !this.searchFunctionDeclaration(node)) {
                 return;
             }
+        }
+    }
+
+
+    // 根据模块名查找符号
+    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
+    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
+    private searchGlobalModule(query: SymbolQuery) {
+        let mdName = query.mdName;
+        if (!mdName || "self" === mdName) { return null; }
+
+        let symbol = Symbol.instance();
+
+        let rawName = symbol.getRawModule(query.uri, mdName);
+        let symList = symbol.getGlobalModule(rawName);
+
+        return this.filter!(symList);
+    }
+
+    // 根据模块名查找某个文档的符号
+    private searchDocumentModule(query: SymbolQuery) {
+        let mdName = query.mdName;
+        if (!mdName) { return null; }
+
+        let symbol = Symbol.instance();
+        let rawUri = symbol.getRawUri(query.uri, mdName);
+
+        return this.filter!(symbol.getDocumentModule(rawUri, mdName));
+    }
+
+    // 搜索符号
+    public search(query: SymbolQuery, filter: Filter) {
+        this.filter = filter;
+        let symbol = Symbol.instance();
+
+        // 优先根据模块名匹配全局符号
+        let items = this.searchGlobalModule(query);
+        if (items) {
+            return items;
+        }
+
+        // 根据模块名匹配文档符号
+        items = this.searchDocumentModule(query);
+        if (items) {
+            return items;
         }
     }
 }

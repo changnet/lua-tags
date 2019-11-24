@@ -113,7 +113,7 @@ export class GoToDefinition {
     public getlocalDefinition(query: SymbolQuery) {
         let foundLocal: Node | null = null;
         let foundGlobal: Node | null = null;
-        Search.instance().search(query.uri, query.position,
+        Search.instance().searchLocal(query.uri, query.position,
             (node, isLocal, name, base) => {
                 if (name === query.symName && base === query.mdName) {
                     if (isLocal) {
