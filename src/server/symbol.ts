@@ -889,4 +889,9 @@ export class Symbol {
         this.parseNodeList.push(node);
         return true;
     }
+
+    public static getSymbolPath(sym: SymInfoEx): string | null {
+        const match = sym.location.uri.match(/\/(\w+.\w+)$/);
+        return match ? match[1] : null;
+    }
 }

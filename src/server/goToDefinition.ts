@@ -158,6 +158,17 @@ export class GoToDefinition {
         return newList.length > 0 ? newList : null;
     }
 
+    public searchSym(srv: Server, query: SymbolQuery) {
+        return Search.instance().search(query, symList => {
+            return this.localizationFilter(query!,
+                this.checkSymDefinition(symList, query!.symName, query!.kind)
+            );
+        }, () => {
+            srv.ensureSymbolCache(query!.uri);
+            return this.getlocalDefinition(query!);
+        });
+    }
+
     public doDefinition(srv: Server, uri: string, pos: Position) {
         let line = srv.getQueryLineText(uri, pos);
         if (!line) { return []; }
@@ -169,14 +180,7 @@ export class GoToDefinition {
         let query = srv.getSymbolQuery(uri, line, pos);
         if (!query || query.symName === "") { return []; }
 
-        let list = Search.instance().search(query, symList => {
-            return this.localizationFilter(query!,
-                this.checkSymDefinition(symList, query!.symName, query!.kind)
-            );
-        }, () => {
-            srv.ensureSymbolCache(query!.uri);
-            return this.getlocalDefinition(query!);
-        });
+        let list = this.searchSym(srv, query);
 
         if (!list) {
             return [];

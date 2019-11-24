@@ -34,6 +34,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { g_utils } from "./utils";
+import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
 import { g_setting } from './setting';
@@ -341,17 +342,20 @@ export class Server {
     }
 
     private onHover(handler: TextDocumentPositionParams): Hover {
-        return {
-            contents: {
-                //language: "lua",
-                kind: MarkupKind.Markdown,
-                value: "```lua\nfunction(a, b) return a + b end\n```"
-            },
-            range: {
-                start: { line: 0, character: 0 },
-                end: { line: 1, character: 0 }
-            }
-        };
+        // return {
+        //     contents: {
+        //         //language: "lua",
+        //         kind: MarkupKind.Markdown,
+        //         value: "```lua\nfunction(a, b) return a + b end\n```"
+        //     },
+        //     range: {
+        //         start: { line: 0, character: 0 },
+        //         end: { line: 1, character: 0 }
+        //     }
+        // };
+
+        return HoverProvider.instance().doHover(
+            srv, handler.textDocument.uri, handler.position);
     }
 }
 

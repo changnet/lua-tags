@@ -55,7 +55,7 @@ export class AutoCompletion {
             case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
-        let file = sym.location.uri.match(/\/(\w+.\w+)$/);
+        let file = Symbol.getSymbolPath(sym);
 
         let item: CompletionItem = {
             label: sym.name,
@@ -63,7 +63,7 @@ export class AutoCompletion {
         };
 
         if (file) {
-            item.detail = file[1];
+            item.detail = file;
 
             // 如果是常量，显示常量值： test.lua: val = 999
             if (sym.value) {
