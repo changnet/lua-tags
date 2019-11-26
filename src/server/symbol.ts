@@ -105,6 +105,13 @@ export interface SymbolQuery {
  *      文件结束时，还会有lua特有的Chunk
  */
 
+export enum LocalType {
+    LT_NONE = 0,
+    LT_LOCAL = 1, // 普通local变量 local X
+    LT_PARAMETER = 2, // 函数参数 function (a, b, c) end
+    LT_FOR_VAR = 3  // for k,v in或者for idx = 1, N do中的局部变量
+}
+
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
 export interface SymInfoEx extends SymbolInformation {
     scope: number; // 第几层作用域
@@ -114,7 +121,8 @@ export interface SymInfoEx extends SymbolInformation {
     parameters?: string[]; // 如果是函数，记录其参数
     subSym?: SymInfoEx[]; // 子符号
     base?: string; // M.N时记录模块名M
-    local?: boolean; // 是否Local符号
+    local?: LocalType; // 是否Local符号
+    indexer?: string; // M.N或者M:N中的[., :]
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
@@ -393,8 +401,10 @@ export class Symbol {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    public toSym(name: string, node: Statement | Expression,
-        init?: Statement | Expression, base?: string): VSCodeSymbol {
+    public toSym(name: string,
+        node: Statement | Expression,
+        init?: Statement | Expression,
+        base?: string, local?: LocalType): VSCodeSymbol {
         const loc = node.loc;
         if (!loc) {
             return null;
@@ -471,13 +481,16 @@ export class Symbol {
                 }
                 break;
             }
-
         }
 
         // 用json打印整个node，发现有isLocal这个字段，但这里只有函数识别出这个字段
-        let anyNode = node as any;
-        if (initNode.loc) {
-            sym.local = anyNode.isLocal;
+        if (!sym.local) {
+            let anyNode = node as any;
+            if (local) {
+                sym.local = local;
+            } else if (anyNode.isLocal) {
+                sym.local = LocalType.LT_LOCAL;
+            }
         }
         return sym;
     }
@@ -893,5 +906,17 @@ export class Symbol {
     public static getSymbolPath(sym: SymInfoEx): string | null {
         const match = sym.location.uri.match(/\/(\w+.\w+)$/);
         return match ? match[1] : null;
+    }
+
+    public static getLocalTypePrefix(local?: LocalType) {
+        if (!local) {
+            return "";
+        }
+
+        switch (local) {
+            case LocalType.LT_LOCAL: return "local ";
+            case LocalType.LT_PARAMETER: return "(parameter) ";
+            default: return "";
+        }
     }
 }

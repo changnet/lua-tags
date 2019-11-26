@@ -23,16 +23,21 @@ import {
     Symbol,
     QueryPos,
     SymbolQuery,
-    SymInfoEx
+    SymInfoEx,
+    LocalType
 } from "./symbol";
 
-import {
-    Server
-} from "./server";
+export interface SearchResult {
+    // name: string; // 名字，暂时不记，在SymbolQuery中有
+    node: Statement | Expression;
+    local: LocalType;
+    base?: string;
+    init?: Statement | Expression;
+}
 
 // 搜索局部变量回调函数
-export type CallBack = (node: Node,
-    local: boolean, name: string, base?: string) => void;
+export type CallBack = (node: Statement | Expression, local: LocalType,
+    name: string, base?: string, init?: Statement | Expression) => void;
 // 搜索符号时过滤函数
 export type Filter = (symList: SymInfoEx[] | null) => SymInfoEx[] | null;
 
@@ -142,7 +147,8 @@ export class Search {
                 continue;
             }
 
-            if (!this.searchOne(field, false, field.key.name, base)) {
+            if (!this.searchOne(field.key,
+                LocalType.LT_NONE, field.key.name, base, field.value)) {
                 return false;
             }
         }
@@ -167,7 +173,8 @@ export class Search {
             return true;
         }
 
-        if (!this.searchOne(stat.variable, true, stat.variable.name)) {
+        if (!this.searchOne(
+            stat.variable, LocalType.LT_FOR_VAR, stat.variable.name)) {
             return false;
         }
         for (const sub of stat.body) {
@@ -184,7 +191,8 @@ export class Search {
             return true;
         }
         for (const variable of stat.variables) {
-            if (!this.searchOne(variable, true, variable.name)) {
+            if (!this.searchOne(
+                variable, LocalType.LT_FOR_VAR, variable.name)) {
                 return false;
             }
         }
@@ -203,7 +211,7 @@ export class Search {
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
             let varNode = stat.variables[index];
-            if (!this.searchOne(varNode, true, varNode.name)
+            if (!this.searchOne(varNode, LocalType.LT_LOCAL, varNode.name)
                 || !this.searchExpression(stat.init[index], varNode.name)) {
                 return false;
             }
@@ -221,7 +229,7 @@ export class Search {
             let baseName;
             if (varNode.type === "Identifier") {
                 baseName = varNode.name;
-                if (!this.searchOne(varNode, false, baseName)) {
+                if (!this.searchOne(varNode, LocalType.LT_NONE, baseName)) {
                     return false;
                 }
             }
@@ -246,14 +254,16 @@ export class Search {
     private searchFunctionDeclaration(expr: FunctionDeclaration) {
         // return function() ... end 这种没有identifier
         const ider = expr.identifier;
-        if (ider && ider.type === "Identifier"
-            && !this.searchOne(ider, expr.isLocal, ider.name)) {
-            return false;
+        if (ider && ider.type === "Identifier") {
+            let local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
+            if (!this.searchOne(ider, local, ider.name)) {
+                return false;
+            }
         }
         // 搜索函数参数
         for (const param of expr.parameters) {
             if (param.type === "Identifier"
-                && !this.searchOne(param, true, param.name)) {
+                && !this.searchOne(param, LocalType.LT_PARAMETER, param.name)) {
                 return false;
             }
         }
@@ -268,14 +278,15 @@ export class Search {
     }
 
     // 搜索某个节点，返回是否继续搜索
-    private searchOne(node: Node, local: boolean, name: string, base?: string) {
+    private searchOne(node: Statement | Expression, local: LocalType,
+        name: string, base?: string, init?: Statement | Expression) {
         const comp = this.compNodePos(node, this.pos!);
         // 搜索位置已超过目标位置，不再搜索
         if (1 === comp) {
             return false;
         }
 
-        this.callBack!(node, local, name, base);
+        this.callBack!(node, local, name, base, init);
 
         // 已到达搜索位置，中止搜索
         if (0 === comp) {

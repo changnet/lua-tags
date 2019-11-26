@@ -26,7 +26,8 @@ import {
     Symbol,
     SymInfoEx,
     SymbolQuery,
-    VSCodeSymbol
+    VSCodeSymbol,
+    LocalType
 } from "./symbol";
 
 import {
@@ -34,7 +35,7 @@ import {
 } from 'luaparse';
 
 import {
-    Search
+    Search, SearchResult
 } from "./search";
 
 import {
@@ -74,15 +75,19 @@ export class GoToDefinition {
 
     // 获取局部变量位置
     private getlocalDefinition(query: SymbolQuery) {
-        let foundLocal: Node | null = null;
-        let foundGlobal: Node | null = null;
+        let foundLocal: SearchResult | null = null;
+        let foundGlobal: SearchResult | null = null;
         Search.instance().searchLocal(query.uri, query.position,
-            (node, isLocal, name, base) => {
+            (node, local, name, base, init) => {
                 if (name === query.symName && base === query.mdName) {
-                    if (isLocal) {
-                        foundLocal = node;
+                    if (local !== LocalType.LT_NONE) {
+                        foundLocal = {
+                            node: node, local: local, base: base, init: init
+                        };
                     } else {
-                        foundGlobal = node;
+                        foundGlobal = {
+                            node: node, local: local, base: base, init: init
+                        };
                     }
                 }
             }
@@ -93,10 +98,11 @@ export class GoToDefinition {
         // https://github.com/Microsoft/TypeScript/issues/15631
 
         let found: SymInfoEx | null = null;
-        if (foundLocal) {
-            found = Symbol.instance().toSym(query.symName, foundLocal);
-        } else if (foundGlobal) {
-            found = Symbol.instance().toSym(query.symName, foundGlobal);
+        let re = foundLocal || foundGlobal;
+        if (re) {
+            const r: SearchResult = re!;
+            found = Symbol.instance().toSym(
+                query.symName, r.node, r.init, r.base, r.local);
         }
 
         return found ? [found] : null;

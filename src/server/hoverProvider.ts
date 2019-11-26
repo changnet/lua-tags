@@ -80,14 +80,17 @@ export class HoverProvider {
 
     private defaultTips(sym: SymInfoEx, uri: string) {
         if (sym.value) {
-            let file = Symbol.getSymbolPath(sym);
-            let local = sym.local ? "local " : "";
+            let local = Symbol.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(sym,
                 `${local}${sym.name} = ${sym.value}`, uri);
         }
 
         if (sym.local) {
-            return this.toLuaMarkdown(sym, `local ${sym.name}`, uri);
+            let local = Symbol.getLocalTypePrefix(sym.local);
+            if ("" === local) {
+                return null;
+            }
+            return this.toLuaMarkdown(sym, `${local}${sym.name}`, uri);
         }
 
         return null;
