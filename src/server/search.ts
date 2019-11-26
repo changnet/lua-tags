@@ -59,35 +59,40 @@ export class Search {
         return Search.ins;
     }
 
-    // 判断符号是否在该节点内
     // node < pos: -1;node = pos: 0;node > pos: 1; node包含pos: 2
+    private compPos(startLine: number, startCol: number,
+        endLine: number, endCol: number, pos: QueryPos) {
+
+        const beg = pos.beg;
+        const end = pos.end;
+        const line = pos.line;
+
+        if (startLine > line
+            || (startLine === line && startCol > end)) {
+            return 1;
+        }
+
+        if (endLine < line || (endLine === line && endCol < beg)) {
+            return -1;
+        }
+
+        if (startLine === line && endLine === line
+            && startCol === beg && endCol === end) {
+            return 0;
+        }
+
+        return 2;
+    }
+
+    // 判断符号是否在该节点内
     private compNodePos(node: Node, pos: QueryPos) {
         const loc = node.loc;
         if (!loc) {
             return -1;
         }
 
-        const beg = pos.beg;
-        const end = pos.end;
-        const line = pos.line;
-
-        const startLine = loc.start.line - 1;
-        if (startLine > line
-            || (startLine === line && loc.start.column > end)) {
-            return 1;
-        }
-
-        const endLine = loc.end.line - 1;
-        if (endLine < line || (endLine === line && loc.end.column < beg)) {
-            return -1;
-        }
-
-        if (startLine === line && endLine === line
-            && loc.start.column === beg && loc.end.column === end) {
-            return 0;
-        }
-
-        return 2;
+        return this.compPos(loc.start.line - 1,
+            loc.start.column, loc.end.line - 1, loc.end.column, pos);
     }
 
     // local X = { a = 1 }，需要X来定位
@@ -351,6 +356,10 @@ export class Search {
         return this.filter!(symbol.getDocumentModule(rawUri, mdName));
     }
 
+    private filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
+
+    }
+
     // 搜索符号
     public search(query: SymbolQuery, filter: Filter, localSearch: Function) {
         this.filter = filter;
@@ -379,10 +388,27 @@ export class Search {
             return items;
         }
 
-        // 忽略模块名，直接查找全局符号
+        // 忽略模块名，直接查找当前文档符号
         items = filter(symbol.getDocumentSymbol(query.uri));
         if (items) {
-            return items;
+            // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
+            // 避免前面调用的全局符号，跳转到后面的同名local变量
+            let docSymList = items.filter(sym => {
+                if (!sym.local) {
+                    return true;
+                }
+
+                const loc = sym.location.range;
+                let comp = this.compPos(
+                    loc.start.line, loc.start.character,
+                    loc.end.line, loc.end.character, query.position);
+
+                return 1 === comp ? false : true;
+            });
+
+            if (docSymList.length > 0) {
+                return docSymList;
+            }
         }
 
         // 忽略模块名，直接查找全局符号
