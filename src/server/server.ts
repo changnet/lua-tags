@@ -21,7 +21,8 @@ import {
     DidChangeWatchedFilesParams,
     TextDocumentChangeEvent,
     FileChangeType,
-    MarkupKind
+    InitializeResult,
+    SignatureHelp
 } from 'vscode-languageserver';
 
 import {
@@ -64,6 +65,7 @@ export class Server {
         conn.onDefinition(handler => this.onDefinition(handler));
         conn.onDidChangeWatchedFiles(handler => this.onFilesChange(handler));
         conn.onHover(handler => this.onHover(handler));
+        conn.onSignatureHelp(handler => this.onSignature(handler));
 
         let doc = this.documents;
         doc.onDidChangeContent(handler => this.onDocumentChange(handler));
@@ -74,7 +76,7 @@ export class Server {
         this.connection.listen();
     }
 
-    private onInitialize(params: InitializeParams) {
+    private onInitialize(params: InitializeParams): InitializeResult {
         this.rootUri = params.rootUri;
         g_setting.setRootPath(this.rootUri || "");
 
@@ -95,7 +97,11 @@ export class Server {
                     // 但在字符串里，只有这些特殊字符才会触发，比如做路径补全时用到
                     triggerCharacters: ['.', ':']
                 },
-                hoverProvider: true,
+                hoverProvider: true, // 鼠标放上去的提示信息
+
+                signatureHelpProvider: {
+                    triggerCharacters: [","]
+                },
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分
             }
@@ -341,7 +347,7 @@ export class Server {
         } // for
     }
 
-    private onHover(handler: TextDocumentPositionParams): Hover {
+    private onHover(handler: TextDocumentPositionParams): Hover | null {
         // return {
         //     contents: {
         //         //language: "lua",
@@ -356,6 +362,11 @@ export class Server {
 
         return HoverProvider.instance().doHover(
             srv, handler.textDocument.uri, handler.position);
+    }
+
+    private onSignature(handler: TextDocumentPositionParams)
+        : SignatureHelp | null {
+        return null;
     }
 }
 

@@ -74,8 +74,6 @@ export class GoToDefinition {
 
     // 获取局部变量位置
     private getlocalDefinition(query: SymbolQuery) {
-        let localName: string | null = null;
-        let globalName: string | null = null;
         let foundLocal: Node | null = null;
         let foundGlobal: Node | null = null;
         Search.instance().searchLocal(query.uri, query.position,
@@ -83,10 +81,8 @@ export class GoToDefinition {
                 if (name === query.symName && base === query.mdName) {
                     if (isLocal) {
                         foundLocal = node;
-                        localName = name;
                     } else {
                         foundGlobal = node;
-                        globalName = name;
                     }
                 }
             }
@@ -97,10 +93,10 @@ export class GoToDefinition {
         // https://github.com/Microsoft/TypeScript/issues/15631
 
         let found: SymInfoEx | null = null;
-        if (foundLocal && localName) {
-            found = Symbol.instance().toSym(localName, foundLocal);
-        } else if (foundGlobal && globalName) {
-            found = Symbol.instance().toSym(globalName, foundGlobal);
+        if (foundLocal) {
+            found = Symbol.instance().toSym(query.symName, foundLocal);
+        } else if (foundGlobal) {
+            found = Symbol.instance().toSym(query.symName, foundGlobal);
         }
 
         return found ? [found] : null;

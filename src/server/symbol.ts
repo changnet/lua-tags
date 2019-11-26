@@ -436,7 +436,7 @@ export class Symbol {
                 break;
             }
             case "TableConstructorExpression": {
-                sym.kind = SymbolKind.Module;
+                sym.kind = SymbolKind.Namespace;
                 break;
             }
             case "FunctionDeclaration": {

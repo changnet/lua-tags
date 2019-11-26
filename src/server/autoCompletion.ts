@@ -52,7 +52,7 @@ export class AutoCompletion {
         switch (sym.kind) {
             case SymbolKind.Function: kind = CompletionItemKind.Function; break;
             case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
-            case SymbolKind.Module: kind = CompletionItemKind.Module; break;
+            case SymbolKind.Namespace: kind = CompletionItemKind.Module; break;
         }
 
         let file = Symbol.getSymbolPath(sym);

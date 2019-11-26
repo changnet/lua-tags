@@ -48,6 +48,7 @@ import {
 import {
     GoToDefinition
 } from "./goToDefinition";
+import { AbstractMessageReader } from 'vscode-jsonrpc/lib/messageReader';
 
 export class HoverProvider {
     private static ins: HoverProvider;
@@ -63,16 +64,36 @@ export class HoverProvider {
         return HoverProvider.ins;
     }
 
-    private getPathPrefix(sym: SymInfoEx) {
+    private getPathPrefix(sym: SymInfoEx, uri?: string) {
+        // 不在当前文件的符号中显示文件名
+        if (uri && sym.location.uri === uri) {
+            return "";
+        }
+
         let file = Symbol.getSymbolPath(sym);
-        return file ? `${file}:\n` : "";
+        return file ? `${file} :\n` : "";
     }
 
-    private toLuaMarkdown(sym: SymInfoEx, ctx: string): string {
-        return `${this.getPathPrefix(sym)}\`\`\`lua\n${ctx}\n\`\`\``;
+    private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
+        return `${this.getPathPrefix(sym, uri)}\`\`\`lua\n${ctx}\n\`\`\``;
     }
 
-    private toOneMarkdown(sym: SymInfoEx): string | null {
+    private defaultTips(sym: SymInfoEx, uri: string) {
+        if (sym.value) {
+            let file = Symbol.getSymbolPath(sym);
+            let local = sym.local ? "local " : "";
+            return this.toLuaMarkdown(sym,
+                `${local}${sym.name} = ${sym.value}`, uri);
+        }
+
+        if (sym.local) {
+            return this.toLuaMarkdown(sym, `local ${sym.name}`, uri);
+        }
+
+        return null;
+    }
+
+    private toOneMarkdown(sym: SymInfoEx, uri: string): string | null {
         let tips: string | null = null;
         switch (sym.kind) {
             case SymbolKind.Function: {
@@ -82,32 +103,27 @@ export class HoverProvider {
                     parameters = sym.parameters.join(", ");
                 }
                 tips = this.toLuaMarkdown(sym,
-                    `${local}function ${sym.name}(${parameters})`);
+                    `${local}function ${sym.name}(${parameters})`, uri);
                 break;
             }
-            case SymbolKind.Module: {
-                let file = Symbol.getSymbolPath(sym);
-                tips = `${this.getPathPrefix(sym)}(Module) ${sym.name}`;
+            case SymbolKind.Namespace: {
+                let local = sym.local ? "local " : "";
+                tips = this.toLuaMarkdown(sym,
+                    `(table) ${local}${sym.name}`, uri);
                 break;
             }
             default: {
-                if (!sym.value) {
-                    return null;
-                }
-
-                let file = Symbol.getSymbolPath(sym);
-                let local = sym.local ? "local " : "";
-                tips = this.toLuaMarkdown(sym,
-                    `${local}${sym.name} = ${sym.value}`);
+                return this.defaultTips(sym, uri);
             }
+
         }
         return tips;
     }
 
-    private toMarkdown(symList: SymInfoEx[]): string {
+    private toMarkdown(symList: SymInfoEx[], uri: string): string {
         let list: string[] = [];
         for (let sym of symList) {
-            const markdown = this.toOneMarkdown(sym);
+            const markdown = this.toOneMarkdown(sym, uri);
             if (markdown) {
                 list.push(markdown);
             }
@@ -116,25 +132,24 @@ export class HoverProvider {
         return list.join("\n---\n");
     }
 
-    public doHover(srv: Server, uri: string, pos: Position): Hover {
-        let ctx: MarkupContent = {
-            kind: MarkupKind.Markdown,
-            value: ""
-        };
-        let hover: Hover = {
-            contents: ctx
-        };
+    public doHover(srv: Server, uri: string, pos: Position): Hover | null {
         let line = srv.getQueryLineText(uri, pos);
-        if (!line) { return hover; }
+        if (!line) { return null; }
 
         let query = srv.getSymbolQuery(uri, line, pos);
-        if (!query || query.symName === "") { return hover; }
+        if (!query || query.symName === "") { return null; }
 
         let list = GoToDefinition.instance().searchSym(srv, query);
 
-        if (list) {
-            ctx.value = this.toMarkdown(list);
+        if (!list) {
+            return null;
         }
-        return hover;
+
+        return {
+            contents: {
+                kind: MarkupKind.Markdown,
+                value: this.toMarkdown(list, uri)
+            }
+        };
     }
 }
