@@ -105,8 +105,10 @@ export class HoverProvider {
                 if (sym.parameters) {
                     parameters = sym.parameters.join(", ");
                 }
+                let base = sym.base ? `${sym.base}${sym.indexer}` : "";
+
                 tips = this.toLuaMarkdown(sym,
-                    `${local}function ${sym.name}(${parameters})`, uri);
+                    `${local}function ${base}${sym.name}(${parameters})`, uri);
                 break;
             }
             case SymbolKind.Namespace: {

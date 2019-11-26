@@ -95,6 +95,12 @@ export interface SymbolQuery {
     text: string; // 符号所在的整行代码
 }
 
+export interface NameInfo {
+    name: string;
+    base?: string;
+    indexer?: string;
+}
+
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
  * node: 语法节点，注意顺序和编译器一样，从右到左。其类型参考luaparse的ast.Node声明
@@ -242,25 +248,27 @@ export class Symbol {
 
     // 解析成员变量赋值
     private parseBaseName(
-        ider: Identifier | MemberExpression | IndexExpression | null) {
-        let baseName = { name: "", base: "" };
+        ider: Identifier | MemberExpression | IndexExpression | null): NameInfo {
+        let nameInfo: NameInfo = { name: "" };
         if (!ider) {
-            return baseName;
+            return nameInfo;
         }
 
         if (ider.type === "Identifier") {
             // function test() 这种直接声明函数的写法
-            baseName.name = ider.name;
+            nameInfo.name = ider.name;
         }
         else if (ider.type === "MemberExpression") {
             // function m:test()、M.val = xxx 或者 function m.test() 这种成员函数写法
-            baseName.name = ider.identifier.name;
-            // 用json打印出来，这里明明有个name，但是导出的符号里没有
-            baseName.base = (ider.base as any).name;
+            nameInfo.name = ider.identifier.name;
+            if (ider.base.type === "Identifier") {
+                nameInfo.base = ider.base.name;
+                nameInfo.indexer = ider.indexer;
+            }
         }
         // IndexExpression是list[idx]这种，暂时没用到
 
-        return baseName;
+        return nameInfo;
     }
 
     // 把一个解析好的符号存到临时解析数组
@@ -291,12 +299,12 @@ export class Symbol {
     // 解析函数声明
     private parseFunctionExpr(expr: FunctionDeclaration): SymInfoEx[] {
         // return function() ... end 这种匿名函数没有identifier
-        let baseName = this.parseBaseName(expr.identifier);
-        if ("" === baseName.name) {
+        let nameInfo = this.parseBaseName(expr.identifier);
+        if ("" === nameInfo.name) {
             return [];
         }
 
-        let sym = this.toSym(baseName.name, expr, undefined, baseName.base);
+        let sym = this.toSym(nameInfo, expr);
         if (!sym) {
             return [];
         }
@@ -318,7 +326,9 @@ export class Symbol {
                 continue;
             }
 
-            let sym = this.toSym(field.key.name, field.key, field.value);
+            let sym = this.toSym({
+                name: field.key.name
+            }, field.key, field.value);
 
             if (sym) { symList.push(sym); }
         }
@@ -351,16 +361,16 @@ export class Symbol {
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
             let varNode = stat.variables[index];
-            let baseName = this.parseBaseName(varNode);
+            let nameInfo = this.parseBaseName(varNode);
 
-            let name = baseName.name;
+            let name = nameInfo.name;
             if ("" === name) {
                 continue;
             }
 
             const init = stat.init[index];
 
-            let sym = this.toSym(name, varNode, init, baseName.base);
+            let sym = this.toSym(nameInfo, varNode, init);
             if (!sym) {
                 continue;
             }
@@ -401,18 +411,18 @@ export class Symbol {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    public toSym(name: string,
+    public toSym(nameInfo: NameInfo,
         node: Statement | Expression,
-        init?: Statement | Expression,
-        base?: string, local?: LocalType): VSCodeSymbol {
+        init?: Statement | Expression, local?: LocalType): VSCodeSymbol {
         const loc = node.loc;
         if (!loc) {
             return null;
         }
 
         let sym: SymInfoEx = {
-            name: name,
-            base: base,
+            name: nameInfo.name,
+            base: nameInfo.base,
+            indexer: nameInfo.indexer,
             scope: this.parseScopeDeepth,
             kind: SymbolKind.Variable,
             location: Symbol.toLocation(this.parseUri, loc),
@@ -425,7 +435,7 @@ export class Symbol {
                 // 在跟踪N的符号时会在M查找
                 // 如果是local M = M这种同名的，则不处理，反正都是根据名字去查找
                 // 仅仅处理文件顶层作用域
-                if (0 === sym.scope && name !== initNode.name) {
+                if (0 === sym.scope && nameInfo.name !== initNode.name) {
                     sym.refType = initNode.name;
                 }
                 break;
@@ -696,7 +706,7 @@ export class Symbol {
     }
 
     // 获取全局符号
-    public getGlobalSymbol(query?: string): SymInfoEx[] {
+    public getGlobalSymbol(query?: string, uri?: string): SymInfoEx[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }
@@ -704,7 +714,10 @@ export class Symbol {
         let symList: SymInfoEx[] = [];
         for (let name in this.globalSymbol) {
             for (let sym of this.globalSymbol[name]) {
-                if (!query || sym.name === query) { symList.push(sym); }
+                if ((!query || sym.name === query)
+                    && (!uri || sym.location.uri !== uri)) {
+                    symList.push(sym);
+                }
             }
         }
         return symList;

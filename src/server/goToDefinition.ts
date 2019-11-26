@@ -102,7 +102,7 @@ export class GoToDefinition {
         if (re) {
             const r: SearchResult = re!;
             found = Symbol.instance().toSym(
-                query.symName, r.node, r.init, r.base, r.local);
+                { name: query.symName, base: r.base }, r.node, r.init, r.local);
         }
 
         return found ? [found] : null;

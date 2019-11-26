@@ -357,7 +357,20 @@ export class Search {
     }
 
     private filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
+        // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
+        // 避免前面调用的全局符号，跳转到后面的同名local变量
+        return symList.filter(sym => {
+            if (!sym.local) {
+                return true;
+            }
 
+            const loc = sym.location.range;
+            let comp = this.compPos(
+                loc.start.line, loc.start.character,
+                loc.end.line, loc.end.character, query.position);
+
+            return 1 === comp ? false : true;
+        });
     }
 
     // 搜索符号
@@ -391,28 +404,14 @@ export class Search {
         // 忽略模块名，直接查找当前文档符号
         items = filter(symbol.getDocumentSymbol(query.uri));
         if (items) {
-            // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
-            // 避免前面调用的全局符号，跳转到后面的同名local变量
-            let docSymList = items.filter(sym => {
-                if (!sym.local) {
-                    return true;
-                }
-
-                const loc = sym.location.range;
-                let comp = this.compPos(
-                    loc.start.line, loc.start.character,
-                    loc.end.line, loc.end.character, query.position);
-
-                return 1 === comp ? false : true;
-            });
-
-            if (docSymList.length > 0) {
-                return docSymList;
+            let symList = this.filterLocalSym(items, query);
+            if (symList.length > 0) {
+                return symList;
             }
         }
 
         // 忽略模块名，直接查找全局符号
-        items = filter(symbol.getGlobalSymbol(query.symName));
+        items = filter(symbol.getGlobalSymbol(query.symName, query.uri));
         if (items) {
             return items;
         }
