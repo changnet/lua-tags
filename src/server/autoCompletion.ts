@@ -30,6 +30,8 @@ import {
 
 import * as fuzzysort from "fuzzysort";
 import { g_utils } from './utils';
+import { Server } from './server';
+import { Search } from './search';
 
 export class AutoCompletion {
     private static ins: AutoCompletion;
@@ -187,5 +189,43 @@ export class AutoCompletion {
 
         if (items.length <= 0) { return null; }
         return items;
+    }
+
+    public doCompletion(srv: Server, uri: string, pos: Position) {
+        let line = srv.getQueryLineText(uri, pos);
+        if (!line) { return []; }
+
+        // require("a.b.c") 跳转到对应的文件
+        let loc: CompletionItem[] | null =
+            this.getRequireCompletion(line, pos.character);
+        if (loc) { return loc; }
+
+        let query = srv.getSymbolQuery(uri, line, pos);
+        if (!query) { return []; }
+
+        const symName = query.symName;
+        let list = Search.instance().search(query, symList => {
+            if (!symList) {
+                return null;
+            }
+            return symList.filter(sym => {
+                return 0 === symName.length
+                    || fuzzysort.single(symName, sym.name);
+            });
+        }, () => {
+            srv.ensureSymbolCache(query!.uri);
+            return null;//this.getlocalDefinition(query!);
+        });
+
+        if (!list) {
+            return [];
+        }
+
+        loc = [];
+        for (let sym of list) {
+            loc.push(this.toCompletion(sym));
+        }
+
+        return loc;
     }
 }

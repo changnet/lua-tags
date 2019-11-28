@@ -270,43 +270,8 @@ export class Server {
     private onCompletion(handler: TextDocumentPositionParams): CompletionItem[] {
         const uri = handler.textDocument.uri;
 
-        let line = this.getQueryLineText(uri, handler.position);
-        if (!line) { return []; }
-
-        let completion = AutoCompletion.instance();
-        // require "a.b.c" 路径补全
-        let items = completion.getRequireCompletion(
-            line, handler.position.character);
-        if (items) { return items; }
-
-        let query = this.getSymbolQuery(uri, line, handler.position);
-
-        // g_utils.log(`check uri =====${JSON.stringify(query)}`);
-        if (!query) { return []; }
-
-
-        // 根据模块名，匹配全局符号
-        items = completion.getGlobalModuleCompletion(query);
-        if (items) { return items; }
-
-        // 根据模块名，匹配文档符号
-        items = completion.getDocumentModuleCompletion(query);
-        if (items) { return items; }
-
-        if (query.symName.length <= 0) { return []; }
-
-        // 根据模块名无法匹配到，下面开始忽略模块名
-        // 当前文档符号匹配
-        items = completion.getDocumentCompletion(query);
-        if (items) { return items; }
-        // 全局符号匹配
-        items = completion.getGlobalCompletion(query);
-        if (items) { return items; }
-        // 局部符号匹配
-        items = completion.getlocalCompletion(query);
-        if (items) { return items; }
-
-        return [];
+        return AutoCompletion.instance().doCompletion(
+            this, uri, handler.position);
     }
 
     // 已打开的文档内容变化，注意是已打开的
