@@ -22,7 +22,8 @@ no:test_other()
 local function test_upvalue(param1, param2,param3)
     local Hash = {
         A = 1,
-        B = 2
+        B = 2,
+        ABCDEFG = "some"
     }
     return function(param11, param12, param13)
         local ins = MetaObject()

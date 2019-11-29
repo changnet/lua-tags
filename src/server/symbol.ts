@@ -314,7 +314,7 @@ export class Symbol {
 
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
-    private parseTableConstructorExpr(expr: TableConstructorExpression) {
+    public parseTableConstructorExpr(expr: TableConstructorExpression) {
         let symList: SymInfoEx[] = [];
 
         this.parseScopeDeepth++;
@@ -592,6 +592,9 @@ export class Symbol {
         this.parseModule = {};
 
         const nodeList = this.rawParse(uri, text);
+        if (!nodeList) {
+            return [];
+        }
 
         this.parseScopeDeepth = 0;
         for (let node of nodeList) {
@@ -652,10 +655,10 @@ export class Symbol {
     }
 
     // 解析一段代码并查找局部变量
-    public rawParse(uri: string, text: string): Node[] {
+    public rawParse(uri: string, text: string): Node[] | null {
         let ft = g_setting.getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
-            return [];
+            return null;
         }
 
         this.parseUri = uri;
@@ -666,7 +669,7 @@ export class Symbol {
             this.parseText(uri, text) : this.parseLarge(text);
 
         if (!ok) {
-            return [];
+            return null;
         }
 
         this.updateCache(uri, this.parseNodeList);

@@ -148,13 +148,6 @@ export class AutoCompletion {
         return this.checkSymCompletion(symList, query.symName);
     }
 
-    // 获取局部变量位置
-    // TODO: 局部变量不处理自动完成了，vs code会自动把当前文档的单词提示出来
-    // 不地ts的是有提示的，以后看要不要做
-    public getlocalCompletion(query: SymbolQuery) {
-        return null;
-    }
-
     // require "a.b.c" 自动补全后面的路径
     public getRequireCompletion(line: string, pos: number) {
         const text = line.substring(0, pos);
@@ -191,6 +184,34 @@ export class AutoCompletion {
         return items;
     }
 
+    private getlocalCompletion(query: SymbolQuery) {
+        let symList: SymInfoEx[] = [];
+
+        const mdName = query.mdName;
+        const symName = query.symName;
+        let symbol = Symbol.instance();
+        Search.instance().searchLocal(query.uri, query.position,
+            (node, local, name, base, init) => {
+                if (symName.length > 0
+                    && fuzzysort.single(symName, name)) {
+                    let sym = symbol.toSym(
+                        { name: name, base: base }, node, init, local);
+                    if (sym) {
+                        symList.push(sym);
+                    }
+                }
+
+                if (init && name === mdName
+                    && "TableConstructorExpression" === init.type) {
+                    let subSym = symbol.parseTableConstructorExpr(init);
+                    symList.concat(subSym);
+                }
+            }
+        );
+
+        return symList.length > 0 ? symList : null;
+    }
+
     public doCompletion(srv: Server, uri: string, pos: Position) {
         let line = srv.getQueryLineText(uri, pos);
         if (!line) { return []; }
@@ -214,7 +235,7 @@ export class AutoCompletion {
             });
         }, () => {
             srv.ensureSymbolCache(query!.uri);
-            return null;//this.getlocalDefinition(query!);
+            return this.getlocalCompletion(query!);
         });
 
         if (!list) {

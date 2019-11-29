@@ -411,7 +411,7 @@ export class Search {
         }
 
         // 忽略模块名，直接查找全局符号
-        items = filter(symbol.getGlobalSymbol(query.symName, query.uri));
+        items = filter(symbol.getGlobalSymbol(undefined, query.uri));
         if (items) {
             return items;
         }
