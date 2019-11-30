@@ -168,10 +168,12 @@ export class Server {
     }
 
     // 获取查询符号所在行的文本内容
-    public getQueryLineText(uri: string, pos: Position): string | null {
+    public getQueryText(uri: string, pos: Position): string | null {
         const document = this.documents.get(uri);
 
-        if (!document) { return null; }
+        if (!document) {
+            return null;
+        }
 
         // vs code的行数和字符数是从0开始的，但是状态栏里Ln、Col是从1开始的
 
@@ -196,9 +198,6 @@ export class Server {
         // 模块名，即m:test()中的m
         let mdName: string | undefined = undefined;
 
-        // 匹配到的字符
-        let matchWords: string | null = null;
-
         let beg: number = pos.character;
         let end: number = pos.character;
 
@@ -214,7 +213,6 @@ export class Server {
         if (leftWords) {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
-            matchWords = leftWords[0];
             if (leftWords[2]) {
                 mdName = leftWords[2];
             }
@@ -333,8 +331,16 @@ export class Server {
 
     private onSignature(
         handler: TextDocumentPositionParams): SignatureHelp | null {
+
+        const pos = handler.position;
+        const uri = handler.textDocument.uri;
+        const doc = this.documents.get(uri);
+
+        if (!doc) {
+            return null;
+        }
         return SignatureProvider.instance().doSignature(
-            this, handler.textDocument.uri, handler.position);
+            this, uri, pos, doc.getText(), doc.offsetAt(pos));
     }
 }
 

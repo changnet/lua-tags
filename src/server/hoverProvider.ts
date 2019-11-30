@@ -138,7 +138,7 @@ export class HoverProvider {
     }
 
     public doHover(srv: Server, uri: string, pos: Position): Hover | null {
-        let line = srv.getQueryLineText(uri, pos);
+        let line = srv.getQueryText(uri, pos);
         if (!line) { return null; }
 
         let query = srv.getSymbolQuery(uri, line, pos);

@@ -213,7 +213,7 @@ export class AutoCompletion {
     }
 
     public doCompletion(srv: Server, uri: string, pos: Position) {
-        let line = srv.getQueryLineText(uri, pos);
+        let line = srv.getQueryText(uri, pos);
         if (!line) { return []; }
 
         // require("a.b.c") 跳转到对应的文件
