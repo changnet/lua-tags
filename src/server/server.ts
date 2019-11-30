@@ -38,6 +38,7 @@ import { g_utils } from "./utils";
 import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
+import { SignatureProvider } from "./signatureProvider";
 import { g_setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -99,8 +100,9 @@ export class Server {
                 },
                 hoverProvider: true, // 鼠标放上去的提示信息
 
+                // 函数调用参数辅助
                 signatureHelpProvider: {
-                    triggerCharacters: [","]
+                    triggerCharacters: ["(", ","]
                 },
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分
@@ -329,9 +331,10 @@ export class Server {
             srv, handler.textDocument.uri, handler.position);
     }
 
-    private onSignature(handler: TextDocumentPositionParams)
-        : SignatureHelp | null {
-        return null;
+    private onSignature(
+        handler: TextDocumentPositionParams): SignatureHelp | null {
+        return SignatureProvider.instance().doSignature(
+            this, handler.textDocument.uri, handler.position);
     }
 }
 
