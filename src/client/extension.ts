@@ -16,10 +16,6 @@ import {
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log('Congratulations, your extension "lua-tags" is now active!');
-
     // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 
     // 指定服务器入口文件路径
@@ -35,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 能看到两个session，一个Run Extension，一个Attack，选中Attack即可
     let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
-    console.log(`server path:${serverModule}`)
+    console.log(`LSP server path:${serverModule}`);
 
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used

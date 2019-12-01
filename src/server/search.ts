@@ -323,7 +323,8 @@ export class Search {
         // 从函数开始搜索，非函数会在文档符号中查找
         for (const node of nodeList) {
             if (node.type === "FunctionDeclaration"
-                && !this.searchFunctionDeclaration(node)) {
+                && 2 === this.compNodePos(node, this.pos!)) {
+                this.searchFunctionDeclaration(node);
                 return;
             }
         }

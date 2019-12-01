@@ -50,10 +50,11 @@ export class AutoCompletion {
 
     // 符号转自动完成格式
     private toCompletion(sym: SymInfoEx): CompletionItem {
-        let kind: CompletionItemKind = CompletionItemKind.Text;
+        // vs code会自动补全当前文档中的单词，默认类型为CompletionItemKind.Text
+        // 所以我们使用variable类型来区分
+        let kind: CompletionItemKind = CompletionItemKind.Variable;
         switch (sym.kind) {
             case SymbolKind.Function: kind = CompletionItemKind.Function; break;
-            case SymbolKind.Variable: kind = CompletionItemKind.Variable; break;
             case SymbolKind.Namespace: kind = CompletionItemKind.Module; break;
         }
 
@@ -184,6 +185,7 @@ export class AutoCompletion {
         return items;
     }
 
+    // 搜索局部变量
     private getlocalCompletion(query: SymbolQuery) {
         let symList: SymInfoEx[] = [];
 

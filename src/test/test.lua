@@ -96,3 +96,11 @@ local conf = require "conf.anno_conf"
 
 -- 测试是否正常解析了超大的文件符号
 local LargeConf = LargeConf
+
+function signature_help(a, b, c)
+end
+
+function signature_help(a, b, c, d)
+end
+
+signature_help(a, {a = 1, b = 2}, signature_help(9, 8))
