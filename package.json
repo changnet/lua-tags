@@ -25,12 +25,29 @@
 				]
 			}
 		],
-		"commands": [
-			{
-				"command": "extension.helloWorld",
-				"title": "Hello World"
+		"configuration": {
+			"type": "object",
+			"title": "lua-tags configuration",
+			"properties": {
+				"lua-tags.luaVersion": {
+					"scope": "resource",
+					"type": "string",
+					"default": "5.3",
+					"description": "Lua Version."
+				},
+				"lua-tags.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"description": "Traces the communication between VS Code and the lua-tags server."
+				}
 			}
-		]
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

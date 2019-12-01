@@ -62,13 +62,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Create the language client and start the client.
     let client = new LanguageClient(
-        'languageServerLua',
-        'Language Server Lua',
+        'lua-tags',
+        'lua-tags',
         serverOptions,
         clientOptions
     );
 
-    // "languageServerLua.trace.server": "verbose"
+    // "lua-tags.trace.server": "verbose"
     // 把这个添加到设置(没错，就是File-->Preferences-->Setting)
     // F5调试插件，激活插件
     // 在新打开的的vsc里的控制台OUTPUT里即可看到这个选项，可以看到server日志

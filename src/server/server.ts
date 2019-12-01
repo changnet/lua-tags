@@ -22,7 +22,8 @@ import {
     TextDocumentChangeEvent,
     FileChangeType,
     InitializeResult,
-    SignatureHelp
+    SignatureHelp,
+    DidChangeConfigurationParams
 } from 'vscode-languageserver';
 
 import {
@@ -39,7 +40,7 @@ import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
 import { SignatureProvider } from "./signatureProvider";
-import { g_setting } from './setting';
+import { Setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 export class Server {
@@ -67,6 +68,7 @@ export class Server {
         conn.onDidChangeWatchedFiles(handler => this.onFilesChange(handler));
         conn.onHover(handler => this.onHover(handler));
         conn.onSignatureHelp(handler => this.onSignature(handler));
+        conn.onDidChangeConfiguration(handler => this.onConfiguration(handler));
 
         let doc = this.documents;
         doc.onDidChangeContent(handler => this.onDocumentChange(handler));
@@ -79,7 +81,7 @@ export class Server {
 
     private onInitialize(params: InitializeParams): InitializeResult {
         this.rootUri = params.rootUri;
-        g_setting.setRootPath(this.rootUri || "");
+        Setting.instance().setRootPath(this.rootUri || "");
 
         return {
             capabilities: {
@@ -114,6 +116,9 @@ export class Server {
         if (!this.rootUri) {
             return;
         }
+
+        let conf = await this.connection.workspace.getConfiguration("lua-tags");
+        Setting.instance().setConfiguration(conf);
 
         const uri = Uri.parse(this.rootUri);
         let symbol = Symbol.instance();
@@ -329,6 +334,7 @@ export class Server {
             srv, handler.textDocument.uri, handler.position);
     }
 
+    // 函数调用，参数辅助
     private onSignature(
         handler: TextDocumentPositionParams): SignatureHelp | null {
 
@@ -341,6 +347,11 @@ export class Server {
         }
         return SignatureProvider.instance().doSignature(
             this, uri, pos, doc.getText(), doc.offsetAt(pos));
+    }
+
+    // 配置变化，现在并没有做热更处理，需要重启vs code
+    private onConfiguration(handler: DidChangeConfigurationParams) {
+        Setting.instance().setConfiguration(handler.settings, true);
     }
 }
 

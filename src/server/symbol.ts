@@ -1,7 +1,7 @@
 // 符号处理
 
 import { g_utils } from "./utils";
-import { g_setting, FileParseType } from "./setting";
+import { Setting, FileParseType } from "./setting";
 
 import {
     Options,
@@ -179,7 +179,7 @@ export class Symbol {
             wait: false, // 是否等待显示调用end函数
             comments: false, // 是否记录注释
             ranges: true, // 记录语法节点的字符位置(第几个字符开始，第几个结束)
-            luaVersion: g_setting.luaVersion,
+            luaVersion: Setting.instance().getLuaVersion(),
             onCreateScope: () => this.onCreateScope(),
             onDestroyScope: () => this.onDestoryScope(),
             onCreateNode: (node) => this.onCreateNode(node)
@@ -207,7 +207,7 @@ export class Symbol {
     //  语法节点结束
     private onCreateNode(node: Node) {
         // 不是全局或者模块中的符号，不用解析
-        if (this.parseScopeDeepth > g_setting.scopeDeepth) {
+        if (this.parseScopeDeepth > 1) {
             return;
         }
 
@@ -583,7 +583,7 @@ export class Symbol {
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
     public parse(uri: string, text: string): SymInfoEx[] {
-        let ft = g_setting.getFileType(uri, text.length);
+        let ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return [];
         }
@@ -656,7 +656,7 @@ export class Symbol {
 
     // 解析一段代码并查找局部变量
     public rawParse(uri: string, text: string): Node[] | null {
-        let ft = g_setting.getFileType(uri, text.length);
+        let ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return null;
         }
@@ -869,7 +869,7 @@ export class Symbol {
             wait: true, // 是否等待显示调用end函数
             comments: false, // 是否记录注释
             ranges: true, // 记录语法节点的字符位置(第几个字符开始，第几个结束)
-            luaVersion: g_setting.luaVersion
+            luaVersion: Setting.instance().getLuaVersion()
         });
 
         let token;
