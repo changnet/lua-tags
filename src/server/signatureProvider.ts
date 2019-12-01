@@ -29,7 +29,7 @@ import {
     ParameterInformation
 } from 'vscode-languageserver';
 import { Server } from './server';
-import { g_utils } from './utils';
+import { Utils } from './utils';
 import { GoToDefinition } from './goToDefinition';
 import { Symbol, SymInfoEx } from './symbol';
 

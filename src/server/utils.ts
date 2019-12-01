@@ -3,8 +3,20 @@ import {
     Diagnostic
 } from 'vscode-languageserver';
 
-class Utils {
+export class Utils {
+    private static ins: Utils;
     private conn: Connection | null = null;
+
+    private constructor() {
+    }
+
+    public static instance() {
+        if (!Utils.ins) {
+            Utils.ins = new Utils();
+        }
+
+        return Utils.ins;
+    }
 
     public initialize(conn: Connection) {
         this.conn = conn;
@@ -19,4 +31,3 @@ class Utils {
     }
 }
 
-export var g_utils = new Utils();

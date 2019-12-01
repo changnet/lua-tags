@@ -42,7 +42,7 @@ import {
     Server
 } from "./server";
 
-import { g_utils } from './utils';
+import { Utils } from './utils';
 
 export class GoToDefinition {
     private static ins: GoToDefinition;

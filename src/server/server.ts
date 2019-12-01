@@ -35,7 +35,7 @@ import {
 // import assert from "assert";
 
 import Uri from 'vscode-uri';
-import { g_utils } from "./utils";
+import { Utils } from "./utils";
 import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
@@ -57,7 +57,7 @@ export class Server {
     public constructor() {
         let conn = this.connection;
 
-        g_utils.initialize(conn);
+        Utils.instance().initialize(conn);
 
         conn.onInitialize(handler => this.onInitialize(handler));
         conn.onInitialized(() => this.onInitialized());
@@ -112,7 +112,7 @@ export class Server {
         };
     }
     private async onInitialized() {
-        g_utils.log(`Lua LSP Server started:${this.rootUri}`);
+        Utils.instance().log(`Lua LSP Server started:${this.rootUri}`);
         if (!this.rootUri) {
             return;
         }
@@ -129,7 +129,7 @@ export class Server {
         symbol.setCacheOpen();
 
         let end = Date.now();
-        g_utils.log(`Lua initialized done:${this.rootUri}, msec:${end - beg}`);
+        Utils.instance().log(`Lua initialized done:${this.rootUri}, msec:${end - beg}`);
     }
 
     // 返回当前文档的符号

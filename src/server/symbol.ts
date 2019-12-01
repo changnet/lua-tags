@@ -1,6 +1,6 @@
 // 符号处理
 
-import { g_utils } from "./utils";
+import { Utils } from "./utils";
 import { Setting, FileParseType } from "./setting";
 
 import {
@@ -211,7 +211,7 @@ export class Symbol {
             return;
         }
 
-        // g_utils.log(`onc onCreateNode ========== ${JSON.stringify(node)}`);
+        // Utils.instance().log(`onc onCreateNode ========== ${JSON.stringify(node)}`);
         switch (node.type) {
             case "FunctionDeclaration": // 函数
             case "LocalStatement": // local变量赋值 local var = x
@@ -573,7 +573,7 @@ export class Symbol {
                 source: 'luaparse'
             };
 
-            g_utils.diagnostics(uri, [diagnostic]);
+            Utils.instance().diagnostics(uri, [diagnostic]);
             */
             return false;
         }
@@ -768,7 +768,7 @@ export class Symbol {
 
         let data = await fs.readFile(path);
 
-        //g_utils.log(data.toString())
+        //Utils.instance().log(data.toString())
         this.parse(uri, data.toString());
     }
 

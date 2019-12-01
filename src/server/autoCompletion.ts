@@ -29,7 +29,7 @@ import {
 } from "./symbol";
 
 import * as fuzzysort from "fuzzysort";
-import { g_utils } from './utils';
+import { Utils } from './utils';
 import { Server } from './server';
 import { Search } from './search';
 
@@ -96,7 +96,7 @@ export class AutoCompletion {
             // res.score
             // exact match returns a score of 0. lower is worse
             // 不匹配返回null
-            // g_utils.log(`check match ${symName} ${sym.name}
+            // Utils.instance().log(`check match ${symName} ${sym.name}
             //    ${JSON.stringify(fuzzysort.single(symName,sym.name))}`)
             if (0 === symName.length || fuzzysort.single(symName, sym.name)) {
                 items.push(this.toCompletion(sym));
