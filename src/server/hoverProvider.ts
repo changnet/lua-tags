@@ -71,11 +71,13 @@ export class HoverProvider {
         }
 
         let file = Symbol.getSymbolPath(sym);
-        return file ? `${file} :\n` : "";
+        return file ? `${file}\n` : "";
     }
 
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
-        return `${this.getPathPrefix(sym, uri)}\`\`\`lua\n${ctx}\n\`\`\``;
+        let path = this.getPathPrefix(sym, uri);
+        let comment = sym.comment ? `\`\`\`txt\n${sym.comment}\n\`\`\`\n` : "";
+        return `${path}${comment}\`\`\`lua\n${ctx}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {

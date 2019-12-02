@@ -9,17 +9,16 @@ import {
     Parser as luaParser,
 
     Node,
+    Comment,
     Statement,
     Identifier,
     FunctionDeclaration,
     LocalStatement,
     MemberExpression,
     AssignmentStatement,
-    Token,
     Expression,
     IndexExpression,
     ReturnStatement,
-    CallExpression,
     TableConstructorExpression
 } from 'luaparse';
 
@@ -129,6 +128,7 @@ export interface SymInfoEx extends SymbolInformation {
     base?: string; // M.N时记录模块名M
     local?: LocalType; // 是否Local符号
     indexer?: string; // M.N或者M:N中的[., :]
+    comment?: string; // 注释
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
@@ -165,6 +165,7 @@ export class Symbol {
     private parseSymList: SymInfoEx[] = [];
     // 各个文档的符号缓存，ider名为key
     private parseModule: { [key: string]: SymInfoEx[] } = {};
+    private parseComments: Comment[] = [];
 
     private pathSlash: string = "/";
 
@@ -177,7 +178,7 @@ export class Symbol {
             locations: true, // 是否记录语法节点的位置(node)
             scope: true, // 是否记录作用域
             wait: false, // 是否等待显示调用end函数
-            comments: false, // 是否记录注释
+            comments: true, // 是否记录注释
             ranges: true, // 记录语法节点的字符位置(第几个字符开始，第几个结束)
             luaVersion: Setting.instance().getLuaVersion(),
             onCreateScope: () => this.onCreateScope(),
@@ -552,7 +553,8 @@ export class Symbol {
     // 正常解析
     private parseText(uri: string, text: string) {
         try {
-            luaParse(text, this.options);
+            const chunk = luaParse(text, this.options);
+            this.parseComments = chunk.comments as any as Comment[];
         } catch (e) {
             // 这个会导致在写代码写一半的时候频繁报错，暂时不启用
             // 后面在保存文件的时候lint一下就好了
@@ -590,6 +592,7 @@ export class Symbol {
 
         this.parseSymList = [];
         this.parseModule = {};
+        this.parseComments = [];
 
         const nodeList = this.rawParse(uri, text);
         if (!nodeList) {
@@ -600,6 +603,7 @@ export class Symbol {
         for (let node of nodeList) {
             this.parseNode(node);
         }
+        this.appendComment(this.parseComments, this.parseSymList);
 
         // 不是工程文件，不要把符号添加到工程里
         if (0 !== (FileParseType.FPT_SINGLE & ft)) {
@@ -919,11 +923,13 @@ export class Symbol {
         return true;
     }
 
+    // 获取符号所在的文件路径，展示用。目前只展示文件名
     public static getSymbolPath(sym: SymInfoEx): string | null {
         const match = sym.location.uri.match(/\/(\w+.\w+)$/);
         return match ? match[1] : null;
     }
 
+    // 获取符号的local类型，展示用
     public static getLocalTypePrefix(local?: LocalType) {
         if (!local) {
             return "";
@@ -934,5 +940,151 @@ export class Symbol {
             case LocalType.LT_PARAMETER: return "(parameter) ";
             default: return "";
         }
+    }
+
+    // 对比符号和luaparse的位置
+    private compPos(symLoc: Location, loc: LuaLocation) {
+        const startLine = loc.start.line - 1;
+        const startCol = loc.start.column;
+        const endLine = loc.end.line - 1;
+
+        // 这里要注意下，某些符号的位置包含多行(比如一个table)
+        // 以开始行为准
+        const beg = symLoc.range.start.character;
+        const line = symLoc.range.start.line;
+
+        // 小于，符号在注释前面
+        if (line < startLine) {
+            return -1;
+        }
+
+        // 等于，则为行尾注释
+        // 排除 --[[comment]] local x 这种注释
+        if (line === startLine) {
+            return beg > startCol ? -1 : 0;
+        }
+
+        // 注释在符号的前一行，为当前符号的注释
+        if (line === endLine + 1) {
+            return 1;
+        }
+
+        // 符号包含注释，这时符号应该是一个函数或者table
+        if (line < startLine && symLoc.range.end.line >= endLine) {
+            return 2;
+        }
+
+        // 超过一行，则不是
+        if (line > endLine) {
+            return 3;
+        }
+
+        return -1;
+    }
+
+    private AppendOneComment(symList: SymInfoEx[], comments: Comment[],
+        begIndex: number, index: number, continueIndex: number) {
+        const comment = comments[index];
+        if (!comment.loc) {
+            return {
+                index: begIndex, reset: false
+            };
+        }
+
+        let reset = false;
+        for (let symIndex = begIndex;
+            symIndex < symList.length; symIndex++) {
+            let sym = symList[symIndex];
+            const comp = this.compPos(sym.location, comment.loc);
+            // 注释在当前符号之后了，当前符号之前的都不需要再查找
+            if (-1 === comp) {
+                begIndex = symIndex;
+                continue;
+            }
+
+            // 行数相等，为行尾注释
+            if (0 === comp) {
+                reset = true;
+                sym.comment = comment.value.trim();
+
+                // local x, y
+                // 同一样可能存在多个变量，继续查找
+                continue;
+            }
+
+            // 在符号上面的注释，可能存在多行
+            if (1 === comp) {
+                reset = true;
+                if (-1 === continueIndex) {
+                    sym.comment = comment.value.trim();
+                } else {
+                    let symComment: string[] = [];
+                    for (let idx = continueIndex; idx <= index; idx++) {
+                        symComment.push(comments[idx].value.trim());
+                    }
+                    sym.comment = symComment.join("\n");
+                }
+                continue;
+            }
+
+            // 子符号已经放到parseSymList里了，不用额外查找
+            // 但是这里要reset = true，因为现在函数是不解析局部变量的，防止
+            // 函数每一行都有注释时注释被连续拼接
+            if (2 === comp && sym.subSym) {
+                reset = true;
+                // this.AppendOneComment(
+                //     sym.subSym, comments, 0, index, continueIndex);
+            }
+
+            break;
+        }
+
+        return {
+            index: begIndex, reset: reset
+        };
+    }
+
+    /* 把注释记录到符号中
+     * 在符号上面连续的注释，或者在符号行尾的注释，则为该符号的注释
+     * 行尾注释优先于上面的注释
+     *
+     * -- 这是上面的注释1
+     * -- 这是上面的注释2
+     * local sym = false -- 这是行尾的注释
+     */
+    public appendComment(comments: Comment[], symList: SymInfoEx[]) {
+        let lastSymIndex = 0;
+
+        let continueLine = -1;
+        let continueIndex = -1;
+
+        comments.forEach((comment, index) => {
+            if (!comment.loc) {
+                return;
+            }
+
+            // 记录连续多行的注释
+            if (-1 !== continueIndex
+                && continueLine + 1 === comment.loc.start.line) {
+                continueLine++;
+            } else {
+                continueIndex = -1;
+            }
+
+            let ok = this.AppendOneComment(
+                symList, comments, lastSymIndex, index, continueIndex);
+
+            lastSymIndex = ok.index;
+            if (ok.reset) {
+                continueIndex = -1;
+                return;
+            }
+
+            if (-1 === continueIndex) {
+                continueIndex = index;
+                continueLine = comment.loc.end.line;
+                return;
+            }
+        });
     }
 }

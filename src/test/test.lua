@@ -21,8 +21,8 @@ no:test_other()
 -- 测试upvalue跳转
 local function test_upvalue(param1, param2,param3)
     local Hash = {
-        A = 1,
-        B = 2,
+        A = 1, -- local Hash A
+        B = 2, -- -- local Hash B
         ABCDEFG = "some"
     }
     return function(param11, param12, param13)
@@ -64,11 +64,11 @@ local M, N, X, Y = {}, 1, "X", false
 -- 测试枚举
 local ENUM =
 {
-    E_NUMBER = 1,
-    E_STRING = "hello",
-    E_BOOLEAN = true,
-    E_EXPRESS = 4 + 0,
-    E_FUNCTION = function() end,
+    E_NUMBER = 1,  -- enum NUMBER
+    E_STRING = "hello", -- enum STRING
+    E_BOOLEAN = true, -- enum boolean
+    E_EXPRESS = 4 + 0, -- enum expr
+    E_FUNCTION = function() end, -- enum function
     E_UNKNOW = unknow,
 
     E_MAX -- unsupport for now
@@ -76,6 +76,8 @@ local ENUM =
 ENUM.TEST = 3
 
 -- test function assignment
+-- multiline comment1
+-- multiline comment2
 table.empty = function(tbl)
     return not next(tbl)
 end
@@ -104,3 +106,10 @@ function signature_help(a, b, c, d)
 end
 
 signature_help(a, {a = 1, b = 2}, signature_help(9, 8))
+
+-- 测试注释0
+function cmt() -- 测试注释1
+    -- 测试注释2
+    -- 测试注释3
+end -- 测试注释5
+local cmt = cmt() -- 测试注释6
