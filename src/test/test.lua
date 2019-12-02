@@ -113,3 +113,8 @@ function cmt() -- 测试注释1
     -- 测试注释3
 end -- 测试注释5
 local cmt = cmt() -- 测试注释6
+
+-- 这当前不支持，因为解析后，test()被丢掉了
+test() -- test call
+local unsupport_comment = 9
+

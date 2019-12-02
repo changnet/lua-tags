@@ -312,8 +312,8 @@ export class Search {
     public searchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
         let symbol = Symbol.instance();
 
-        const nodeList = symbol.getCache(uri);
-        if (!nodeList) {
+        const cache = symbol.getCache(uri);
+        if (!cache) {
             return null;
         }
 
@@ -321,7 +321,7 @@ export class Search {
         this.callBack = callBack;
 
         // 从函数开始搜索，非函数会在文档符号中查找
-        for (const node of nodeList) {
+        for (const node of cache.nodes) {
             if (node.type === "FunctionDeclaration"
                 && 2 === this.compNodePos(node, this.pos!)) {
                 this.searchFunctionDeclaration(node);

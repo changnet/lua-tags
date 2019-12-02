@@ -137,6 +137,7 @@ type SymInfoMap = { [key: string]: SymInfoEx[] };
 interface NodeCache {
     uri: string;
     nodes: Node[];
+    comments: Comment[];
 }
 
 export class Symbol {
@@ -590,9 +591,8 @@ export class Symbol {
             return [];
         }
 
-        this.parseSymList = [];
         this.parseModule = {};
-        this.parseComments = [];
+        this.parseSymList = [];
 
         const nodeList = this.rawParse(uri, text);
         if (!nodeList) {
@@ -626,10 +626,10 @@ export class Symbol {
         this.openCache = true;
     }
 
-    public getCache(uri: string): Node[] | null {
+    public getCache(uri: string): NodeCache | null {
         for (const cache of this.docNodeCache) {
             if (uri === cache.uri) {
-                return cache.nodes;
+                return cache;
             }
         }
 
@@ -637,7 +637,7 @@ export class Symbol {
     }
 
     // 更新文档缓存
-    private updateCache(uri: string, nodes: Node[]) {
+    private updateCache(uri: string, nodes: Node[], comments: Comment[]) {
         if (!this.openCache) {
             return;
         }
@@ -655,7 +655,9 @@ export class Symbol {
         if (this.docNodeCache.length >= 8) {
             this.docNodeCache.splice(0, 1);
         }
-        this.docNodeCache.push({ uri: uri, nodes: nodes });
+        this.docNodeCache.push({
+            uri: uri, nodes: nodes, comments: comments
+        });
     }
 
     // 解析一段代码并查找局部变量
@@ -668,6 +670,7 @@ export class Symbol {
         this.parseUri = uri;
         this.parseScopeDeepth = 0;
         this.parseNodeList = [];
+        this.parseComments = [];
 
         let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
             this.parseText(uri, text) : this.parseLarge(text);
@@ -676,7 +679,7 @@ export class Symbol {
             return null;
         }
 
-        this.updateCache(uri, this.parseNodeList);
+        this.updateCache(uri, this.parseNodeList, this.parseComments);
 
         return this.parseNodeList;
     }

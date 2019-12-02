@@ -65,20 +65,23 @@ export class AutoCompletion {
             kind: kind
         };
 
-        if (file) {
-            item.detail = file;
-
-            // 如果是常量，显示常量值： test.lua: val = 999
-            if (sym.value) {
-                item.detail += `: ${sym.name} = ${sym.value}`;
-            }
-
-            // 如果是函数，显示参数: test.lua: function(a, b, c)
-            if (sym.parameters) {
-                let parameters = sym.parameters.join(", ");
-                item.detail +=
-                    `: ${sym.local || ""}function ${sym.name}(${parameters})`;
-            }
+        let detail = file ? `${file}\n` : "";
+        // 如果有注释，显示注释
+        if (sym.comment) {
+            detail += `${sym.comment}\n`;
+        }
+        // 如果是常量，显示常量值： test.lua: val = 999
+        if (sym.value) {
+            detail += `${sym.name} = ${sym.value}`;
+        }
+        // 如果是函数，显示参数: test.lua: function(a, b, c)
+        if (sym.parameters) {
+            let parameters = sym.parameters.join(", ");
+            detail +=
+                `${sym.local || ""}function ${sym.name}(${parameters})`;
+        }
+        if (detail && detail.length > 0) {
+            item.detail = detail;
         }
 
         return item;

@@ -105,7 +105,18 @@ export class GoToDefinition {
                 { name: query.symName, base: r.base }, r.node, r.init, r.local);
         }
 
-        return found ? [found] : null;
+        let symList = found ? [found] : null;
+        if (!symList) {
+            return null;
+        }
+
+        const cache = Symbol.instance().getCache(query.uri);
+        if (!cache) {
+            return symList;
+        }
+
+        Symbol.instance().appendComment(cache.comments, symList);
+        return symList;
     }
 
     // require("aaa.bbb")这种，则打开对应的文件
