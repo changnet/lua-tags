@@ -330,26 +330,29 @@ export class Search {
         }
     }
 
-
     // 根据模块名查找符号
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    private searchGlobalModule(query: SymbolQuery) {
+    public searchGlobalModule(query: SymbolQuery, filter: Filter) {
         let mdName = query.mdName;
-        if (!mdName || "self" === mdName) { return null; }
+        if (!mdName) {
+            return null;
+        }
 
         let symbol = Symbol.instance();
 
         let rawName = symbol.getRawModule(query.uri, mdName);
         let symList = symbol.getGlobalModule(rawName);
 
-        return this.filter!(symList);
+        return filter(symList);
     }
 
     // 根据模块名查找某个文档的符号
-    private searchDocumentModule(query: SymbolQuery) {
+    public searchDocumentModule(query: SymbolQuery, filter: Filter) {
         let mdName = query.mdName;
-        if (!mdName) { return null; }
+        if (!mdName) {
+            return null;
+        }
 
         let symbol = Symbol.instance();
         let rawUri = symbol.getRawUri(query.uri, mdName);
@@ -357,7 +360,7 @@ export class Search {
         return this.filter!(symbol.getDocumentModule(rawUri, mdName));
     }
 
-    private filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
+    public filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
         // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
         // 避免前面调用的全局符号，跳转到后面的同名local变量
         return symList.filter(sym => {
@@ -385,13 +388,13 @@ export class Search {
          */
 
         // 优先根据模块名匹配全局符号
-        let items = this.searchGlobalModule(query);
+        let items = this.searchGlobalModule(query, filter);
         if (items) {
             return items;
         }
 
         // 根据模块名匹配文档符号
-        items = this.searchDocumentModule(query);
+        items = this.searchDocumentModule(query, filter);
         if (items) {
             return items;
         }

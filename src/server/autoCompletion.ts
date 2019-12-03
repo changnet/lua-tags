@@ -31,7 +31,7 @@ import {
 import * as fuzzysort from "fuzzysort";
 import { Utils } from './utils';
 import { Server } from './server';
-import { Search } from './search';
+import { Search, Filter } from './search';
 
 export class AutoCompletion {
     private static ins: AutoCompletion;
@@ -85,71 +85,6 @@ export class AutoCompletion {
         }
 
         return item;
-    }
-
-    // 检测列表中哪些符号需要显示在自动完成列表
-    private checkSymCompletion(
-        symList: SymInfoEx[] | null, symName: string) {
-        if (!symList) { return null; }
-
-        let items: CompletionItem[] = [];
-        for (let sym of symList) {
-            // let res = fuzzysort.single(symName,sym.name)
-            // https://github.com/farzher/fuzzysort
-            // res.score
-            // exact match returns a score of 0. lower is worse
-            // 不匹配返回null
-            // Utils.instance().log(`check match ${symName} ${sym.name}
-            //    ${JSON.stringify(fuzzysort.single(symName,sym.name))}`)
-            if (0 === symName.length || fuzzysort.single(symName, sym.name)) {
-                items.push(this.toCompletion(sym));
-            }
-        }
-
-        if (items.length > 0) { return items; }
-
-        return null;
-    }
-
-    // 根据模块名(mdName)查找符号
-    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
-    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
-    public getGlobalModuleCompletion(query: SymbolQuery) {
-        let mdName = query.mdName;
-        if (!mdName || "self" === mdName) { return null; }
-
-        let symbol = Symbol.instance();
-
-        let rawName = symbol.getRawModule(query.uri, mdName);
-        let symList = symbol.getGlobalModule(rawName);
-
-        return this.checkSymCompletion(symList, query.symName);
-    }
-
-    // 根据模块名查找某个文档的符号位置
-    public getDocumentModuleCompletion(query: SymbolQuery) {
-        let mdName = query.mdName;
-        if (!mdName) { return null; }
-
-        let symbol = Symbol.instance();
-        let rawUri = symbol.getRawUri(query.uri, mdName);
-
-        return this.checkSymCompletion(
-            symbol.getDocumentModule(rawUri, mdName), query.symName);
-    }
-
-    // 从全局符号获取符号定义
-    public getGlobalCompletion(query: SymbolQuery) {
-        let symList = Symbol.instance().getGlobalSymbol();
-
-        return this.checkSymCompletion(symList, query.symName);
-    }
-
-    // 获取当前文档的符号定义
-    public getDocumentCompletion(query: SymbolQuery) {
-        let symList = Symbol.instance().getDocumentSymbol(query.uri);
-
-        return this.checkSymCompletion(symList, query.symName);
     }
 
     // require "a.b.c" 自动补全后面的路径
@@ -217,20 +152,11 @@ export class AutoCompletion {
         return symList.length > 0 ? symList : null;
     }
 
-    public doCompletion(srv: Server, uri: string, pos: Position) {
-        let line = srv.getQueryText(uri, pos);
-        if (!line) { return []; }
+    private doSearch(query: SymbolQuery) {
+        let search = Search.instance();
 
-        // require("a.b.c") 跳转到对应的文件
-        let loc: CompletionItem[] | null =
-            this.getRequireCompletion(line, pos.character);
-        if (loc) { return loc; }
-
-        let query = srv.getSymbolQuery(uri, line, pos);
-        if (!query) { return []; }
-
-        const symName = query.symName;
-        let list = Search.instance().search(query, symList => {
+        let symName = query.symName;
+        let filter: Filter = symList => {
             if (!symList) {
                 return null;
             }
@@ -238,20 +164,72 @@ export class AutoCompletion {
                 return 0 === symName.length
                     || fuzzysort.single(symName, sym.name);
             });
-        }, () => {
-            srv.ensureSymbolCache(query!.uri);
-            return this.getlocalCompletion(query!);
-        });
+        };
 
+        // 优先根据模块名匹配全局符号
+        let items = search.searchGlobalModule(query, filter);
+        if (items) {
+            return items;
+        }
+
+        // 根据模块名匹配文档符号
+        items = search.searchDocumentModule(query, filter);
+        if (items) {
+            return items;
+        }
+
+        // 查找局部变量
+        items = this.getlocalCompletion(query);
+        if (items) {
+            return items;
+        }
+
+        // 自动补全时，M. 时符号名为空，仅列出模块下的所有符号
+        if (symName.length <= 0) {
+            return;
+        }
+
+        let symbol = Symbol.instance();
+        // 忽略模块名，直接查找当前文档符号
+        items = filter(symbol.getDocumentSymbol(query.uri));
+        if (items) {
+            let symList = search.filterLocalSym(items, query);
+            if (symList.length > 0) {
+                return symList;
+            }
+        }
+
+        // 忽略模块名，直接查找全局符号
+        items = filter(symbol.getGlobalSymbol(undefined, query.uri));
+        if (items) {
+            return items;
+        }
+
+        return null;
+    }
+
+    public doCompletion(srv: Server, uri: string, pos: Position) {
+        let line = srv.getQueryText(uri, pos);
+        if (!line) { return []; }
+
+        // require("a.b.c") 跳转到对应的文件
+        let items: CompletionItem[] | null =
+            this.getRequireCompletion(line, pos.character);
+        if (items) { return items; }
+
+        let query = srv.getSymbolQuery(uri, line, pos);
+        if (!query) { return []; }
+
+        let list = this.doSearch(query);
         if (!list) {
             return [];
         }
 
-        loc = [];
+        items = [];
         for (let sym of list) {
-            loc.push(this.toCompletion(sym));
+            items.push(this.toCompletion(sym));
         }
 
-        return loc;
+        return items;
     }
 }

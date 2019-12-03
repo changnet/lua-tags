@@ -710,7 +710,9 @@ export class Symbol {
     // 获取某个文档里的某个模块
     public getDocumentModule(uri: string, mdName: string) {
         let mdMap = this.documentModule[uri];
-        if (!mdMap) { return null; }
+        if (!mdMap) {
+            return null;
+        }
 
         return mdMap[mdName];
     }
@@ -782,7 +784,9 @@ export class Symbol {
     // 查找经过本地化的原符号uri
     public getRawUri(uri: string, mdName: string): string {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" === mdName) { return uri; }
+        if ("self" === mdName || "_G" === mdName) {
+            return uri;
+        }
 
         const symList = this.documentSymbol[uri];
         if (!symList) {
@@ -804,20 +808,17 @@ export class Symbol {
             return this.getRequireUri(sym.refUri);
         }
 
-        // local N = M 这种用法
-        if (sym.refType) {
-            let symList = this.getGlobalModule(sym.refType);
-            // 如果查找到模块名为M的在多个文件，那
-        }
-
         // 都找不到，默认查找当前文档
         return uri;
     }
 
     // 查找经过本地化的原符号名字
+    // local N = M时转到模块M查找
     public getRawModule(uri: string, mdName: string): string {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" === mdName) { return mdName; }
+        if ("self" === mdName || "_G" === mdName) {
+            return mdName;
+        }
 
         const symList = this.documentSymbol[uri];
         if (!symList) {

@@ -48,7 +48,6 @@ import {
 import {
     GoToDefinition
 } from "./goToDefinition";
-import { AbstractMessageReader } from 'vscode-jsonrpc/lib/messageReader';
 
 export class HoverProvider {
     private static ins: HoverProvider;
