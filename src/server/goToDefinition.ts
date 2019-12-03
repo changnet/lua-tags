@@ -115,7 +115,8 @@ export class GoToDefinition {
             return symList;
         }
 
-        Symbol.instance().appendComment(cache.comments, symList);
+        Symbol.instance().appendComment(
+            cache.comments, symList, cache.codeLine);
         return symList;
     }
 

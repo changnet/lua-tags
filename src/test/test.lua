@@ -114,7 +114,16 @@ function cmt() -- 测试注释1
 end -- 测试注释5
 local cmt = cmt() -- 测试注释6
 
--- 这当前不支持，因为解析后，test()被丢掉了
+-- 解析后，test()被丢掉了，下面的support_comment也不应该有注释
 test() -- test call
-local unsupport_comment = 9
+local support_comment = 9
+
+-- 测试混合多行注释
+-- comment 111
+--[[
+    这是
+    多行
+    注释
+]]
+local multi_comment = true
 

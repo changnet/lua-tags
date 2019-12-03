@@ -137,6 +137,7 @@ type SymInfoMap = { [key: string]: SymInfoEx[] };
 interface NodeCache {
     uri: string;
     nodes: Node[];
+    codeLine: number[];
     comments: Comment[];
 }
 
@@ -167,6 +168,7 @@ export class Symbol {
     // 各个文档的符号缓存，ider名为key
     private parseModule: { [key: string]: SymInfoEx[] } = {};
     private parseComments: Comment[] = [];
+    private parseCodeLine: number[] = [];
 
     private pathSlash: string = "/";
 
@@ -208,6 +210,15 @@ export class Symbol {
 
     //  语法节点结束
     private onCreateNode(node: Node) {
+        const loc = node.loc;
+        if (loc && node.type !== "Comment") {
+            const line = loc.end.line;
+            let codeLine = this.parseCodeLine;
+            if (codeLine.length < line + 1) {
+                codeLine.length = line + 1;
+            }
+            codeLine[line] = 1;
+        }
         // 不是全局或者模块中的符号，不用解析
         if (this.parseScopeDeepth > 1) {
             return;
@@ -603,7 +614,8 @@ export class Symbol {
         for (let node of nodeList) {
             this.parseNode(node);
         }
-        this.appendComment(this.parseComments, this.parseSymList);
+        this.appendComment(this.parseComments,
+            this.parseSymList, this.parseCodeLine);
 
         // 不是工程文件，不要把符号添加到工程里
         if (0 !== (FileParseType.FPT_SINGLE & ft)) {
@@ -637,7 +649,8 @@ export class Symbol {
     }
 
     // 更新文档缓存
-    private updateCache(uri: string, nodes: Node[], comments: Comment[]) {
+    private updateCache(uri: string,
+        nodes: Node[], comments: Comment[], codeLine: number[]) {
         if (!this.openCache) {
             return;
         }
@@ -656,7 +669,7 @@ export class Symbol {
             this.docNodeCache.splice(0, 1);
         }
         this.docNodeCache.push({
-            uri: uri, nodes: nodes, comments: comments
+            uri: uri, nodes: nodes, comments: comments, codeLine: codeLine
         });
     }
 
@@ -671,6 +684,7 @@ export class Symbol {
         this.parseScopeDeepth = 0;
         this.parseNodeList = [];
         this.parseComments = [];
+        this.parseCodeLine = [];
 
         let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
             this.parseText(uri, text) : this.parseLarge(text);
@@ -679,7 +693,8 @@ export class Symbol {
             return null;
         }
 
-        this.updateCache(uri, this.parseNodeList, this.parseComments);
+        this.updateCache(uri, this.parseNodeList,
+            this.parseComments, this.parseCodeLine);
 
         return this.parseNodeList;
     }
@@ -986,8 +1001,9 @@ export class Symbol {
         return -1;
     }
 
-    private AppendOneComment(symList: SymInfoEx[], comments: Comment[],
-        begIndex: number, index: number, continueIndex: number) {
+    private AppendOneComment(
+        symList: SymInfoEx[], comments: Comment[], begIndex: number,
+        index: number, continueIndex: number, codeLine: number[]) {
         const comment = comments[index];
         if (!comment.loc) {
             return {
@@ -1019,6 +1035,16 @@ export class Symbol {
             // 在符号上面的注释，可能存在多行
             if (1 === comp) {
                 reset = true;
+                /*
+                 * test() -- abc
+                 * local X = 1
+                 *
+                 * 注释是test()的，而不是X的
+                 */
+                let line = sym.location.range.start.line;
+                if (line < codeLine.length && 1 === codeLine[line]) {
+                    continue;
+                }
                 if (-1 === continueIndex) {
                     sym.comment = comment.value.trim();
                 } else {
@@ -1056,7 +1082,8 @@ export class Symbol {
      * -- 这是上面的注释2
      * local sym = false -- 这是行尾的注释
      */
-    public appendComment(comments: Comment[], symList: SymInfoEx[]) {
+    public appendComment(comments: Comment[],
+        symList: SymInfoEx[], codeLine: number[]) {
         let lastSymIndex = 0;
 
         let continueLine = -1;
@@ -1067,16 +1094,24 @@ export class Symbol {
                 return;
             }
 
-            // 记录连续多行的注释
+            /* 记录连续多行的注释
+            *
+            * test() -- abc
+            * local X = 1
+            *
+            * 注意上面这种代码，test()是一个函数调用，所以并不会记录任何符号，要
+            * 用codeLine来判断注释是不是local X的
+            */
+            let nextLine = continueLine + 1;
             if (-1 !== continueIndex
                 && continueLine + 1 === comment.loc.start.line) {
-                continueLine++;
+                continueLine = comment.loc.end.line;
             } else {
                 continueIndex = -1;
             }
 
-            let ok = this.AppendOneComment(
-                symList, comments, lastSymIndex, index, continueIndex);
+            let ok = this.AppendOneComment(symList,
+                comments, lastSymIndex, index, continueIndex, codeLine);
 
             lastSymIndex = ok.index;
             if (ok.reset) {
