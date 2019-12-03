@@ -47,7 +47,6 @@ export class Search {
     private pos: QueryPos | null = null;
     private callBack: CallBack | null = null;
 
-    private filter: Filter | null = null;
     private constructor() {
     }
 
@@ -145,6 +144,12 @@ export class Search {
 
     private searchTableExpression(
         expr: TableConstructorExpression, base?: string) {
+        // table中的值可以访问，因为-1时是需要继续查找table值的
+        let comp = this.compNodePos(expr, this.pos!);
+        if (1 === comp || 0 === comp) {
+            return false;
+        }
+
         for (const field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
             if (("TableKey" !== field.type && "TableKeyString" !== field.type)
@@ -213,58 +218,95 @@ export class Search {
 
     // 解析变量声明 local x,y = ...
     private searchLocalStatement(stat: LocalStatement) {
+        let comp = this.compNodePos(stat, this.pos!);
+        if (1 === comp) {
+            return false;
+        }
         // lua支持同时初始化多个变量 local x,y = 1,2
-        for (let index = 0; index < stat.variables.length; index++) {
-            let varNode = stat.variables[index];
-            if (!this.searchOne(varNode, LocalType.LT_LOCAL, varNode.name)
-                || !this.searchExpression(stat.init[index], varNode.name)) {
-                return false;
-            }
+        let nextSearch = stat.variables.every((sub, index) => {
+            let init = stat.init[index];
+            return this.searchOne(sub,
+                LocalType.LT_LOCAL, sub.name, undefined, init);
+        });
+        if (!nextSearch) {
+            return false;
         }
 
-        return true;
+        // 先搜索变量名，再搜索初始化。因为是按位置判断是否继续搜索的
+        nextSearch = stat.init.every((expr, index) => {
+            let sub = stat.variables[index];
+            return this.searchExpression(expr, sub.name);
+        });
+        if (!nextSearch) {
+            return false;
+        }
+
+        return (0 === comp || 2 === comp) ? false : true;
     }
 
     // x = ... list[1] = ... m.n = ...
     private searchAssignmentStatement(stat: AssignmentStatement) {
-        // lua支持同时初始化多个变量 local x,y = 1,2
-        for (let index = 0; index < stat.variables.length; index++) {
-            let varNode = stat.variables[index];
-
-            let baseName;
-            if (varNode.type === "Identifier") {
-                baseName = varNode.name;
-                if (!this.searchOne(varNode, LocalType.LT_NONE, baseName)) {
-                    return false;
-                }
+        let comp = this.compNodePos(stat, this.pos!);
+        if (1 === comp) {
+            return false;
+        }
+        // lua支持同时初始化多个变量 x,y = 1,2
+        let nextSearch = stat.variables.every((sub, index) => {
+            if (sub.type !== "Identifier") {
+                return true;
             }
-
-            if (!this.searchExpression(stat.init[index], baseName)) {
-                return false;
-            }
+            let init = stat.init[index];
+            return this.searchOne(sub,
+                LocalType.LT_NONE, sub.name, undefined, init);
+        });
+        if (!nextSearch) {
+            return false;
         }
 
-        return true;
+        nextSearch = stat.init.every((expr, index) => {
+            let base;
+            let sub = stat.variables[index];
+            if (sub && sub.type === "Identifier") {
+                base = sub.name;
+            }
+
+            return this.searchExpression(expr, base);
+        });
+        if (!nextSearch) {
+            return false;
+        }
+
+        return (0 === comp || 2 === comp) ? false : true;
     }
 
     // 解析返回语句，仅处理 return function() ... end 这种情况
     private searchReturnStatement(stat: ReturnStatement) {
+        if (2 !== this.compNodePos(stat, this.pos!)) {
+            return true;
+        }
         for (const expr of stat.arguments) {
             if (expr.type === "FunctionDeclaration") {
                 return this.searchFunctionDeclaration(expr);
             }
         }
+
+        return true;
     }
 
     private searchFunctionDeclaration(expr: FunctionDeclaration) {
-        // return function() ... end 这种没有identifier
-        const ider = expr.identifier;
-        if (ider && ider.type === "Identifier") {
-            let local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
-            if (!this.searchOne(ider, local, ider.name)) {
-                return false;
-            }
+        if (2 !== this.compNodePos(expr, this.pos!)) {
+            return true;
         }
+        // 函数名不用搜索，如果是顶层使用域的函数，应该被解析成文档符号
+        // 如果是局部的，不允许直接声明一个函数，不会有函数名的
+        // return function() ... end 这种没有identifier
+        // const ider = expr.identifier;
+        // if (ider && ider.type === "Identifier") {
+        //     let local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
+        //     if (!this.searchOne(ider, local, ider.name)) {
+        //         return false;
+        //     }
+        // }
         // 搜索函数参数
         for (const param of expr.parameters) {
             if (param.type === "Identifier"
@@ -285,25 +327,9 @@ export class Search {
     // 搜索某个节点，返回是否继续搜索
     private searchOne(node: Statement | Expression, local: LocalType,
         name: string, base?: string, init?: Statement | Expression) {
-        const comp = this.compNodePos(node, this.pos!);
-        // 搜索位置已超过目标位置，不再搜索
-        if (1 === comp) {
-            return false;
-        }
 
         this.callBack!(node, local, name, base, init);
 
-        // 已到达搜索位置，中止搜索
-        if (0 === comp) {
-            return false;
-        }
-
-        // -1 === comp 可能是upvalue，不用处理
-        if (-1 === comp) {
-            return true;
-        }
-
-        // 2 === comp 则需要搜索局部变量了
         return true;
     }
 
@@ -322,8 +348,7 @@ export class Search {
 
         // 从函数开始搜索，非函数会在文档符号中查找
         for (const node of cache.nodes) {
-            if (node.type === "FunctionDeclaration"
-                && 2 === this.compNodePos(node, this.pos!)) {
+            if (node.type === "FunctionDeclaration") {
                 this.searchFunctionDeclaration(node);
                 return;
             }
@@ -357,7 +382,7 @@ export class Search {
         let symbol = Symbol.instance();
         let rawUri = symbol.getRawUri(query.uri, mdName);
 
-        return this.filter!(symbol.getDocumentModule(rawUri, mdName));
+        return filter(symbol.getDocumentModule(rawUri, mdName));
     }
 
     public filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
@@ -379,7 +404,6 @@ export class Search {
 
     // 搜索符号
     public search(query: SymbolQuery, filter: Filter, localSearch: Function) {
-        this.filter = filter;
         let symbol = Symbol.instance();
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的

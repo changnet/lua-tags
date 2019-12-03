@@ -77,8 +77,8 @@ export class AutoCompletion {
         // 如果是函数，显示参数: test.lua: function(a, b, c)
         if (sym.parameters) {
             let parameters = sym.parameters.join(", ");
-            detail +=
-                `${sym.local || ""}function ${sym.name}(${parameters})`;
+            let local = Symbol.getLocalTypePrefix(sym.local);
+            detail += `${local}function ${sym.name}(${parameters})`;
         }
         if (detail && detail.length > 0) {
             item.detail = detail;
@@ -129,22 +129,19 @@ export class AutoCompletion {
 
         const mdName = query.mdName;
         const symName = query.symName;
+        const emptyName = 0 === symName.length;
         let symbol = Symbol.instance();
         Search.instance().searchLocal(query.uri, query.position,
             (node, local, name, base, init) => {
-                if (symName.length > 0
-                    && fuzzysort.single(symName, name)) {
+                if (base !== mdName) {
+                    return;
+                }
+                if (emptyName || fuzzysort.single(symName, name)) {
                     let sym = symbol.toSym(
                         { name: name, base: base }, node, init, local);
                     if (sym) {
                         symList.push(sym);
                     }
-                }
-
-                if (init && name === mdName
-                    && "TableConstructorExpression" === init.type) {
-                    let subSym = symbol.parseTableConstructorExpr(init);
-                    symList.concat(subSym);
                 }
             }
         );
@@ -186,7 +183,7 @@ export class AutoCompletion {
 
         // 自动补全时，M. 时符号名为空，仅列出模块下的所有符号
         if (symName.length <= 0) {
-            return;
+            return null;
         }
 
         let symbol = Symbol.instance();
