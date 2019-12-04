@@ -142,6 +142,19 @@ export class HoverProvider {
         return list.join("\n---\n");
     }
 
+    /* 搜索模块名
+     * 正常情况下，声明一个模块都会产生一个符号
+     * 但table.empty = function() ... end这种扩展标准库或者C++导出的模块时就没有
+     * 所以这里特殊处理
+     */
+    private searchModuleName(name: string) {
+        if (!Symbol.instance().getGlobalModule(name)) {
+            return null;
+        }
+
+        return `\`\`\`lua\n(module) ${name}\n\`\`\``;
+    }
+
     public doHover(srv: Server, uri: string, pos: Position): Hover | null {
         let line = srv.getQueryText(uri, pos);
         if (!line) { return null; }
@@ -151,14 +164,17 @@ export class HoverProvider {
 
         let list = Search.instance().search(srv, query);
 
-        if (!list) {
+        let value = list ?
+            this.toMarkdown(list, uri) : this.searchModuleName(query.name);
+
+        if (!value || value === "") {
             return null;
         }
 
         return {
             contents: {
                 kind: MarkupKind.Markdown,
-                value: this.toMarkdown(list, uri)
+                value: value
             }
         };
     }

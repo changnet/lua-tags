@@ -765,9 +765,22 @@ export class Symbol {
         return this.parseNodeList;
     }
 
-    // 获取所有文档的uri
-    public getAllDocUri() {
-        return Object.keys(this.documentSymbol);
+    // 遍历所有文档的uri
+    public eachUri(callBack: (uri: string) => void) {
+        for (let [uri, value] of this.documentSymbol) {
+            callBack(uri);
+        }
+    }
+
+    // 遍历所有文档的uri
+    public eachModuleName(callBack: (name: string) => void) {
+        if (this.needUpdate) {
+            this.updateGlobal();
+        }
+
+        for (let [name, value] of this.globalModule) {
+            callBack(name);
+        }
     }
 
     // 删除某个文档的符号
@@ -933,13 +946,15 @@ export class Symbol {
 
     // 获取 require("a.b.c") 中 a.b.c 路径的uri形式
     public getRequireUri(path: string): string {
-        path = this.toUriFormat(path);
+        const endUri = `${this.toUriFormat(path)}.lua`;
 
         // 在所有uri里查询匹配的uri
         // 由于不知道项目中的path设置，因此这个路径其实可长可短
         // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
-        for (let uri in this.documentModule) {
-            if (uri.endsWith(`${path}.lua`)) { return uri; }
+        for (let [uri, val] of this.documentModule) {
+            if (uri.endsWith(endUri)) {
+                return uri;
+            }
         }
 
         return "";

@@ -103,21 +103,24 @@ export class AutoCompletion {
 
         let items: CompletionItem[] = [];
 
-        const uris = symbol.getAllDocUri();
-        for (let uri of uris) {
+        symbol.eachUri(uri => {
             let index = uri.indexOf(path);
-            if (index < 0) { continue; }
+            if (index < 0) {
+                return;
+            }
 
             let rightText = uri.substring(index + path.length);
 
             let rMatchList = rightText.match(/^\w*/g);
-            if (!rMatchList) { continue; }
+            if (!rMatchList) {
+                return;
+            }
 
             let name = rMatchList[0];
             if (leftWord) { name = leftWord + name; }
 
             items.push({ label: name, kind: CompletionItemKind.File });
-        }
+        });
 
         if (items.length <= 0) { return null; }
         return items;
@@ -148,6 +151,41 @@ export class AutoCompletion {
         );
 
         return symList.length > 0 ? symList : null;
+    }
+
+    /* 搜索模块名
+     * 正常情况下，声明一个模块都会产生一个符号
+     * 但table.empty = function() ... end这种扩展标准库或者C++导出的模块时就没有
+     * 所以这里特殊处理
+     */
+    private searchModuleName(
+        name: string, items: CompletionItem[] | null, base?: string) {
+        if (base) {
+            return null;
+        }
+
+        let newItems = items || [];
+        Symbol.instance().eachModuleName(mdName => {
+            if (!fuzzysort.single(name, mdName)) {
+                return;
+            }
+
+            // 目前无法知道某个模块的声明在不在lua中，只能循环排除
+            if (items) {
+                for (let item of items) {
+                    if (mdName === item.label) {
+                        return;
+                    }
+                }
+            }
+
+            newItems.push({
+                label: mdName,
+                kind: CompletionItemKind.Module
+            });
+        });
+
+        return newItems;
     }
 
     private doSearch(srv: Server, query: SymbolQuery) {
@@ -229,6 +267,6 @@ export class AutoCompletion {
             items.push(this.toCompletion(sym));
         }
 
-        return items;
+        return this.searchModuleName(query.name, items, query.base);
     }
 }

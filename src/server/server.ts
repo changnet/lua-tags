@@ -272,7 +272,8 @@ export class Server {
     }
 
     // 代码自动补全
-    private onCompletion(handler: TextDocumentPositionParams): CompletionItem[] {
+    private onCompletion(
+        handler: TextDocumentPositionParams): CompletionItem[] | null {
         const uri = handler.textDocument.uri;
 
         return AutoCompletion.instance().doCompletion(
