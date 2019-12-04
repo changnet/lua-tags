@@ -143,7 +143,7 @@ export class HoverProvider {
         if (!line) { return null; }
 
         let query = srv.getSymbolQuery(uri, line, pos);
-        if (!query || query.symName === "") { return null; }
+        if (!query || query.name === "") { return null; }
 
         let list = Search.instance().search(srv, query);
 

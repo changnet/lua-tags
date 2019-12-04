@@ -126,14 +126,14 @@ export class AutoCompletion {
     private getlocalCompletion(query: SymbolQuery) {
         let symList: SymInfoEx[] = [];
 
-        const mdName = query.mdName;
-        const symName = query.symName;
+        const baseName = query.base;
+        const symName = query.name;
         const emptyName = 0 === symName.length;
         let symbol = Symbol.instance();
         Search.instance().rawSearchLocal(query.uri, query.position,
             (node, local, name, base, init) => {
                 // 搜索局部变量时，如果存在模块名则模块名必须准确匹配
-                if (base !== mdName) {
+                if (base !== baseName) {
                     return;
                 }
                 if (emptyName || fuzzysort.single(symName, name)) {
@@ -152,7 +152,7 @@ export class AutoCompletion {
     private doSearch(srv: Server, query: SymbolQuery) {
         let search = Search.instance();
 
-        let symName = query.symName;
+        let symName = query.name;
         let filter: Filter = symList => {
             if (!symList) {
                 return null;

@@ -87,8 +87,8 @@ export interface QueryPos {
 // 用于go to definition查询的数据结构
 export interface SymbolQuery {
     uri: string; // 要查询的符号在哪个文档
-    mdName?: string; // 模块名，m:test中的m
-    symName: string; // 符号名，m:test中的test
+    base?: string; // 模块名，m:test中的m
+    name: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
     position: QueryPos; //符号位置
     text: string; // 符号所在的整行代码
@@ -132,7 +132,7 @@ export interface SymInfoEx extends SymbolInformation {
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
-type SymInfoMap = { [key: string]: SymInfoEx[] };
+type SymInfoMap = Map<string, SymInfoEx[]>;
 
 interface NodeCache {
     uri: string;
@@ -150,15 +150,15 @@ export class Symbol {
     private needUpdate: boolean = true;
 
     // 全局符号缓存，CTRL + T用的
-    private globalSymbol: SymInfoMap = {};
+    private globalSymbol = new Map<string, SymInfoEx[]>();
 
     // 全局模块缓存，方便快速查询符号 identifier
-    private globalModule: SymInfoMap = {};
+    private globalModule = new Map<string, SymInfoEx[]>();
 
     // 各个文档的符号缓存，uri为key
-    private documentSymbol: SymInfoMap = {};
+    private documentSymbol = new Map<string, SymInfoEx[]>();
     // 各个文档的符号缓存，第一层uri为key，第二层模块名为key
-    private documentModule: { [key: string]: SymInfoMap } = {};
+    private documentModule = new Map<string, Map<string, SymInfoEx[]>>();
 
     // 下面是一些解析当前文档的辅助变量
     private parseUri: string = "";
@@ -166,7 +166,7 @@ export class Symbol {
     private parseNodeList: Node[] = [];
     private parseSymList: SymInfoEx[] = [];
     // 各个文档的符号缓存，ider名为key
-    private parseModule: { [key: string]: SymInfoEx[] } = {};
+    private parseModule = new Map<string, SymInfoEx[]>();
     private parseComments: Comment[] = [];
     private parseCodeLine: number[] = [];
 
@@ -287,25 +287,29 @@ export class Symbol {
     // 把一个解析好的符号存到临时解析数组
     private pushParseSymbol(sym: SymInfoEx) {
         this.parseSymList.push(sym);
-        if (sym.subSym) {
+
+        const subSym = sym.subSym;
+        if (subSym) {
             // 如果这个符号包含子符号，则一定被当作模块
             // 目前只有table这样处理
             const base = sym.name;
-            if (!this.parseModule[base]) {
-                this.parseModule[base] = [];
+            let symList = this.parseModule.get(base);
+            if (!symList) {
+                symList = new Array<SymInfoEx>();
+                this.parseModule.set(base, symList);
             }
-            for (let subSym of sym.subSym) {
-                this.parseSymList.push(subSym);
-                this.parseModule[base].push(subSym);
-            }
+            symList.push(...subSym);
+            this.parseSymList.push(...subSym);
         }
 
         const base = sym.base;
         if (base) {
-            if (!this.parseModule[base]) {
-                this.parseModule[base] = [];
+            let symList = this.parseModule.get(base);
+            if (!symList) {
+                symList = new Array<SymInfoEx>();
+                this.parseModule.set(base, symList);
             }
-            this.parseModule[base].push(sym);
+            symList.push(sym);
         }
     }
 
@@ -520,46 +524,47 @@ export class Symbol {
 
     // 更新全局符号缓存
     private updateGlobal() {
-        let globalSymbol: SymInfoMap = {};
-        let globalModule: SymInfoMap = {};
+        this.globalSymbol.clear();
+        this.globalModule.clear();
 
-        for (let uri in this.documentSymbol) {
-            for (let sym of this.documentSymbol[uri]) {
+        this.documentSymbol.forEach(symList => {
+            symList.forEach(sym => {
                 // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
                 // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
                 // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
                 if (sym.scope > 0) {
-                    continue;
+                    return;
                 }
                 const name = sym.name;
-                if (!globalSymbol[name]) {
-                    globalSymbol[name] = [];
+                let nameList = this.globalSymbol.get(name);
+                if (!nameList) {
+                    nameList = new Array<SymInfoEx>();
+                    this.globalSymbol.set(name, nameList);
                 }
 
-                globalSymbol[name].push(sym);
-            }
-        }
+                nameList.push(sym);
+            });
+        });
 
-        for (let uri in this.documentModule) {
-            for (let name in this.documentModule[uri]) {
-                globalModule[name] = [];
-                let moduleList = globalModule[name];
-                for (let sym of this.documentModule[uri][name]) {
-                    moduleList.push(sym);
+        this.documentModule.forEach(moduleHash => {
+            moduleHash.forEach((symList, name) => {
+                let moduleList = this.globalModule.get(name);
+                if (!moduleList) {
+                    moduleList = new Array<SymInfoEx>();
+                    this.globalModule.set(name, moduleList);
                 }
-            }
-        }
+                moduleList.push(...symList);
+            });
+        });
 
         this.needUpdate = false;
-        this.globalSymbol = globalSymbol;
-        this.globalModule = globalModule;
     }
 
     // 获取某个模块的符号
-    public getGlobalModule(mdName: string) {
+    public getGlobalModule(base: string) {
         if (this.needUpdate) { this.updateGlobal(); }
 
-        return this.globalModule[mdName];
+        return this.globalModule.get(base) || null;
     }
 
     // 正常解析
@@ -602,7 +607,7 @@ export class Symbol {
             return [];
         }
 
-        this.parseModule = {};
+        this.parseModule = new Map<string, SymInfoEx[]>();
         this.parseSymList = [];
 
         const nodeList = this.rawParse(uri, text);
@@ -623,12 +628,12 @@ export class Symbol {
         }
 
         // 解析成功，更新缓存，否则使用旧的
-        this.documentSymbol[uri] = this.parseSymList;
-        this.documentModule[uri] = this.parseModule;
+        this.documentSymbol.set(uri, this.parseSymList);
+        this.documentModule.set(uri, this.parseModule);
 
         // 符号有变化，清空全局符号缓存，下次请求时生成
-        this.globalModule = {};
-        this.globalSymbol = {};
+        this.globalModule.clear();
+        this.globalSymbol.clear();
         this.needUpdate = true;
 
         return this.parseSymList;
@@ -706,30 +711,28 @@ export class Symbol {
 
     // 删除某个文档的符号
     public delDocumentSymbol(uri: string) {
-        delete this.documentSymbol[uri];
-        delete this.documentModule[uri];
+        this.documentSymbol.delete(uri);
+        this.documentModule.delete(uri);
 
         // 符号有变化，清空全局符号缓存，下次请求时生成
-        this.globalModule = {};
-        this.globalSymbol = {};
+        this.globalModule.clear();
+        this.globalSymbol.clear();
         this.needUpdate = true;
     }
 
     // 获取某个文档的符号
     public getDocumentSymbol(uri: string): SymInfoEx[] | null {
-        let symList: SymInfoEx[] = this.documentSymbol[uri];
-
-        return symList;
+        return this.documentSymbol.get(uri) || null;
     }
 
     // 获取某个文档里的某个模块
-    public getDocumentModule(uri: string, mdName: string) {
-        let mdMap = this.documentModule[uri];
-        if (!mdMap) {
+    public getDocumentModule(uri: string, base: string) {
+        let moduleHash = this.documentModule.get(uri);
+        if (!moduleHash) {
             return null;
         }
 
-        return mdMap[mdName];
+        return moduleHash.get(base) || null;
     }
 
     // 获取全局符号
@@ -739,14 +742,15 @@ export class Symbol {
         }
 
         let symList: SymInfoEx[] = [];
-        for (let name in this.globalSymbol) {
-            for (let sym of this.globalSymbol[name]) {
+        this.globalSymbol.forEach(list => {
+            list.forEach(sym => {
                 if ((!query || sym.name === query)
                     && (!uri || sym.location.uri !== uri)) {
                     symList.push(sym);
                 }
-            }
-        }
+            });
+        });
+
         return symList;
     }
 
@@ -797,20 +801,20 @@ export class Symbol {
     }
 
     // 查找经过本地化的原符号uri
-    public getRawUri(uri: string, mdName: string): string {
+    public getRawUri(uri: string, base: string): string {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" === mdName || "_G" === mdName) {
+        if ("self" === base || "_G" === base) {
             return uri;
         }
 
-        const symList = this.documentSymbol[uri];
+        const symList = this.documentSymbol.get(uri);
         if (!symList) {
             return uri;
         }
 
         let sym;
         for (let one of symList) {
-            if (one.name === mdName) {
+            if (one.name === base) {
                 sym = one;
             }
         }
@@ -829,31 +833,31 @@ export class Symbol {
 
     // 查找经过本地化的原符号名字
     // local N = M时转到模块M查找
-    public getRawModule(uri: string, mdName: string): string {
+    public getRawModule(uri: string, base: string): string {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" === mdName || "_G" === mdName) {
-            return mdName;
+        if ("self" === base || "_G" === base) {
+            return base;
         }
 
-        const symList = this.documentSymbol[uri];
+        const symList = this.documentSymbol.get(uri);
         if (!symList) {
-            return mdName;
+            return base;
         }
 
         let sym;
         for (let one of symList) {
-            if (one.name === mdName) {
+            if (one.name === base) {
                 sym = one;
                 break;
             }
         }
         if (!sym) {
-            return mdName;
+            return base;
         }
 
         // local N = M 这种用法
         // 都找不到，默认查找当前文档
-        return sym.refType || mdName;
+        return sym.refType || base;
     }
 
     // 转换成uri路径格式

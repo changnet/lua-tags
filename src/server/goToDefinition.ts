@@ -92,7 +92,7 @@ export class GoToDefinition {
         if (loc) { return loc; }
 
         let query = srv.getSymbolQuery(uri, line, pos);
-        if (!query || query.symName === "") { return []; }
+        if (!query || query.name === "") { return []; }
 
         let list = Search.instance().search(srv, query);
         if (!list) {

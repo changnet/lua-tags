@@ -197,11 +197,11 @@ export class Server {
         const rightText = text.substring(pos.character);
 
         // let module = null;
-        let symName: string = "";
+        let name: string = "";
         let kind: SymbolKind = SymbolKind.Variable;
 
         // 模块名，即m:test()中的m
-        let mdName: string | undefined = undefined;
+        let base;
 
         let beg: number = pos.character;
         let end: number = pos.character;
@@ -219,11 +219,11 @@ export class Server {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
             if (leftWords[2]) {
-                mdName = leftWords[2];
+                base = leftWords[2];
             }
             if (leftWords[4]) {
-                symName = leftWords[4];
-                beg -= symName.length;
+                name = leftWords[4];
+                beg -= name.length;
                 // assert(beg >= 0);
             }
         }
@@ -234,7 +234,7 @@ export class Server {
             // test() 匹配到 ["test(","test","("]
             const rightSym = rightWords[1];
             if (rightSym) {
-                symName += rightSym;
+                name += rightSym;
                 end += rightSym.length;
             }
             if (rightWords[2]) {
@@ -244,8 +244,8 @@ export class Server {
 
         return {
             uri: uri,
-            mdName: mdName,
-            symName: symName,
+            base: base,
+            name: name,
             kind: kind,
             position: { line: pos.line, beg: beg, end: end },
             text: text

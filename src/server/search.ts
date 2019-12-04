@@ -363,7 +363,7 @@ export class Search {
         let foundGlobal: SearchResult | null = null;
         this.rawSearchLocal(query.uri, query.position,
             (node, local, name, base, init) => {
-                if (name === query.symName && base === query.mdName) {
+                if (name === query.name && base === query.base) {
                     if (local !== LocalType.LT_NONE) {
                         foundLocal = {
                             node: node, local: local, base: base, init: init
@@ -387,7 +387,7 @@ export class Search {
         if (re) {
             const r: SearchResult = re!;
             found = symbol.toSym(
-                { name: query.symName, base: r.base }, r.node, r.init, r.local);
+                { name: query.name, base: r.base }, r.node, r.init, r.local);
         }
 
         let symList = found ? [found] : null;
@@ -409,14 +409,14 @@ export class Search {
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
     // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
     public searchGlobalModule(query: SymbolQuery, filter: Filter) {
-        let mdName = query.mdName;
-        if (!mdName) {
+        let base = query.base;
+        if (!base) {
             return null;
         }
 
         let symbol = Symbol.instance();
 
-        let rawName = symbol.getRawModule(query.uri, mdName);
+        let rawName = symbol.getRawModule(query.uri, base);
         let symList = symbol.getGlobalModule(rawName);
 
         return filter(symList);
@@ -424,15 +424,15 @@ export class Search {
 
     // 根据模块名查找某个文档的符号
     public searchDocumentModule(query: SymbolQuery, filter: Filter) {
-        let mdName = query.mdName;
-        if (!mdName) {
+        let base = query.base;
+        if (!base) {
             return null;
         }
 
         let symbol = Symbol.instance();
-        let rawUri = symbol.getRawUri(query.uri, mdName);
+        let rawUri = symbol.getRawUri(query.uri, base);
 
-        return filter(symbol.getDocumentModule(rawUri, mdName));
+        return filter(symbol.getDocumentModule(rawUri, base));
     }
 
     public filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
@@ -460,7 +460,7 @@ export class Search {
         if (query.position.line !== loc.range.start.line) { return false; }
 
         // 找出 M = M
-        let re = new RegExp(query.symName + "\\s*=\\s*" + query.symName, "g");
+        let re = new RegExp(query.name + "\\s*=\\s*" + query.name, "g");
         let match = query.text.match(re);
 
         if (!match) { return false; }
@@ -501,7 +501,7 @@ export class Search {
 
         let filter: Filter = symList => {
             return this.localizationFilter(query!,
-                this.checkSymDefinition(symList, query!.symName, query!.kind)
+                this.checkSymDefinition(symList, query!.name, query!.kind)
             );
         };
 
