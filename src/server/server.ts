@@ -169,7 +169,7 @@ export class Server {
         handler: WorkspaceSymbolParams): SymbolInformation[] {
         // TODO:这里匹配一下query，甚至做下模糊匹配
         // 全部发给vs code的话，vs code自己会匹配
-        return Symbol.instance().getGlobalSymbol(); // handler.query
+        return Symbol.instance().getGlobalSymbol(true); // handler.query
     }
 
     // 获取查询符号所在行的文本内容

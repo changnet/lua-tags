@@ -523,14 +523,15 @@ export class Search {
         }
 
         // 查找局部变量
-        srv.ensureSymbolCache(query.uri);
+        const uri = query.uri;
+        srv.ensureSymbolCache(uri);
         items = this.searchlocal(query);
         if (items) {
             return items;
         }
 
         // 忽略模块名，直接查找当前文档符号
-        items = filter(symbol.getDocumentSymbol(query.uri));
+        items = filter(symbol.getDocumentSymbol(uri));
         if (items) {
             let symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
@@ -539,7 +540,8 @@ export class Search {
         }
 
         // 忽略模块名，直接查找全局符号
-        items = filter(symbol.getGlobalSymbol(undefined, query.uri));
+        items = filter(symbol.getGlobalSymbol(
+            false, sym => sym.location.uri !== uri));
         if (items) {
             return items;
         }

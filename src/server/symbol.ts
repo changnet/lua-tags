@@ -809,21 +809,32 @@ export class Symbol {
         return moduleHash.get(base) || null;
     }
 
+    private appendSymList(isSub: boolean, symList: SymInfoEx[],
+        newSymList: SymInfoEx[], filter?: (sym: SymInfoEx) => boolean) {
+        for (let sym of newSymList) {
+            if (!filter || filter(sym)) {
+                symList.push(sym);
+            }
+
+            if (isSub && sym.subSym) {
+                this.appendSymList(isSub, symList, sym.subSym, filter);
+            }
+        }
+    }
+
     // 获取全局符号
-    public getGlobalSymbol(query?: string, uri?: string): SymInfoEx[] {
+    // @isSub: 是否查找子符号。跳转和自动补全无法精准定位时，会全局查找。这时并不
+    // 希望查找子符号，因为这些符号都是必须通过模块名精准访问的
+    public getGlobalSymbol(isSub: boolean,
+        filter?: (sym: SymInfoEx) => boolean): SymInfoEx[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }
 
         let symList: SymInfoEx[] = [];
-        this.globalSymbol.forEach(list => {
-            list.forEach(sym => {
-                if ((!query || sym.name === query)
-                    && (!uri || sym.location.uri !== uri)) {
-                    symList.push(sym);
-                }
-            });
-        });
+        for (let [name, newSymList] of this.globalSymbol) {
+            this.appendSymList(isSub, symList, newSymList, filter);
+        }
 
         return symList;
     }
