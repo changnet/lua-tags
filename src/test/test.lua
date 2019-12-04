@@ -127,3 +127,5 @@ local support_comment = 9
 ]]
 local multi_comment = true
 
+-- 测试模块支持
+mtest.mtest_func()

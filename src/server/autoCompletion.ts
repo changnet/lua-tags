@@ -49,12 +49,13 @@ export class AutoCompletion {
 
     // 符号转自动完成格式
     private toCompletion(sym: SymInfoEx): CompletionItem {
-        // vs code会自动补全当前文档中的单词，默认类型为CompletionItemKind.Text
-        // 所以我们使用variable类型来区分
+        // vs code会自动补全上下文中的单词，默认类型为CompletionItemKind.Text
+        // 所以我们默认使用variable类型，与text区分
         let kind: CompletionItemKind = CompletionItemKind.Variable;
         switch (sym.kind) {
             case SymbolKind.Function: kind = CompletionItemKind.Function; break;
             case SymbolKind.Namespace: kind = CompletionItemKind.Module; break;
+            case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
         let file = Symbol.getSymbolPath(sym);

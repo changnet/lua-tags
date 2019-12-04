@@ -19,7 +19,8 @@ import {
     Expression,
     IndexExpression,
     ReturnStatement,
-    TableConstructorExpression
+    TableConstructorExpression,
+    CallStatement
 } from 'luaparse';
 
 import {
@@ -169,6 +170,7 @@ export class Symbol {
     private parseModule = new Map<string, SymInfoEx[]>();
     private parseComments: Comment[] = [];
     private parseCodeLine: number[] = [];
+    private parseModuleName: string | null = null;
 
     private pathSlash: string = "/";
 
@@ -224,7 +226,6 @@ export class Symbol {
             return;
         }
 
-        // Utils.instance().log(`onc onCreateNode ========== ${JSON.stringify(node)}`);
         switch (node.type) {
             case "FunctionDeclaration": // 函数
             case "LocalStatement": // local变量赋值 local var = x
@@ -232,7 +233,36 @@ export class Symbol {
             case "ReturnStatement": // return { a = 111 } 这种情况
                 this.parseNodeList.push(node);
                 break;
+            case "CallStatement": {// module("test", package.seeall)
+                if (this.getModuleCall(node)) {
+                    this.parseNodeList.push(node);
+                }
+                break;
+            }
         }
+    }
+
+    // 处理模块声明 module("test", package.seeall)
+    private getModuleCall(node: CallStatement) {
+        const expr = node.expression;
+        if (expr.type !== "CallExpression") {
+            return null;
+        }
+
+        const base = expr.base;
+        if (base.type !== "Identifier" || base.name !== "module") {
+            return null;
+        }
+
+        if (expr.arguments.length < 1) {
+            return null;
+        }
+        const argument = expr.arguments[0];
+        if (argument.type !== "StringLiteral") {
+            return null;
+        }
+
+        return argument.value;
     }
 
     // 解析节点
@@ -249,6 +279,10 @@ export class Symbol {
             case "ReturnStatement": // return { a = 111 } 这种情况
                 symList = this.parseReturnStatement(node);
                 break;
+            case "CallStatement": {// module("test", package.seeall)
+                symList = this.parseCallStatement(node);
+                break;
+            }
         }
 
         if (!symList) {
@@ -302,7 +336,11 @@ export class Symbol {
             this.parseSymList.push(...subSym);
         }
 
-        const base = sym.base;
+        // 如果声明了模块，那么所有没有模块名的符号都会被加上一个符号名
+        let base = sym.base;
+        if (!base && sym.kind !== SymbolKind.Module) {
+            base = this.parseModuleName || undefined;
+        }
         if (base) {
             let symList = this.parseModule.get(base);
             if (!symList) {
@@ -311,6 +349,28 @@ export class Symbol {
             }
             symList.push(sym);
         }
+    }
+
+    // 解析函数调用，目前仅特殊处理模块声明
+    private parseCallStatement(stat: CallStatement) {
+        const name = this.getModuleCall(stat);
+        if (!name || !stat.loc) {
+            return null;
+        }
+
+        // 记录当前文件的模块名
+        // TODO: module("a.b.c") 这种现在暂时不支持
+        this.parseModuleName = name;
+
+        // 给模块名生成一个符号
+        let sym: SymInfoEx = {
+            name: name,
+            scope: this.parseScopeDeepth,
+            kind: SymbolKind.Module,
+            location: Symbol.toLocation(this.parseUri, stat.loc),
+        };
+
+        return [sym];
     }
 
     // 解析函数声明
@@ -690,6 +750,7 @@ export class Symbol {
         this.parseNodeList = [];
         this.parseComments = [];
         this.parseCodeLine = [];
+        this.parseModuleName = null;
 
         let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
             this.parseText(uri, text) : this.parseLarge(text);

@@ -118,6 +118,10 @@ export class HoverProvider {
                     `(table) ${local}${sym.name}`, uri);
                 break;
             }
+            case SymbolKind.Module: {
+                tips = this.toLuaMarkdown(sym, `(module) ${sym.name}`, uri);
+                break;
+            }
             default: {
                 return this.defaultTips(sym, uri);
             }
