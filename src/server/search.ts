@@ -26,6 +26,8 @@ import {
     SymInfoEx,
     LocalType
 } from "./symbol";
+import { Server } from './server';
+import { SymbolKind, Location } from 'vscode-languageserver';
 
 export interface SearchResult {
     // name: string; // 名字，暂时不记，在SymbolQuery中有
@@ -335,7 +337,7 @@ export class Search {
 
     // 搜索局部符号
     // @callBack: 过滤函数，主要用于回调
-    public searchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
+    public rawSearchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
         let symbol = Symbol.instance();
 
         const cache = symbol.getCache(uri);
@@ -353,6 +355,54 @@ export class Search {
                 return;
             }
         }
+    }
+
+    // 获取局部变量位置
+    private searchlocal(query: SymbolQuery) {
+        let foundLocal: SearchResult | null = null;
+        let foundGlobal: SearchResult | null = null;
+        this.rawSearchLocal(query.uri, query.position,
+            (node, local, name, base, init) => {
+                if (name === query.symName && base === query.mdName) {
+                    if (local !== LocalType.LT_NONE) {
+                        foundLocal = {
+                            node: node, local: local, base: base, init: init
+                        };
+                    } else {
+                        foundGlobal = {
+                            node: node, local: local, base: base, init: init
+                        };
+                    }
+                }
+            }
+        );
+
+        // 这里foundLocal、foundGlobal会被识别为null类型，因为它们是在lambda中被
+        // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
+        // https://github.com/Microsoft/TypeScript/issues/15631
+
+        let symbol = Symbol.instance();
+        let found: SymInfoEx | null = null;
+        let re = foundLocal || foundGlobal;
+        if (re) {
+            const r: SearchResult = re!;
+            found = symbol.toSym(
+                { name: query.symName, base: r.base }, r.node, r.init, r.local);
+        }
+
+        let symList = found ? [found] : null;
+        if (!symList) {
+            return null;
+        }
+
+        const cache = symbol.getCache(query.uri);
+        if (!cache) {
+            return symList;
+        }
+
+        symbol.appendComment(
+            cache.comments, symList, cache.codeLine);
+        return symList;
     }
 
     // 根据模块名查找符号
@@ -402,9 +452,58 @@ export class Search {
         });
     }
 
+
+    // 判断是否本地化
+    private isLocalization(query: SymbolQuery, sym: SymInfoEx) {
+        const loc: Location = sym.location;
+        if (query.uri !== loc.uri) { return false; }
+        if (query.position.line !== loc.range.start.line) { return false; }
+
+        // 找出 M = M
+        let re = new RegExp(query.symName + "\\s*=\\s*" + query.symName, "g");
+        let match = query.text.match(re);
+
+        if (!match) { return false; }
+
+        let startIdx = query.text.indexOf(match[0]);
+        let eqIdx = query.text.indexOf("=", startIdx);
+
+        // 在等号右边就是本地化的符号，要查找原符号才行
+        return query.position.end > eqIdx ? true : false;
+    }
+
+    // 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M
+    private localizationFilter(query: SymbolQuery, symList: SymInfoEx[] | null) {
+        if (!symList) { return null; }
+
+        let newList = symList.filter(sym => !this.isLocalization(query, sym));
+
+        return newList.length > 0 ? newList : null;
+    }
+
+    private checkSymDefinition(
+        symList: SymInfoEx[] | null, name: string, kind: SymbolKind) {
+        if (!symList) { return null; }
+
+        let foundList: SymInfoEx[] = [];
+        for (let sym of symList) {
+            if (sym.name === name) { foundList.push(sym); }
+        }
+
+        if (foundList.length > 0) { return foundList; }
+
+        return null;
+    }
+
     // 搜索符号
-    public search(query: SymbolQuery, filter: Filter, localSearch: Function) {
+    public search(srv: Server, query: SymbolQuery) {
         let symbol = Symbol.instance();
+
+        let filter: Filter = symList => {
+            return this.localizationFilter(query!,
+                this.checkSymDefinition(symList, query!.symName, query!.kind)
+            );
+        };
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
          * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
@@ -424,7 +523,8 @@ export class Search {
         }
 
         // 查找局部变量
-        items = localSearch();
+        srv.ensureSymbolCache(query.uri);
+        items = this.searchlocal(query);
         if (items) {
             return items;
         }

@@ -47,7 +47,6 @@ export class AutoCompletion {
         return AutoCompletion.ins;
     }
 
-
     // 符号转自动完成格式
     private toCompletion(sym: SymInfoEx): CompletionItem {
         // vs code会自动补全当前文档中的单词，默认类型为CompletionItemKind.Text
@@ -131,8 +130,9 @@ export class AutoCompletion {
         const symName = query.symName;
         const emptyName = 0 === symName.length;
         let symbol = Symbol.instance();
-        Search.instance().searchLocal(query.uri, query.position,
+        Search.instance().rawSearchLocal(query.uri, query.position,
             (node, local, name, base, init) => {
+                // 搜索局部变量时，如果存在模块名则模块名必须准确匹配
                 if (base !== mdName) {
                     return;
                 }
@@ -149,7 +149,7 @@ export class AutoCompletion {
         return symList.length > 0 ? symList : null;
     }
 
-    private doSearch(query: SymbolQuery) {
+    private doSearch(srv: Server, query: SymbolQuery) {
         let search = Search.instance();
 
         let symName = query.symName;
@@ -176,6 +176,7 @@ export class AutoCompletion {
         }
 
         // 查找局部变量
+        srv.ensureSymbolCache(query.uri);
         items = this.getlocalCompletion(query);
         if (items) {
             return items;
@@ -217,7 +218,7 @@ export class AutoCompletion {
         let query = srv.getSymbolQuery(uri, line, pos);
         if (!query) { return []; }
 
-        let list = this.doSearch(query);
+        let list = this.doSearch(srv, query);
         if (!list) {
             return [];
         }

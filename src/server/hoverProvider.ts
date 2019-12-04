@@ -145,7 +145,7 @@ export class HoverProvider {
         let query = srv.getSymbolQuery(uri, line, pos);
         if (!query || query.symName === "") { return null; }
 
-        let list = GoToDefinition.instance().searchSym(srv, query);
+        let list = Search.instance().search(srv, query);
 
         if (!list) {
             return null;

@@ -1094,14 +1094,7 @@ export class Symbol {
                 return;
             }
 
-            /* 记录连续多行的注释
-            *
-            * test() -- abc
-            * local X = 1
-            *
-            * 注意上面这种代码，test()是一个函数调用，所以并不会记录任何符号，要
-            * 用codeLine来判断注释是不是local X的
-            */
+            // 记录连续多行的注释
             let nextLine = continueLine + 1;
             if (-1 !== continueIndex
                 && continueLine + 1 === comment.loc.start.line) {

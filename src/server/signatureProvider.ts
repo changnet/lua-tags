@@ -32,6 +32,7 @@ import { Server } from './server';
 import { Utils } from './utils';
 import { GoToDefinition } from './goToDefinition';
 import { Symbol, SymInfoEx } from './symbol';
+import { Search } from './search';
 
 
 export class SignatureProvider {
@@ -152,7 +153,7 @@ export class SignatureProvider {
             return null;
         }
 
-        const symList = GoToDefinition.instance().searchSym(srv, query);
+        const symList = Search.instance().search(srv, query);
         if (!symList) {
             return null;
         }
