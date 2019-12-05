@@ -2,7 +2,7 @@
 	"name": "lua-tags",
 	"displayName": "lua_tags",
 	"description": "lua tags",
-	"version": "0.0.1",
+	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.38.0"
 	},
@@ -34,6 +34,18 @@
 					"type": "string",
 					"default": "5.3",
 					"description": "Lua Version."
+				},
+				"lua-tags.maxFileSize": {
+					"scope": "resource",
+					"type": "number",
+					"default": 102400,
+					"description": "max lua file size(byte)."
+				},
+				"lua-tags.excludeDir": {
+					"scope": "resource",
+					"type": "array",
+					"default": [],
+					"description": "regex to exclude dir and files, like: config/*."
 				},
 				"lua-tags.trace.server": {
 					"scope": "window",
@@ -73,5 +85,11 @@
 		"vscode-languageserver": "^5.2.1",
 		"luaparse": "^0.2.1",
 		"fuzzysort": "^1.1.4"
+	},
+	"publisher": "changnet",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/changnet/lua-tags"
 	}
 }

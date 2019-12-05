@@ -47,6 +47,10 @@ export class Setting {
         if (conf.excludeDir) {
             this.excludeDir = <string[]>(conf.excludeDir) || [];
         }
+
+        if (conf.maxFileSize) {
+            this.maxFileSize = <number>(conf.maxFileSize) || 100 * 1024;
+        }
     }
 
     // 获取设置的Lua版本

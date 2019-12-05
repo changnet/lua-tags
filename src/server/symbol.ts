@@ -49,7 +49,7 @@ import Uri from 'vscode-uri';
 import { promises as fs } from "fs";
 
 // luaParser.lex()
-// https://github.com/oxyc/luaparse
+// https://github.com/fstirlitz/luaparse
 // type expressed as an enum flag which can be matched with luaparse.tokenTypes.
 // 这些没有包里找到定义
 

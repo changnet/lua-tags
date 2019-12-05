@@ -1,34 +1,14 @@
 # lua-tags
 
-This is the README for your extension "lua-tags". After writing up a brief description, we recommend including the following sections.
+Lua intelliSense for Visual Studio Code.
 
 ## Features
+* Workspace Symbol
+* Document Symbol
+* Auto Completion
+* Go To Definition
+* Hover
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
-
-## Todo
-https://code.visualstudio.com/api/references/vscode-api
-match(selector: DocumentSelector, document: TextDocument): number
-使用match来筛选文件
-
+## Thanks
+* https://github.com/fstirlitz/luaparse
+* https://github.com/farzher/fuzzysort
