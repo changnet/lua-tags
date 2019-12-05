@@ -68,6 +68,13 @@ export function activate(context: vscode.ExtensionContext) {
         clientOptions
     );
 
+    client.onReady().then(() => {
+        // 收到server的自定义消息
+        client.onNotification("__error", (ctx: string) => {
+            vscode.window.showErrorMessage(`lua-tags:\n${ctx}`, "aaaa");
+        });
+    });
+
     // "lua-tags.trace.server": "verbose"
     // 把这个添加到设置(没错，就是File-->Preferences-->Setting)
     // F5调试插件，激活插件

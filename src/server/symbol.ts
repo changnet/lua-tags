@@ -47,6 +47,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs";
+import { ExecException } from "child_process";
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -661,7 +662,7 @@ export class Symbol {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string): SymInfoEx[] {
+    private parse(uri: string, text: string): SymInfoEx[] {
         let ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return [];
@@ -697,6 +698,15 @@ export class Symbol {
         this.needUpdate = true;
 
         return this.parseSymList;
+    }
+
+    public safeParse(uri: string, text: string) {
+        try {
+            return this.parse(uri, text);
+        } catch (e) {
+            Utils.instance().anyError(e);
+        }
+        return [];
     }
 
     public setCacheOpen() {
@@ -847,11 +857,13 @@ export class Symbol {
             this.pathSlash = "\\";
         }
 
+        Utils.instance().log(`start parse root ${path}`);
         await this.parseDir(path);
     }
 
     // 解析单个目录的Lua文件
     private async parseDir(path: string) {
+        Utils.instance().log(`start parse dir ${path}`);
         // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
         // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
         let files = await fs.readdir(path, { withFileTypes: true });
@@ -865,13 +877,14 @@ export class Symbol {
             else if (file.isFile()) {
                 await this.parseFile(subPath);
             }
+
         }
     }
 
     // 解析单个Lua文件
     public async parseFile(path: string) {
         if (!path.endsWith(".lua")) { return; }
-
+        Utils.instance().log(`start parse file ${path}`);
         // uri总是用/来编码，在win下，路径是用\的
         // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
         const uri = Uri.from({
@@ -882,7 +895,7 @@ export class Symbol {
         let data = await fs.readFile(path);
 
         //Utils.instance().log(data.toString())
-        this.parse(uri, data.toString());
+        this.safeParse(uri, data.toString());
     }
 
     // 查找经过本地化的原符号uri

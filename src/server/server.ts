@@ -158,7 +158,7 @@ export class Server {
             }
 
             const text = document.getText();
-            symList = symbol.parse(uri, text);
+            symList = symbol.safeParse(uri, text);
         }
 
         return symList ? symList : [];
@@ -284,7 +284,7 @@ export class Server {
     // 在编辑器上修改文档内容没保存，或者其他软件直接修改文件都会触发
     private onDocumentChange(handler: TextDocumentChangeEvent) {
         let uri = handler.document.uri;
-        Symbol.instance().parse(uri, handler.document.getText());
+        Symbol.instance().safeParse(uri, handler.document.getText());
     }
 
     // 文件增删
