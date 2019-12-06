@@ -848,13 +848,22 @@ export class Symbol {
             this.pathSlash = "\\";
         }
 
-        Utils.instance().log(`start parse root ${path}`);
-        await this.parseDir(path);
+        let rootPath = Setting.instance().getRootDir(path, this.pathSlash);
+
+        Utils.instance().log(`start parse root ${rootPath}`);
+        try {
+            await this.parseDir(rootPath);
+        } catch (e) {
+            Utils.instance().anyError(e);
+        }
     }
 
     // 解析单个目录的Lua文件
     private async parseDir(path: string) {
-        Utils.instance().log(`start parse dir ${path}`);
+        if (Setting.instance().isExcludeDotDir(path)) {
+            return;
+        }
+
         // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
         // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
         let files = await fs.readdir(path, { withFileTypes: true });
@@ -873,9 +882,11 @@ export class Symbol {
     }
 
     // 解析单个Lua文件
-    public async parseFile(path: string) {
-        if (!path.endsWith(".lua")) { return; }
-        Utils.instance().log(`start parse file ${path}`);
+    public async parseFile(path: string, ) {
+        if (!path.endsWith(".lua")) {
+            return;
+        }
+
         // uri总是用/来编码，在win下，路径是用\的
         // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
         const uri = Uri.from({

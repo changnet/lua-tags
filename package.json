@@ -47,6 +47,18 @@
 					"default": [],
 					"description": "regex to exclude dir and files, like: config/*."
 				},
+				"lua-tags.excludeDotDir": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "exclude dir start with . like [.git, .svn]."
+				},
+				"lua-tags.rootDir": {
+					"scope": "resource",
+					"type": "string",
+					"default": "",
+					"description": "lua-tags set the workspace dir as root dir by default, you cant set subdir as root dir."
+				},
 				"lua-tags.trace.server": {
 					"scope": "window",
 					"type": "string",

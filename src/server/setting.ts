@@ -1,5 +1,7 @@
 // 插件配置
 
+import * as path from "path";
+
 // let ver:string = "5.1"
 // luaVersion = ver as Version
 export type Version = "5.1" | "5.2" | "5.3" | "LuaJIT";
@@ -21,7 +23,7 @@ export class Setting {
     private maxFileSize: number = 100 * 1024;
 
     private excludeDir: string[] = []; // 排除的目录
-    private rootPath: string = ""; // 工程根目录
+    private rootDir: string = ""; // 工程根目录
     private excludeDotDir: boolean = true; // 排除.开头的文件夹(.svn .git .vscode)
 
     private constructor() {
@@ -37,7 +39,7 @@ export class Setting {
 
     // 设置工程根目录
     public setRootPath(root: string) {
-        this.rootPath = root;
+        this.rootDir = root;
     }
 
     public setConfiguration(conf: any, isUpdate: boolean = false) {
@@ -56,11 +58,34 @@ export class Setting {
         if (conf.excludeDotDir) {
             this.excludeDotDir = <boolean>(conf.excludeDotDir) || true;
         }
+
+        if (conf.rootDir) {
+            this.rootDir = <string>(conf.rootDir) || "";
+        }
     }
 
     // 获取设置的Lua版本
     public getLuaVersion() {
         return this.luaVersion;
+    }
+
+    // 是否排除.开头的文件夹
+    public isExcludeDotDir(pathNnme: string) {
+        if (!this.excludeDotDir) {
+            return false;
+        }
+        const dirName = path.parse(pathNnme).name;
+
+        return dirName.startsWith(".");
+    }
+
+    // 获取设置的根目录
+    public getRootDir(oldPath: string, slash: string) {
+        if ("" === this.rootDir) {
+            return oldPath;
+        }
+
+        return oldPath + slash + this.rootDir;
     }
 
     // 获取文件的类型
@@ -71,14 +96,14 @@ export class Setting {
         }
 
         let isInPro = false; // 是否在工程目录
-        if (this.rootPath !== "" && uri.startsWith(this.rootPath)) {
+        if (this.rootDir !== "" && uri.startsWith(this.rootDir)) {
             isInPro = true;
         }
 
         // 是否被排除
         let isExclude = false;
         for (let dir of this.excludeDir) {
-            let re = new RegExp(`${this.rootPath}/${dir}`, "g");
+            let re = new RegExp(`${this.rootDir}/${dir}`, "g");
             if (uri.match(re)) {
                 isExclude = true;
                 break;

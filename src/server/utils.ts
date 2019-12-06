@@ -27,15 +27,6 @@ export class Utils {
         this.conn!.console.log(ctx);
     }
 
-    public static safeCall(func: Function) {
-        try {
-            return func();
-        } catch (e) {
-            Utils.instance().anyError(e);
-        }
-        return null;
-    }
-
     public anyError(e: any) {
         let msg = "unknow";
         if (e) {

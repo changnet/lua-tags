@@ -153,7 +153,6 @@ export class Server {
 
     private onInitialize(params: InitializeParams): InitializeResult {
         this.rootUri = params.rootUri;
-        Setting.instance().setRootPath(this.rootUri || "");
 
         return {
             capabilities: {
