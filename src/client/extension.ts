@@ -71,7 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
     client.onReady().then(() => {
         // 收到server的自定义消息
         client.onNotification("__error", (ctx: string) => {
-            vscode.window.showErrorMessage(`lua-tags:\n${ctx}`, "aaaa");
+            vscode.window.showErrorMessage(`${ctx}`);
         });
     });
 

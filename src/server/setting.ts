@@ -22,6 +22,7 @@ export class Setting {
 
     private excludeDir: string[] = []; // 排除的目录
     private rootPath: string = ""; // 工程根目录
+    private excludeDotDir: boolean = true; // 排除.开头的文件夹(.svn .git .vscode)
 
     private constructor() {
     }
@@ -50,6 +51,10 @@ export class Setting {
 
         if (conf.maxFileSize) {
             this.maxFileSize = <number>(conf.maxFileSize) || 100 * 1024;
+        }
+
+        if (conf.excludeDotDir) {
+            this.excludeDotDir = <boolean>(conf.excludeDotDir) || true;
         }
     }
 

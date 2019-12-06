@@ -2,6 +2,7 @@ import {
     Connection,
     Diagnostic
 } from 'vscode-languageserver';
+import { Func } from 'mocha';
 
 export class Utils {
     private static ins: Utils;
@@ -24,6 +25,15 @@ export class Utils {
 
     public log(ctx: string) {
         this.conn!.console.log(ctx);
+    }
+
+    public static safeCall(func: Function) {
+        try {
+            return func();
+        } catch (e) {
+            Utils.instance().anyError(e);
+        }
+        return null;
     }
 
     public anyError(e: any) {

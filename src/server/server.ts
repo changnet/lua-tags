@@ -59,19 +59,91 @@ export class Server {
 
         Utils.instance().initialize(conn);
 
+        // TODO: wrap all function in try catch and send error to client
+        // I didn't find a better way to do this. It is any ?
+
         conn.onInitialize(handler => this.onInitialize(handler));
-        conn.onInitialized(() => this.onInitialized());
-        conn.onCompletion(handler => this.onCompletion(handler));
-        conn.onDocumentSymbol(handler => this.onDocumentSymbol(handler));
-        conn.onWorkspaceSymbol(handler => this.onWorkspaceSymbol(handler));
-        conn.onDefinition(handler => this.onDefinition(handler));
-        conn.onDidChangeWatchedFiles(handler => this.onFilesChange(handler));
-        conn.onHover(handler => this.onHover(handler));
-        conn.onSignatureHelp(handler => this.onSignature(handler));
-        conn.onDidChangeConfiguration(handler => this.onConfiguration(handler));
+        conn.onInitialized(() => {
+            try {
+                this.onInitialized();
+            } catch (e) {
+                Utils.instance().anyError(e);
+            }
+        });
+        conn.onCompletion(handler => {
+            try {
+                return this.onCompletion(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onDocumentSymbol(handler => {
+            try {
+                return this.onDocumentSymbol(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onWorkspaceSymbol(handler => {
+            try {
+                return this.onWorkspaceSymbol(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onDefinition(handler => {
+            try {
+                return this.onDefinition(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onDidChangeWatchedFiles(handler => {
+            try {
+                return this.onFilesChange(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onHover(handler => {
+            try {
+                return this.onHover(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onSignatureHelp(handler => {
+            try {
+                return this.onSignature(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+        conn.onDidChangeConfiguration(handler => {
+            try {
+                return this.onConfiguration(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
 
         let doc = this.documents;
-        doc.onDidChangeContent(handler => this.onDocumentChange(handler));
+        doc.onDidChangeContent(handler => {
+            try {
+                return this.onDocumentChange(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
     }
 
     public init() {
@@ -158,7 +230,7 @@ export class Server {
             }
 
             const text = document.getText();
-            symList = symbol.safeParse(uri, text);
+            symList = symbol.parse(uri, text);
         }
 
         return symList ? symList : [];
@@ -284,7 +356,7 @@ export class Server {
     // 在编辑器上修改文档内容没保存，或者其他软件直接修改文件都会触发
     private onDocumentChange(handler: TextDocumentChangeEvent) {
         let uri = handler.document.uri;
-        Symbol.instance().safeParse(uri, handler.document.getText());
+        Symbol.instance().parse(uri, handler.document.getText());
     }
 
     // 文件增删

@@ -456,7 +456,7 @@ export class Symbol {
 
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
-            if ("TableConstructorExpression" === init.type) {
+            if (init && "TableConstructorExpression" === init.type) {
                 sym.subSym = this.parseTableConstructorExpr(init);
                 // vs code在显示文档符号时，会自动判断各个符号的位置，如果发现某个符号
                 // 属于另一个符号的位置范围内，则认为这个符号是另一个符号的子符号，可以
@@ -662,7 +662,7 @@ export class Symbol {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    private parse(uri: string, text: string): SymInfoEx[] {
+    public parse(uri: string, text: string): SymInfoEx[] {
         let ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return [];
@@ -698,15 +698,6 @@ export class Symbol {
         this.needUpdate = true;
 
         return this.parseSymList;
-    }
-
-    public safeParse(uri: string, text: string) {
-        try {
-            return this.parse(uri, text);
-        } catch (e) {
-            Utils.instance().anyError(e);
-        }
-        return [];
     }
 
     public setCacheOpen() {
@@ -894,8 +885,7 @@ export class Symbol {
 
         let data = await fs.readFile(path);
 
-        //Utils.instance().log(data.toString())
-        this.safeParse(uri, data.toString());
+        this.parse(uri, data.toString());
     }
 
     // 查找经过本地化的原符号uri
