@@ -848,7 +848,7 @@ export class Symbol {
             this.pathSlash = "\\";
         }
 
-        let rootPath = Setting.instance().getRootDir(path, this.pathSlash);
+        let rootPath = Setting.instance().getRoot(path, this.pathSlash);
 
         Utils.instance().log(`start parse root ${rootPath}`);
         try {
@@ -1140,6 +1140,11 @@ export class Symbol {
             // 在符号上面的注释，可能存在多行
             if (1 === comp) {
                 reset = true;
+
+                // 函数上面的注释不要赋给参数
+                if (sym.local === LocalType.LT_PARAMETER) {
+                    continue;
+                }
                 /*
                  * test() -- abc
                  * local X = 1

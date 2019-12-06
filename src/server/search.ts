@@ -351,8 +351,9 @@ export class Search {
         // 从函数开始搜索，非函数会在文档符号中查找
         for (const node of cache.nodes) {
             if (node.type === "FunctionDeclaration") {
-                this.searchFunctionDeclaration(node);
-                return;
+                if (!this.searchFunctionDeclaration(node)) {
+                    return;
+                }
             }
         }
     }

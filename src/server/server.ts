@@ -188,8 +188,11 @@ export class Server {
             return;
         }
 
+        let setting = Setting.instance();
+        setting.setRawRootUri(this.rootUri);
+
         let conf = await this.connection.workspace.getConfiguration("lua-tags");
-        Setting.instance().setConfiguration(conf);
+        setting.setConfiguration(conf);
 
         const uri = Uri.parse(this.rootUri);
         let symbol = Symbol.instance();
@@ -200,7 +203,8 @@ export class Server {
         symbol.setCacheOpen();
 
         let end = Date.now();
-        Utils.instance().log(`Lua initialized done:${this.rootUri}, msec:${end - beg}`);
+        Utils.instance().log(
+            `Lua initialized done:${this.rootUri}, msec:${end - beg}`);
     }
 
     // 返回当前文档的符号

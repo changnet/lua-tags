@@ -26,6 +26,9 @@ export class Setting {
     private rootDir: string = ""; // 工程根目录
     private excludeDotDir: boolean = true; // 排除.开头的文件夹(.svn .git .vscode)
 
+    private rawRootUri: string = ""; // vs code打开的根目录uri
+    private rootUri: string = ""; // 完整的工程根目录uri
+
     private constructor() {
     }
 
@@ -38,8 +41,8 @@ export class Setting {
     }
 
     // 设置工程根目录
-    public setRootPath(root: string) {
-        this.rootDir = root;
+    public setRawRootUri(root: string) {
+        this.rawRootUri = root;
     }
 
     public setConfiguration(conf: any, isUpdate: boolean = false) {
@@ -62,6 +65,10 @@ export class Setting {
         if (conf.rootDir) {
             this.rootDir = <string>(conf.rootDir) || "";
         }
+
+        if ("" !== this.rawRootUri) {
+            this.rootUri = this.getRoot(this.rawRootUri, "/");
+        }
     }
 
     // 获取设置的Lua版本
@@ -80,7 +87,7 @@ export class Setting {
     }
 
     // 获取设置的根目录
-    public getRootDir(oldPath: string, slash: string) {
+    public getRoot(oldPath: string, slash: string) {
         if ("" === this.rootDir) {
             return oldPath;
         }
@@ -95,9 +102,9 @@ export class Setting {
             ft = ft | FileParseType.FPT_LARGE;
         }
 
-        let isInPro = false; // 是否在工程目录
-        if (this.rootDir !== "" && uri.startsWith(this.rootDir)) {
-            isInPro = true;
+        let isInRoot = false; // 是否在工程目录
+        if (this.rootUri !== "" && uri.startsWith(this.rootUri)) {
+            isInRoot = true;
         }
 
         // 是否被排除
@@ -110,7 +117,7 @@ export class Setting {
             }
         }
 
-        if (!isInPro || isExclude) {
+        if (!isInRoot || isExclude) {
             ft = ft | FileParseType.FPT_SINGLE;
         }
 
