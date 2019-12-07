@@ -119,6 +119,13 @@ export enum LocalType {
     LT_FOR_VAR = 3  // for k,v in或者for idx = 1, N do中的局部变量
 }
 
+// 注释类型
+export enum CommentType {
+    CT_NONE = 0,
+    CT_ABOVE = 1, // 在上方的注释
+    CT_LINEEND = 2, // 在行尾的注释
+}
+
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
 export interface SymInfoEx extends SymbolInformation {
     scope: number; // 第几层作用域
@@ -131,6 +138,7 @@ export interface SymInfoEx extends SymbolInformation {
     local?: LocalType; // 是否Local符号
     indexer?: string; // M.N或者M:N中的[., :]
     comment?: string; // 注释
+    ctType?: CommentType; // 注释类型
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
@@ -1106,6 +1114,14 @@ export class Symbol {
         return -1;
     }
 
+    private getCommentValue(comment: Comment) {
+        if (comment.loc!.start.line === comment.loc!.end.line) {
+            return "-- " + comment.value.trim();
+        }
+
+        return `--[[\n${comment.value}]]`;
+    }
+
     private AppendOneComment(
         symList: SymInfoEx[], comments: Comment[], begIndex: number,
         index: number, continueIndex: number, codeLine: number[]) {
@@ -1130,7 +1146,8 @@ export class Symbol {
             // 行数相等，为行尾注释
             if (0 === comp) {
                 reset = true;
-                sym.comment = comment.value.trim();
+                sym.ctType = CommentType.CT_LINEEND;
+                sym.comment = this.getCommentValue(comment);
 
                 // local x, y
                 // 同一样可能存在多个变量，继续查找
@@ -1155,12 +1172,14 @@ export class Symbol {
                 if (line < codeLine.length && 1 === codeLine[line]) {
                     continue;
                 }
+                sym.ctType = CommentType.CT_ABOVE;
                 if (-1 === continueIndex) {
-                    sym.comment = comment.value.trim();
+                    sym.comment = this.getCommentValue(comment);
                 } else {
                     let symComment: string[] = [];
                     for (let idx = continueIndex; idx <= index; idx++) {
-                        symComment.push(comments[idx].value.trim());
+                        // 多行注释有对齐，不要去掉空格
+                        symComment.push(this.getCommentValue(comments[idx]));
                     }
                     sym.comment = symComment.join("\n");
                 }

@@ -30,7 +30,8 @@ import {
     Symbol,
     SymInfoEx,
     SymbolQuery,
-    VSCodeSymbol
+    VSCodeSymbol,
+    CommentType
 } from "./symbol";
 
 import {
@@ -73,10 +74,23 @@ export class HoverProvider {
         return file ? `${file}\n` : "";
     }
 
+    private getCommentCtx(sym: SymInfoEx) {
+        if (!sym.comment) {
+            return "";
+        }
+    }
+
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
         let path = this.getPathPrefix(sym, uri);
-        let comment = sym.comment ? `\`\`\`txt\n${sym.comment}\n\`\`\`\n` : "";
-        return `${path}${comment}\`\`\`lua\n${ctx}\n\`\`\``;
+        let above = "";
+        let lineEnd = "";
+        if (sym.comment && sym.ctType === CommentType.CT_ABOVE) {
+            above = sym.comment + "\n";
+        }
+        if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
+            lineEnd = " " + sym.comment;
+        }
+        return `${path}\`\`\`lua\n${above}${ctx}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
@@ -92,6 +106,10 @@ export class HoverProvider {
                 return null;
             }
             return this.toLuaMarkdown(sym, `${local}${sym.name}`, uri);
+        }
+
+        if (sym.location.uri !== uri) {
+            return this.toLuaMarkdown(sym, sym.name, uri);
         }
 
         return null;

@@ -25,7 +25,8 @@ import {
 import {
     Symbol,
     SymInfoEx,
-    SymbolQuery
+    SymbolQuery,
+    CommentType
 } from "./symbol";
 
 import * as fuzzysort from "fuzzysort";
@@ -66,8 +67,8 @@ export class AutoCompletion {
         };
 
         let detail = file ? `${file}\n` : "";
-        // 如果有注释，显示注释
-        if (sym.comment) {
+        // 显示上方的注释
+        if (sym.comment && sym.ctType === CommentType.CT_ABOVE) {
             detail += `${sym.comment}\n`;
         }
         // 如果是常量，显示常量值： test.lua: val = 999
@@ -79,6 +80,10 @@ export class AutoCompletion {
             let parameters = sym.parameters.join(", ");
             let local = Symbol.getLocalTypePrefix(sym.local);
             detail += `${local}function ${sym.name}(${parameters})`;
+        }
+        // 显示行尾的注释
+        if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
+            detail += ` ${sym.comment}`;
         }
         if (detail && detail.length > 0) {
             item.detail = detail;

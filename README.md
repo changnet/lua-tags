@@ -10,7 +10,7 @@ Lua IntelliSense for Visual Studio Code.
 * Hover
 * Signature Helps
 
-## Configure
+## Configure & Usage
 More detail [here](HOW.md)
 
 ## Thanks
