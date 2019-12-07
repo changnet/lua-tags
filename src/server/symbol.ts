@@ -631,8 +631,11 @@ export class Symbol {
 
     // 获取某个模块的符号
     public getGlobalModule(base: string) {
-        if (this.needUpdate) { this.updateGlobal(); }
+        if (this.needUpdate) {
+            this.updateGlobal();
+        }
 
+        let symList = this.globalModule.get(base);
         return this.globalModule.get(base) || null;
     }
 

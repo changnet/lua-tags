@@ -166,7 +166,7 @@ export class AutoCompletion {
     private searchModuleName(
         name: string, items: CompletionItem[] | null, base?: string) {
         if (base) {
-            return null;
+            return items;
         }
 
         let newItems = items || [];
