@@ -1,6 +1,6 @@
 # lua-tags
 
-Lua intelliSense for Visual Studio Code.
+Lua IntelliSense for Visual Studio Code.
 
 ## Features
 * Workspace Symbol
@@ -8,6 +8,10 @@ Lua intelliSense for Visual Studio Code.
 * Auto Completion
 * Go To Definition
 * Hover
+* Signature Helps
+
+## Configure
+More detail [here](HOW.md)
 
 ## Thanks
 * https://github.com/fstirlitz/luaparse

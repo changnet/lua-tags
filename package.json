@@ -1,7 +1,7 @@
 {
 	"name": "lua-tags",
 	"displayName": "lua_tags",
-	"description": "lua tags",
+	"description": "Lua IntelliSense for Visual Studio Code",
 	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.38.0"
@@ -98,6 +98,7 @@
 		"luaparse": "^0.2.1",
 		"fuzzysort": "^1.1.4"
 	},
+	"icon": "icon.png",
 	"publisher": "changnet",
 	"license": "MIT",
 	"repository": {
