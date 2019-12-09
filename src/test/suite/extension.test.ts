@@ -25,7 +25,7 @@ async function sleep(ms: number) {
 /**
  * Activates the vscode extension
  */
-export async function activateExtension() {
+async function activateExtension() {
 	try {
 		const conf = vscode.workspace.getConfiguration('lua-tags');
 		await conf.update('excludeDir',['exclude/*']);
@@ -39,6 +39,42 @@ export async function activateExtension() {
 	}
 }
 
+// test work space symbol
+async function testWorkspaceSymbol() {
+	const list = (await vscode.commands.executeCommand(
+		"vscode.executeWorkspaceSymbolProvider", "")) as vscode.SymbolInformation[];
+
+	// console.log(`check ${JSON.stringify(list)}`);
+	assert.equal(list.length, 52);
+}
+
+// test auto completion
+async function testCompletion(
+	docUri: vscode.Uri,
+	position: vscode.Position,
+	expectedCompletionList: vscode.CompletionList
+) {	
+	const doc = await vscode.workspace.openTextDocument(testUri);
+	await vscode.window.showTextDocument(doc);
+
+	// https://code.visualstudio.com/api/references/commands
+	// Executing the command `vscode.executeCompletionItemProvider` to simulate triggering completion
+	const actualCompletionList = (await vscode.commands.executeCommand(
+		'vscode.executeCompletionItemProvider',
+		docUri,
+		position
+	)) as vscode.CompletionList;
+
+	// console.log(`${JSON.stringify(actualCompletionList)}`);
+
+	assert.equal(actualCompletionList.items.length, expectedCompletionList.items.length);
+	expectedCompletionList.items.forEach((expectedItem, i) => {
+		const actualItem = actualCompletionList.items[i];
+		assert.equal(actualItem.label, expectedItem.label);
+		assert.equal(actualItem.kind, expectedItem.kind);
+	});
+}
+
 // BDD测试用descript、it
 // TDD测试用suite、test
 
@@ -47,40 +83,6 @@ suite('Extension Test Suite', () => {
 		vscode.window.showInformationMessage('Start all tests.');
 	});
 
-	async function testWorkspaceSymbol() {
-		try {
-			const textDocument = await vscode.workspace.openTextDocument(testUri);
-		} catch (e) {
-			assert.ok(false, `error in OpenTextDocument ${e}`);
-		}
-	}
-
-	async function testCompletion(
-		docUri: vscode.Uri,
-		position: vscode.Position,
-		expectedCompletionList: vscode.CompletionList
-	) {	
-		const doc = await vscode.workspace.openTextDocument(testUri);
-		await vscode.window.showTextDocument(doc);
-
-		// https://code.visualstudio.com/api/references/commands
-		// Executing the command `vscode.executeCompletionItemProvider` to simulate triggering completion
-		const actualCompletionList = (await vscode.commands.executeCommand(
-			'vscode.executeCompletionItemProvider',
-			docUri,
-			position
-		)) as vscode.CompletionList;
-	
-		// console.log(`${JSON.stringify(actualCompletionList)}`);
-
-		assert.equal(actualCompletionList.items.length, expectedCompletionList.items.length);
-		expectedCompletionList.items.forEach((expectedItem, i) => {
-			const actualItem = actualCompletionList.items[i];
-			assert.equal(actualItem.label, expectedItem.label);
-			assert.equal(actualItem.kind, expectedItem.kind);
-		});
-	}
-
 	// timeout设置超时时间 
 	test("test active", async ()=> {
 		await activateExtension();
@@ -88,16 +90,14 @@ suite('Extension Test Suite', () => {
 
 	test('test workspace symbol', async () => {
 		await testWorkspaceSymbol();
-		assert.equal(-1, [1, 2, 3].indexOf(5));
-		assert.equal(-1, [1, 2, 3].indexOf(0));
 	});
 
-	test('test auto completioin', async () => {
+	test('test require path completion', async () => {
 		await testCompletion(testUri, new vscode.Position(4, 14), {
 			items: [
-				{ label: 'anno_conf', kind: vscode.CompletionItemKind.File },
-				{ label: 'large_conf', kind: vscode.CompletionItemKind.File },
-				{ label: 'lite_conf', kind: vscode.CompletionItemKind.File },
+				{ label: 'battle_conf', kind: vscode.CompletionItemKind.File },
+				{ label: 'monster_conf', kind: vscode.CompletionItemKind.File },
+				{ label: 'skill_conf', kind: vscode.CompletionItemKind.File },
 			]
 		});
 	}).timeout(10240);
