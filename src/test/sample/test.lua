@@ -1,8 +1,14 @@
-local MetaObject = require "meta_object"
-local NewObject  = require("new_object")
+local Monster = require "Monster"
 
+-- test path auto completion
 -- 测试路径补全，打出这个.号才会触发路径补全
 require "conf."
+
+local BattleConf = require "conf.battle_conf"
+
+local the_battle = battle.create()
+the_battle()
+
 
 -- 测试oo类型对象成员函数跳转
 local mo = MetaObject()
