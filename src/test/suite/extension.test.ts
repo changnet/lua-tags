@@ -27,6 +27,9 @@ async function sleep(ms: number) {
  */
 export async function activateExtension() {
 	try {
+		const conf = vscode.workspace.getConfiguration('lua-tags');
+		await conf.update('excludeDir',['exclude/*']);
+
 		// The extensionId is `publisher.name` from package.json
 		const ext = vscode.extensions.getExtension('changnet.lua-tags')!;
 		await ext.activate();
@@ -36,15 +39,12 @@ export async function activateExtension() {
 	}
 }
 
+// BDD测试用descript、it
+// TDD测试用suite、test
+
 suite('Extension Test Suite', () => {
 	before(() => {
 		vscode.window.showInformationMessage('Start all tests.');
-	});
-
-	activateExtension();
-
-	const conf = Object.create(vscode.workspace.getConfiguration('lua-tags'), {
-		'excludeDir': { value: 'exclude/*' }
 	});
 
 	async function testWorkspaceSymbol() {
@@ -63,6 +63,7 @@ suite('Extension Test Suite', () => {
 		const doc = await vscode.workspace.openTextDocument(testUri);
 		await vscode.window.showTextDocument(doc);
 
+		// https://code.visualstudio.com/api/references/commands
 		// Executing the command `vscode.executeCompletionItemProvider` to simulate triggering completion
 		const actualCompletionList = (await vscode.commands.executeCommand(
 			'vscode.executeCompletionItemProvider',
@@ -70,7 +71,8 @@ suite('Extension Test Suite', () => {
 			position
 		)) as vscode.CompletionList;
 	
-		console.log(`${JSON.stringify(actualCompletionList)}`)
+		// console.log(`${JSON.stringify(actualCompletionList)}`);
+
 		assert.equal(actualCompletionList.items.length, expectedCompletionList.items.length);
 		expectedCompletionList.items.forEach((expectedItem, i) => {
 			const actualItem = actualCompletionList.items[i];
@@ -78,6 +80,11 @@ suite('Extension Test Suite', () => {
 			assert.equal(actualItem.kind, expectedItem.kind);
 		});
 	}
+
+	// timeout设置超时时间 
+	test("test active", async ()=> {
+		await activateExtension();
+	}).timeout(10240);
 
 	test('test workspace symbol', async () => {
 		await testWorkspaceSymbol();
@@ -93,5 +100,5 @@ suite('Extension Test Suite', () => {
 				{ label: 'lite_conf', kind: vscode.CompletionItemKind.File },
 			]
 		});
-	});
+	}).timeout(10240);
 });
