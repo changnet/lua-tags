@@ -43,7 +43,9 @@ function factory(monId, max, round)
                 one_attack(player)
             end
 
-            round = round - 1
+            local next_round = round - 1
+
+            round = next_round
         until (round > 0)
 
         if battle_type == BATTLE_TYPE.BT_PVE then

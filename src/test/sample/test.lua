@@ -6,8 +6,9 @@ require "conf."
 
 local BattleConf = require "conf.battle_conf"
 
-local the_battle = battle.create()
-the_battle()
+-- 当我们搜索符号时，battle.start()和battle.的效果是不一样的
+-- 但battle.会导致当前文件不可编译，因为在注释中测试
+-- battle.
 
 -- 测试声明多个变量
 local M, N, X, Y = {}, 1, "X", false

@@ -347,7 +347,7 @@ export class Symbol {
 
         // 如果声明了模块，那么所有没有模块名的符号都会被加上一个符号名
         let base = sym.base;
-        if (!base && sym.kind !== SymbolKind.Module) {
+        if (!base && sym.kind !== SymbolKind.Module && !sym.local) {
             base = this.parseModuleName || undefined;
         }
         if (base) {
