@@ -45,7 +45,20 @@ async function testWorkspaceSymbol() {
 		"vscode.executeWorkspaceSymbolProvider", "")) as vscode.SymbolInformation[];
 
 	// console.log(`check ${JSON.stringify(list)}`);
-	assert.equal(list.length, 52);
+	assert.equal(list.length, 46);
+}
+
+// test document symbol
+async function testDocumentSymbol(uri: vscode.Uri, items: vscode.SymbolInformation[]) {
+	const rawList = (await vscode.commands.executeCommand(
+		"vscode.executeDocumentSymbolProvider", uri));
+
+	console.log(`check ${JSON.stringify(rawList)}`);
+	const list = rawList  as vscode.SymbolInformation[];
+	assert.equal(list.length, items.length);
+	items.forEach((sym, index) => {
+		assert.equal(sym.name, list[index].name);
+	});
 }
 
 // test auto completion
@@ -90,6 +103,33 @@ suite('Extension Test Suite', () => {
 
 	test('test workspace symbol', async () => {
 		await testWorkspaceSymbol();
+	});
+
+	test("test anonymous table document symbol", async ()=> {
+		const uri = vscode.Uri.file("");
+		const range = new vscode.Range(0, 0, 0, 0);
+
+		const docPath = path.join(samplePath, "conf", "skill_conf.lua");
+		await testDocumentSymbol(vscode.Uri.file(docPath), [
+			{name: "skill_id", kind: 0, containerName: "", location: {uri: uri, range: range}},
+			{name: "level", kind: 0, containerName: "", location: {uri: uri, range: range}},
+			{name: "desc", kind: 0, containerName: "", location: {uri: uri, range: range}},
+		]);
+	});
+
+	test("test table document symbol", async ()=> {
+		const uri = vscode.Uri.file("");
+		const range = new vscode.Range(0, 0, 0, 0);
+
+		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
+		await testDocumentSymbol(vscode.Uri.file(docPath), [
+			{name: "BattleConf", kind: 0, containerName: "", location: {uri: uri, range: range}}
+			// 这里需要注意下，BattleConf包含下面这几个符号信息(在OUTLINE可以折叠)，这个接口只返回一个符号
+			// TODO:暂时不知道原因
+			// {name: "max_player", kind: 0, containerName: "", location: {uri: uri, range: range}},
+			// {name: "scene", kind: 0, containerName: "", location: {uri: uri, range: range}},
+			// {name: "timeout", kind: 0, containerName: "", location: {uri: uri, range: range}},
+		]);
 	});
 
 	test('test require path completion', async () => {

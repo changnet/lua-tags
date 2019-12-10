@@ -6,8 +6,10 @@ end
 
 module("battle", package.seeall)
 
+local SkillConf = require "conf.skill_conf"
+
 -- create a battle
-function factory(monId, max)
+function factory(monId, max, round)
     -- battle type
     local BATTLE_TYPE = 
     {
@@ -15,18 +17,38 @@ function factory(monId, max)
         BT_PVE = 2, -- player vs monster
     }
 
-    return function(player)
+    return function(player, battle_type)
         -- get the monster conf by id
         local conf = MonsterConf[monId]
 
-        for _ = 1, max do
+        local monster_attack = {}
+        for index = 1, max do
             -- now we create a monster one by one
             local monster = Monster(conf)
 
-            monster:move(player.x, player.y, JUMP)
+            local conf = SkillConf
+            monster_attack[index] = function(player)
+                monster:move(player.x, player.y, JUMP)
+                monster:attack(conf.id)
+            end
         end
 
-        player:attack()
+        local attack = function()
+            player:attack(SkillConf.id)
+        end
+
+        repeat
+            attack()
+            for _, one_attack in pairs(monster_attack) do
+                one_attack(player)
+            end
+
+            round = round - 1
+        until (round > 0)
+
+        if battle_type == BATTLE_TYPE.BT_PVE then
+            return
+        end
 
     end
 end

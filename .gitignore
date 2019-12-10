@@ -3,3 +3,4 @@ node_modules
 .vscode-test/
 *.vsix
 src/test/sample/.vscode
+src/test/sample/lua-tags.log

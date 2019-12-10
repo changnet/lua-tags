@@ -226,6 +226,7 @@ export class Server {
         // 或者这个文件不是工程目录里的文件，不做缓存
         let symbol = Symbol.instance();
         let symList = symbol.getDocumentSymbol(uri);
+
         if (!symList) {
             const document = this.documents.get(uri);
             if (!document) {
