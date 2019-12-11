@@ -436,8 +436,11 @@ export class Search {
 
         let symbol = Symbol.instance();
         let rawUri = symbol.getRawUri(query.uri, base);
+        if (!rawUri) {
+            return null;
+        }
 
-        return filter(symbol.getDocumentModule(rawUri, base));
+        return filter(symbol.getDocumentSymbol(rawUri));
     }
 
     // 如果找到了位置一致的符号，则认为是需要查找的符号，过滤掉其他同名符号

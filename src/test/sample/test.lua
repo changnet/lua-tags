@@ -31,6 +31,8 @@ ENUM.TEST = 3
 table.empty = function(tbl)
     return not next(tbl)
 end
+-- tabl
+-- table.
 
 function signature_help(a, b, c)
 end

@@ -911,25 +911,26 @@ export class Symbol {
     }
 
     // 查找经过本地化的原符号uri
-    public getRawUri(uri: string, base: string): string {
+    public getRawUri(uri: string, base: string): string | null {
         // 模块名为self则是当前文档self:test()这种用法
         if ("self" === base || "_G" === base) {
-            return uri;
+            return null;
         }
 
         const symList = this.documentSymbol.get(uri);
         if (!symList) {
-            return uri;
+            return null;
         }
 
         let sym;
         for (let one of symList) {
             if (one.name === base) {
                 sym = one;
+                break;
             }
         }
         if (!sym) {
-            return uri;
+            return null;
         }
 
         // local M = require "abc" 这种用法
@@ -938,7 +939,7 @@ export class Symbol {
         }
 
         // 都找不到，默认查找当前文档
-        return uri;
+        return null;
     }
 
     // 查找经过本地化的原符号名字

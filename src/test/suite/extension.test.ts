@@ -79,7 +79,16 @@ async function testCompletion(
 		position
 	)) as vscode.CompletionList;
 
+	// console.log(`check ${JSON.stringify(actualList)}`);
 	assert.equal(actualList.items.length, expectList.items.length);
+	// vs code返回的数组是不规则的，内容是同一样的
+	// 但位置不一定，导致多次测试结果不一致，暂时不知道原因
+	actualList.items.sort((src, dst) => {
+		if (src.label === dst.label ) {
+			return 0;
+		}
+		return src.label > dst.label ? 1 : 0;
+	})
 	expectList.items.forEach((expectedItem, i) => {
 		const actualItem = actualList.items[i];
 		assert.equal(actualItem.label, expectedItem.label);
@@ -207,6 +216,72 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	test('test external module completion', async () => {
+		await testCompletion(testUri, new vscode.Position(33, 7), {
+			items: [
+				{ label: 'table', kind: vscode.CompletionItemKind.Module },
+			]
+		});
+	});
+
+	test('test external module function completion', async () => {
+		await testCompletion(testUri, new vscode.Position(34, 9), {
+			items: [
+				{ label: 'empty', kind: vscode.CompletionItemKind.Function },
+			]
+		});
+	});
+
+	test('test anonymous table completion', async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(28, 48), {
+			items: [
+				{ label: 'desc', kind: vscode.CompletionItemKind.Variable },
+				{ label: 'level', kind: vscode.CompletionItemKind.Variable },
+				{ label: 'skill_id', kind: vscode.CompletionItemKind.Variable },
+			]
+		});
+	});
+
+	test('test local variable completion', async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(31, 47), {
+			items: [
+				{ label: 'Monster', kind: vscode.CompletionItemKind.Module },
+				{ label: 'monster', kind: vscode.CompletionItemKind.Variable },
+				{ label: 'monster_attack', kind: vscode.CompletionItemKind.Module },
+				{ label: 'MonsterConf', kind: vscode.CompletionItemKind.Module },
+			]
+		});
+	});
+
+	test('test upvalue completion', async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(50, 65), {
+			items: [
+				{ label: 'BT_PVE', kind: vscode.CompletionItemKind.Variable },
+				{ label: 'BT_PVP', kind: vscode.CompletionItemKind.Variable },
+			]
+		});
+	});
+
+	test('test parameter completion', async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(36, 47), {
+			items: [
+				{ label: 'player', kind: vscode.CompletionItemKind.Variable },
+			]
+		});
+	});
+
 	test("test require path definition", async ()=> {
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
 		await testGoToDefinition(testUri, new vscode.Position(6, 33), [{
@@ -306,17 +381,17 @@ suite('Extension Test Suite', () => {
 	});
 
 	test("test position filter definition", async ()=> {
-		await testGoToDefinition(testUri, new vscode.Position(47, 7), [{
+		await testGoToDefinition(testUri, new vscode.Position(49, 7), [{
 				uri: testUri,
-				range: new vscode.Range(47, 6, 47, 9)
+				range: new vscode.Range(49, 6, 49, 9)
 			}
 		]);
 	});
 
 	test("test local filter definition", async ()=> {
-		await testGoToDefinition(testUri, new vscode.Position(47, 14), [{
+		await testGoToDefinition(testUri, new vscode.Position(49, 14), [{
 				uri: testUri,
-				range: new vscode.Range(43, 0, 46, 3)
+				range: new vscode.Range(45, 0, 48, 3)
 			}
 		]);
 	});

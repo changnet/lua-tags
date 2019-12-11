@@ -26,15 +26,15 @@ function factory(monId, max, round)
             -- now we create a monster one by one
             local monster = Monster(conf)
 
-            local conf = SkillConf
+            local conf = SkillConf -- SkillConf.
             monster_attack[index] = function(player)
                 monster:move(player.x, player.y, JUMP)
-                monster:attack(conf.id)
+                monster:attack(conf.id) -- mons
             end
         end
 
         local attack = function()
-            player:attack(SkillConf.id)
+            player:attack(SkillConf.id) -- play
         end
 
         repeat
@@ -48,7 +48,7 @@ function factory(monId, max, round)
             round = next_round
         until (round > 0)
 
-        if battle_type == BATTLE_TYPE.BT_PVE then
+        if battle_type == BATTLE_TYPE.BT_PVE then -- BATTLE_TYPE.
             return
         end
 
