@@ -364,7 +364,11 @@ export class Search {
         let foundGlobal: SearchResult | null = null;
         this.rawSearchLocal(query.uri, query.position,
             (node, local, name, base, init) => {
-                if (name === query.name && base === query.base) {
+                /* query是通过正则得到的，因此如果base和name不在同一行，是不准的
+                 * 因此这里base相等或者位置相同，都判断为同一符号
+                 */
+                if (name === query.name && (base === query.base 
+                    || (base && 0 === this.compNodePos(node, query.position)))) {
                     if (local !== LocalType.LT_NONE) {
                         foundLocal = {
                             node: node, local: local, base: base, init: init
@@ -436,9 +440,31 @@ export class Search {
         return filter(symbol.getDocumentModule(rawUri, base));
     }
 
+    // 如果找到了位置一致的符号，则认为是需要查找的符号，过滤掉其他同名符号
+    public filterPosition(query: SymbolQuery, symList: SymInfoEx[] | null) {
+        if (!symList) {
+            return null;
+        }
+
+        for (const sym of symList) {
+            if (query.uri !== sym.location.uri) {
+                continue;
+            }
+
+            const range = sym.location.range;
+            if ( 0 === this.compPos(
+                range.start.line, range.start.character,
+                range.end.line, range.end.character, query.position)) {
+                return [sym];
+            }
+        }
+
+        return symList;
+    }
+
+    // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
+    // 避免前面调用的全局符号，跳转到后面的同名local变量
     public filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
-        // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
-        // 避免前面调用的全局符号，跳转到后面的同名local变量
         return symList.filter(sym => {
             if (!sym.local) {
                 return true;
@@ -501,9 +527,10 @@ export class Search {
         let symbol = Symbol.instance();
 
         let filter: Filter = symList => {
-            return this.localizationFilter(query!,
-                this.checkSymDefinition(symList, query!.name, query!.kind)
-            );
+            return this.filterPosition(query,
+                this.localizationFilter(query!,
+                    this.checkSymDefinition(symList, query!.name, query!.kind)
+            ));
         };
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的

@@ -74,12 +74,6 @@ export class HoverProvider {
         return file ? `${file}\n` : "";
     }
 
-    private getCommentCtx(sym: SymInfoEx) {
-        if (!sym.comment) {
-            return "";
-        }
-    }
-
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
         let path = this.getPathPrefix(sym, uri);
         let above = "";

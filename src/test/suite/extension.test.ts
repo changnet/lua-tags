@@ -116,6 +116,33 @@ async function testGoToDefinition(uri: vscode.Uri,
 	});
 }
 
+
+// test hover
+async function testHover(uri: vscode.Uri,
+	position: vscode.Position, expectList: vscode.Hover[]) {
+
+	const doc = await vscode.workspace.openTextDocument(testUri);
+	await vscode.window.showTextDocument(doc);
+
+	const actualList = (await vscode.commands.executeCommand(
+		'vscode.executeHoverProvider',
+		uri,
+		position
+	)) as vscode.Hover[];
+
+	// console.log(`${JSON.stringify(actualList)}`);
+
+	assert.equal(actualList.length, expectList.length);
+	expectList.forEach((expectedItem, index) => {
+		const actualItem = actualList[index];
+		expectedItem.contents.forEach((ctx, ctxIdx) => {
+			const expectCtx = ctx as vscode.MarkdownString;
+			const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
+			assert.equal(actualCtx.value, expectCtx.value);
+		});
+	});
+}
+
 // BDD测试用descript、it
 // TDD测试用suite、test
 
@@ -252,6 +279,55 @@ suite('Extension Test Suite', () => {
 		await testGoToDefinition(uri, new vscode.Position(50, 44), [{
 				uri: uri,
 				range: new vscode.Range(16, 8, 16, 14)
+			}
+		]);
+	});
+
+	test("test no definition", async ()=> {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testGoToDefinition(uri, new vscode.Position(54, 13), []);
+	});
+
+	test("test multi definition", async ()=> {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testGoToDefinition(uri, new vscode.Position(54, 20), [{
+			uri: vscode.Uri.file(path.join(samplePath, "animal.lua")),
+			range: new vscode.Range(11, 0, 12, 3)
+		}, {
+			uri: vscode.Uri.file(path.join(samplePath, "monster.lua")),
+			range: new vscode.Range(7, 0, 8, 3)
+		}
+
+		]);
+	});
+
+	test("test position filter definition", async ()=> {
+		await testGoToDefinition(testUri, new vscode.Position(47, 7), [{
+				uri: testUri,
+				range: new vscode.Range(47, 6, 47, 9)
+			}
+		]);
+	});
+
+	test("test local filter definition", async ()=> {
+		await testGoToDefinition(testUri, new vscode.Position(47, 14), [{
+				uri: testUri,
+				range: new vscode.Range(43, 0, 46, 3)
+			}
+		]);
+	});
+
+	test("test query no base but symbol has hove", async ()=> {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		const val = "\`\`\`lua\nBT_PVP = 1 -- player vs player\n\`\`\`";
+		await testHover(uri, new vscode.Position(15, 12), [{
+				contents: [{value: val} as vscode.MarkdownString],
 			}
 		]);
 	});
