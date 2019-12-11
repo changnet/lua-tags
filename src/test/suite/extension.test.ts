@@ -407,4 +407,71 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test local hove", async ()=> {
+		const val = "\`\`\`lua\n-- 测试声明多个变量\nlocal N = 1\n\`\`\`";
+		await testHover(testUri, new vscode.Position(13, 9), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test table hove", async ()=> {
+		const val = "\`\`\`lua\n-- 测试声明多个变量\n(table) local M\n\`\`\`";
+		await testHover(testUri, new vscode.Position(13, 7), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test file path hove", async ()=> {
+		const val = 'battle_conf.lua\n```lua\nmax_player = 8\n```';
+		await testHover(testUri, new vscode.Position(42, 64), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test module hove", async ()=> {
+		const val = "\`\`\`lua\n(module) table\n\`\`\`";
+		await testHover(testUri, new vscode.Position(30, 1), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test multi function hove", async ()=> {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		const val = 'animal.lua\n```lua\n-- called when the animal be killed\nfunction Animal:on_kill(who, ...)\n```\n---\nmonster.lua\n```lua\n-- called when monster was killed\nfunction Monster:on_kill(who, ...)\n```';
+		await testHover(uri, new vscode.Position(54, 20), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test multi comment hove", async ()=> {
+		const val = '```lua\n-- 测试混合多行注释\n-- comment 111\n--[[\n    这是\r\n    多行\r\n    注释\r\n]]\nlocal multi_comment = true\n```';
+		await testHover(testUri, new vscode.Position(62, 14), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test multi comment break by code hove", async ()=> {
+		const val = '```lua\nfunction cmt() -- 测试注释1\n```';
+		await testHover(testUri, new vscode.Position(49, 13), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
+	test("test should not have comment hove", async ()=> {
+		const val = '```lua\nlocal support_comment = 9\n```';
+		await testHover(testUri, new vscode.Position(53, 17), [{
+				contents: [{value: val} as vscode.MarkdownString],
+			}
+		]);
+	});
+
 });
