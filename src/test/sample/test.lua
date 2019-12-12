@@ -40,7 +40,7 @@ end
 function signature_help(a, b, c, d)
 end
 
-signature_help(a, {a = 1, b = 2}, signature_help(BattleConf.max_player, 8))
+signature_help(a, {a = 1, b = 2}, signature_help(BattleConf.max_player, 8), 1)
 
 -- 测试注释0
 function cmt() -- 测试注释1

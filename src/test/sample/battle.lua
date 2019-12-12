@@ -52,7 +52,7 @@ function factory(monId, max, round)
             return
         end
 
-        monster:on_kill(player)
+        monster:on_kill(player, round)
     end
 end
 

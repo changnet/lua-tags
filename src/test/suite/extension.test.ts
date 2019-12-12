@@ -88,7 +88,7 @@ async function testCompletion(
 			return 0;
 		}
 		return src.label > dst.label ? 1 : 0;
-	})
+	});
 	expectList.items.forEach((expectedItem, i) => {
 		const actualItem = actualList.items[i];
 		assert.equal(actualItem.label, expectedItem.label);
@@ -148,6 +148,41 @@ async function testHover(uri: vscode.Uri,
 			const expectCtx = ctx as vscode.MarkdownString;
 			const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
 			assert.equal(actualCtx.value, expectCtx.value);
+		});
+	});
+}
+
+// test signature help
+async function testSignatureHelp(uri: vscode.Uri,
+	position: vscode.Position, expect: vscode.SignatureHelp) {
+
+	const doc = await vscode.workspace.openTextDocument(testUri);
+	await vscode.window.showTextDocument(doc);
+
+	const actual = (await vscode.commands.executeCommand(
+		'vscode.executeSignatureHelpProvider',
+		uri,
+		position
+	)) as vscode.SignatureHelp;
+
+	// console.log(`${JSON.stringify(actualList)}`);
+
+	assert.equal(
+		actual.activeParameter, expect.activeParameter, "activeparameter");
+	assert.equal(
+		actual.activeSignature, expect.activeSignature, "active signature");
+
+	expect.signatures.forEach((expectedItem, index) => {
+		const actualItem = actual.signatures[index];
+		assert.equal(actualItem.label, expectedItem.label, "label");
+		assert.equal(actualItem.parameters.length,
+			expectedItem.parameters.length, "parameters length");
+		assert.equal(actualItem.documentation,
+			expectedItem.documentation, "documentation");
+		expectedItem.parameters.forEach((param, paramIdx) => {
+			const actualParam = actualItem.parameters[paramIdx];
+			assert.equal(actualParam.label[0], param.label[0], "param label 0");
+			assert.equal(actualParam.label[1], param.label[1], "param label 1");
 		});
 	});
 }
@@ -474,4 +509,47 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test other file signature help", async ()=> {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testSignatureHelp(uri, new vscode.Position(54, 31), {
+			signatures: [{
+				label: 'function on_kill(who, ...)',
+				parameters: [
+					{label: [17, 20]}, {label: [22, 25]}
+				],
+				documentation: 'animal.lua'
+			}, {
+				label: 'function on_kill(who, ...)',
+				parameters: [
+					{label: [17, 20]}, {label: [22, 25]}
+				],
+				documentation: 'monster.lua'
+			}
+			],
+			activeSignature: 0,
+			activeParameter: 1
+		});
+	});
+
+	test("test multi signature help", async ()=> {
+		await testSignatureHelp(testUri, new vscode.Position(42, 75), {
+			signatures: [{
+				label: 'function signature_help(a, b, c)',
+				parameters: [
+					{label: [24, 25]}, {label: [27, 28]}, {label: [30, 31]},
+				]
+			}, {
+				label: 'function signature_help(a, b, c, d)',
+				parameters: [
+					{label: [24, 25]}, {label: [27, 28]},
+					{label: [30, 31]}, {label: [33, 34]},
+				]
+			}
+			],
+			activeSignature: 1,
+			activeParameter: 3
+		});
+	});
 });
