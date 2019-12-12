@@ -25,3 +25,9 @@ activate new configure after configure changed
 * https://github.com/farzher/fuzzysort
 
 * https://www.cockos.com/licecap/
+
+## Known Bugs and Issues
+The luaparse package at npm are very old(0.2.1), some bug already been fixed at 
+github repository like https://github.com/fstirlitz/luaparse/issues/58
+
+manually download and build package if necessary
