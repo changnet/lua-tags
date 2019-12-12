@@ -8,3 +8,5 @@ vsc-extension-quickstart.md
 **/tslint.json
 **/*.map
 **/*.ts
+# vs code can NOT show local picture at markdown, no need to pack them
+*.gif

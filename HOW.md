@@ -1,5 +1,7 @@
-配置
+Configure
 ====
+Attension: Hot configure reload NOT support, restart to activate new configure
+
 - MaxFileSisze  
     文件大小,单位kb。超过此大小的文件，除非是配置文件，否则不解析
 - ExcludeDirectories  

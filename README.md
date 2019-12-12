@@ -13,7 +13,12 @@ Lua IntelliSense for Visual Studio Code.
 ![animation](animation.gif)
 
 ## Configure & Usage
-More detail [here](HOW.md)
+Download and installation are available at Visual Studio Code Extension 
+Marketplace. Once installed, all configure options details are at extension
+Contributions page
+
+ATTENTION: Hot configure reload NOT support, restart Visual Studio Code to 
+activate new configure after configure changed
 
 ## Thanks
 * https://github.com/fstirlitz/luaparse
