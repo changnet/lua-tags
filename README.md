@@ -10,9 +10,13 @@ Lua IntelliSense for Visual Studio Code.
 * Hover
 * Signature Helps
 
+![animation](animation.gif)
+
 ## Configure & Usage
 More detail [here](HOW.md)
 
 ## Thanks
 * https://github.com/fstirlitz/luaparse
 * https://github.com/farzher/fuzzysort
+
+* https://www.cockos.com/licecap/
