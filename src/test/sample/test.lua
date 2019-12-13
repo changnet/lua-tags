@@ -61,3 +61,11 @@ local support_comment = 9
     注释
 ]]
 local multi_comment = true
+
+-- 局部函数
+function top_function()
+    function sub_func(sub_param)
+        sub_func(sub_param)
+    end
+    -- sub_fu
+end

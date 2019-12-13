@@ -56,7 +56,7 @@ async function testWorkspaceSymbol(query: string, expect: string[]) {
 		return src.name > dst.name ? 1 : 0;
 	});
 
-	console.log(`check ${JSON.stringify(actualList)}`);
+	// console.log(`check ${JSON.stringify(actualList)}`);
 	expect.forEach((name, index) => {
 		assert.equal(actualList[index].name, name, "sym name");
 	});
@@ -282,6 +282,14 @@ suite('Extension Test Suite', () => {
 		await testCompletion(testUri, new vscode.Position(34, 9), {
 			items: [
 				{ label: 'empty', kind: vscode.CompletionItemKind.Function },
+			]
+		});
+	});
+
+	test('test sub function completion', async () => {
+		await testCompletion(testUri, new vscode.Position(69, 13), {
+			items: [
+				{ label: 'sub_func', kind: vscode.CompletionItemKind.Function },
 			]
 		});
 	});

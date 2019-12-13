@@ -296,19 +296,25 @@ export class Search {
     }
 
     private searchFunctionDeclaration(expr: FunctionDeclaration) {
-        if (2 !== this.compNodePos(expr, this.pos!)) {
+        const comp = this.compNodePos(expr, this.pos!);
+        if (1 === comp) {
+            return false;
+        }
+
+        // 局部函数声明
+        const ider = expr.identifier;
+        if (ider && ider.type === "Identifier") {
+            let local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
+            if (!this.searchOne(expr, local, ider.name)) {
+                return false;
+            }
+        }
+
+        // 函数局部的内容不需要搜索，不在对应的作用域
+        if (2 !== comp) {
             return true;
         }
-        // 函数名不用搜索，如果是顶层使用域的函数，应该被解析成文档符号
-        // 如果是局部的，不允许直接声明一个函数，不会有函数名的
-        // return function() ... end 这种没有identifier
-        // const ider = expr.identifier;
-        // if (ider && ider.type === "Identifier") {
-        //     let local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
-        //     if (!this.searchOne(ider, local, ider.name)) {
-        //         return false;
-        //     }
-        // }
+
         // 搜索函数参数
         for (const param of expr.parameters) {
             if (param.type === "Identifier"
@@ -349,8 +355,10 @@ export class Search {
         this.callBack = callBack;
 
         // 从函数开始搜索，非函数会在文档符号中查找
+        // TODO: 目前只搜索局部函数，以后考虑加上其他类型，比如 for循环
         for (const node of cache.nodes) {
-            if (node.type === "FunctionDeclaration") {
+            if (node.type === "FunctionDeclaration"
+                && 2 === this.compNodePos(node, pos)) {
                 if (!this.searchFunctionDeclaration(node)) {
                     return;
                 }
@@ -367,7 +375,7 @@ export class Search {
                 /* query是通过正则得到的，因此如果base和name不在同一行，是不准的
                  * 因此这里base相等或者位置相同，都判断为同一符号
                  */
-                if (name === query.name && (base === query.base 
+                if (name === query.name && (base === query.base
                     || (base && 0 === this.compNodePos(node, query.position)))) {
                     if (local !== LocalType.LT_NONE) {
                         foundLocal = {
@@ -455,7 +463,7 @@ export class Search {
             }
 
             const range = sym.location.range;
-            if ( 0 === this.compPos(
+            if (0 === this.compPos(
                 range.start.line, range.start.character,
                 range.end.line, range.end.character, query.position)) {
                 return [sym];
@@ -533,7 +541,7 @@ export class Search {
             return this.filterPosition(query,
                 this.localizationFilter(query!,
                     this.checkSymDefinition(symList, query!.name, query!.kind)
-            ));
+                ));
         };
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
