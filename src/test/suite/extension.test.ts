@@ -28,7 +28,7 @@ async function sleep(ms: number) {
 async function activateExtension() {
 	try {
 		const conf = vscode.workspace.getConfiguration('lua-tags');
-		await conf.update('excludeDir',['exclude/*']);
+		await conf.update('excludeDir', ['exclude/*']);
 
 		// The extensionId is `publisher.name` from package.json
 		const ext = vscode.extensions.getExtension('changnet.lua-tags')!;
@@ -42,21 +42,34 @@ async function activateExtension() {
 }
 
 // test work space symbol
-async function testWorkspaceSymbol(expect: number) {
-	const list = (await vscode.commands.executeCommand(
-		"vscode.executeWorkspaceSymbolProvider", "")) as vscode.SymbolInformation[];
+async function testWorkspaceSymbol(query: string, expect: string[]) {
+	const actualList = (await vscode.commands.executeCommand(
+		"vscode.executeWorkspaceSymbolProvider", query)
+	) as vscode.SymbolInformation[];
 
-	// console.log(`check ${JSON.stringify(list)}`);
-	assert.equal(list.length, expect);
+	assert.equal(actualList.length, expect.length);
+
+	actualList.sort((src, dst) => {
+		if (src.name === dst.name) {
+			return 0;
+		}
+		return src.name > dst.name ? 1 : 0;
+	});
+
+	console.log(`check ${JSON.stringify(actualList)}`);
+	expect.forEach((name, index) => {
+		assert.equal(actualList[index].name, name, "sym name");
+	});
 }
 
 // test document symbol
-async function testDocumentSymbol(uri: vscode.Uri, items: vscode.SymbolInformation[]) {
+async function testDocumentSymbol(
+	uri: vscode.Uri, items: vscode.SymbolInformation[]) {
 	const rawList = (await vscode.commands.executeCommand(
 		"vscode.executeDocumentSymbolProvider", uri));
 
 	// console.log(`check ${JSON.stringify(rawList)}`);
-	const list = rawList  as vscode.SymbolInformation[];
+	const list = rawList as vscode.SymbolInformation[];
 	assert.equal(list.length, items.length);
 	items.forEach((sym, index) => {
 		assert.equal(sym.name, list[index].name);
@@ -67,7 +80,7 @@ async function testDocumentSymbol(uri: vscode.Uri, items: vscode.SymbolInformati
 async function testCompletion(
 	docUri: vscode.Uri,
 	position: vscode.Position,
-	expectList: vscode.CompletionList) {	
+	expectList: vscode.CompletionList) {
 	const doc = await vscode.workspace.openTextDocument(testUri);
 	await vscode.window.showTextDocument(doc);
 
@@ -84,7 +97,7 @@ async function testCompletion(
 	// vs code返回的数组是不规则的，内容是同一样的
 	// 但位置不一定，导致多次测试结果不一致，暂时不知道原因
 	actualList.items.sort((src, dst) => {
-		if (src.label === dst.label ) {
+		if (src.label === dst.label) {
 			return 0;
 		}
 		return src.label > dst.label ? 1 : 0;
@@ -196,33 +209,39 @@ suite('Extension Test Suite', () => {
 	});
 
 	// timeout设置超时时间 
-	test("test active", async ()=> {
+	test("test active", async () => {
 		await activateExtension();
 	}).timeout(10240);
 
-	test('test workspace symbol', async () => {
-		await testWorkspaceSymbol(45);
+	test('test no workspace symbol', async () => {
+		await testWorkspaceSymbol("", []);
 	});
 
-	test("test anonymous table document symbol", async ()=> {
+	test('test fuzz workspace symbol', async () => {
+		await testWorkspaceSymbol("mon", [
+			"MonsterConf", "Monster", "Monster", "multi_comment"
+		]);
+	});
+
+	test("test anonymous table document symbol", async () => {
 		const uri = vscode.Uri.file("");
 		const range = new vscode.Range(0, 0, 0, 0);
 
 		const docPath = path.join(samplePath, "conf", "skill_conf.lua");
 		await testDocumentSymbol(vscode.Uri.file(docPath), [
-			{name: "skill_id", kind: 0, containerName: "", location: {uri: uri, range: range}},
-			{name: "level", kind: 0, containerName: "", location: {uri: uri, range: range}},
-			{name: "desc", kind: 0, containerName: "", location: {uri: uri, range: range}},
+			{ name: "skill_id", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{ name: "level", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{ name: "desc", kind: 0, containerName: "", location: { uri: uri, range: range } },
 		]);
 	});
 
-	test("test table document symbol", async ()=> {
+	test("test table document symbol", async () => {
 		const uri = vscode.Uri.file("");
 		const range = new vscode.Range(0, 0, 0, 0);
 
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
 		await testDocumentSymbol(vscode.Uri.file(docPath), [
-			{name: "BattleConf", kind: 0, containerName: "", location: {uri: uri, range: range}}
+			{ name: "BattleConf", kind: 0, containerName: "", location: { uri: uri, range: range } }
 			// 这里需要注意下，BattleConf包含下面这几个符号信息(在OUTLINE可以折叠)，这个接口只返回一个符号
 			// TODO:暂时不知道原因
 			// {name: "max_player", kind: 0, containerName: "", location: {uri: uri, range: range}},
@@ -317,90 +336,90 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
-	test("test require path definition", async ()=> {
+	test("test require path definition", async () => {
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
 		await testGoToDefinition(testUri, new vscode.Position(6, 33), [{
-				uri: vscode.Uri.file(docPath),
-				range: new vscode.Range(0, 0, 0, 0)
-			}
+			uri: vscode.Uri.file(docPath),
+			range: new vscode.Range(0, 0, 0, 0)
+		}
 		]);
 	});
 
-	test("test parameter definition", async ()=> {
+	test("test parameter definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(36, 16), [{
-				uri: uri,
-				range: new vscode.Range(19, 20, 19, 26)
-			}
+			uri: uri,
+			range: new vscode.Range(19, 20, 19, 26)
+		}
 		]);
 	});
 
 	// 用局部变量覆盖同名变量
-	test("test shadowing definition", async ()=> {
+	test("test shadowing definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(30, 32), [{
-				uri: uri,
-				range: new vscode.Range(29, 45, 29, 51)
-			}
+			uri: uri,
+			range: new vscode.Range(29, 45, 29, 51)
+		}
 		]);
 	});
 
-	test("test for number loop definition", async ()=> {
+	test("test for number loop definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(30, 21), [{
-				uri: uri,
-				range: new vscode.Range(26, 18, 26, 25)
-			}
+			uri: uri,
+			range: new vscode.Range(26, 18, 26, 25)
+		}
 		]);
 	});
 
-	test("test for loop definition", async ()=> {
+	test("test for loop definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(42, 21), [{
-				uri: uri,
-				range: new vscode.Range(41, 19, 41, 29)
-			}
+			uri: uri,
+			range: new vscode.Range(41, 19, 41, 29)
+		}
 		]);
 	});
 
-	test("test repeat definition", async ()=> {
+	test("test repeat definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(47, 30), [{
-				uri: uri,
-				range: new vscode.Range(45, 18, 45, 28)
-			}
+			uri: uri,
+			range: new vscode.Range(45, 18, 45, 28)
+		}
 		]);
 	});
 
-	test("test upvalue definition", async ()=> {
+	test("test upvalue definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(50, 44), [{
-				uri: uri,
-				range: new vscode.Range(16, 8, 16, 14)
-			}
+			uri: uri,
+			range: new vscode.Range(16, 8, 16, 14)
+		}
 		]);
 	});
 
-	test("test no definition", async ()=> {
+	test("test no definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		await testGoToDefinition(uri, new vscode.Position(54, 13), []);
 	});
 
-	test("test multi definition", async ()=> {
+	test("test multi definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
@@ -415,101 +434,101 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	test("test position filter definition", async ()=> {
+	test("test position filter definition", async () => {
 		await testGoToDefinition(testUri, new vscode.Position(49, 7), [{
-				uri: testUri,
-				range: new vscode.Range(49, 6, 49, 9)
-			}
+			uri: testUri,
+			range: new vscode.Range(49, 6, 49, 9)
+		}
 		]);
 	});
 
-	test("test local filter definition", async ()=> {
+	test("test local filter definition", async () => {
 		await testGoToDefinition(testUri, new vscode.Position(49, 14), [{
-				uri: testUri,
-				range: new vscode.Range(45, 0, 48, 3)
-			}
+			uri: testUri,
+			range: new vscode.Range(45, 0, 48, 3)
+		}
 		]);
 	});
 
-	test("test query no base but symbol has hove", async ()=> {
+	test("test query no base but symbol has hove", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		const val = "\`\`\`lua\nBT_PVP = 1 -- player vs player\n\`\`\`";
 		await testHover(uri, new vscode.Position(15, 12), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test local hove", async ()=> {
+	test("test local hove", async () => {
 		const val = "\`\`\`lua\n-- 测试声明多个变量\nlocal N = 1\n\`\`\`";
 		await testHover(testUri, new vscode.Position(13, 9), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test table hove", async ()=> {
+	test("test table hove", async () => {
 		const val = "\`\`\`lua\n-- 测试声明多个变量\n(table) local M\n\`\`\`";
 		await testHover(testUri, new vscode.Position(13, 7), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test file path hove", async ()=> {
+	test("test file path hove", async () => {
 		const val = 'battle_conf.lua\n```lua\nmax_player = 8\n```';
 		await testHover(testUri, new vscode.Position(42, 64), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test module hove", async ()=> {
+	test("test module hove", async () => {
 		const val = "\`\`\`lua\n(module) table\n\`\`\`";
 		await testHover(testUri, new vscode.Position(30, 1), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test multi function hove", async ()=> {
+	test("test multi function hove", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
 		const val = 'animal.lua\n```lua\n-- called when the animal be killed\nfunction Animal:on_kill(who, ...)\n```\n---\nmonster.lua\n```lua\n-- called when monster was killed\nfunction Monster:on_kill(who, ...)\n```';
 		await testHover(uri, new vscode.Position(54, 20), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test multi comment hove", async ()=> {
+	test("test multi comment hove", async () => {
 		const val = '```lua\n-- 测试混合多行注释\n-- comment 111\n--[[\n    这是\r\n    多行\r\n    注释\r\n]]\nlocal multi_comment = true\n```';
 		await testHover(testUri, new vscode.Position(62, 14), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test multi comment break by code hove", async ()=> {
+	test("test multi comment break by code hove", async () => {
 		const val = '```lua\nfunction cmt() -- 测试注释1\n```';
 		await testHover(testUri, new vscode.Position(49, 13), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test should not have comment hove", async ()=> {
+	test("test should not have comment hove", async () => {
 		const val = '```lua\nlocal support_comment = 9\n```';
 		await testHover(testUri, new vscode.Position(53, 17), [{
-				contents: [{value: val} as vscode.MarkdownString],
-			}
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
 		]);
 	});
 
-	test("test other file signature help", async ()=> {
+	test("test other file signature help", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
@@ -517,13 +536,13 @@ suite('Extension Test Suite', () => {
 			signatures: [{
 				label: 'function on_kill(who, ...)',
 				parameters: [
-					{label: [17, 20]}, {label: [22, 25]}
+					{ label: [17, 20] }, { label: [22, 25] }
 				],
 				documentation: 'animal.lua'
 			}, {
 				label: 'function on_kill(who, ...)',
 				parameters: [
-					{label: [17, 20]}, {label: [22, 25]}
+					{ label: [17, 20] }, { label: [22, 25] }
 				],
 				documentation: 'monster.lua'
 			}
@@ -533,18 +552,16 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
-	test("test multi signature help", async ()=> {
+	test("test multi signature help", async () => {
 		await testSignatureHelp(testUri, new vscode.Position(42, 75), {
 			signatures: [{
 				label: 'function signature_help(a, b, c)',
-				parameters: [
-					{label: [24, 25]}, {label: [27, 28]}, {label: [30, 31]},
-				]
+				parameters: []
 			}, {
 				label: 'function signature_help(a, b, c, d)',
 				parameters: [
-					{label: [24, 25]}, {label: [27, 28]},
-					{label: [30, 31]}, {label: [33, 34]},
+					{ label: [24, 25] }, { label: [27, 28] },
+					{ label: [30, 31] }, { label: [33, 34] },
 				]
 			}
 			],

@@ -36,6 +36,7 @@ import {
 
 import Uri from 'vscode-uri';
 import { Utils } from "./utils";
+import * as fuzzysort from "fuzzysort";
 import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
@@ -242,10 +243,15 @@ export class Server {
 
     // 返回工作目录的符号(全局符号列表)
     private onWorkspaceSymbol(
-        handler: WorkspaceSymbolParams): SymbolInformation[] {
-        // TODO:这里匹配一下query，甚至做下模糊匹配
-        // 全部发给vs code的话，vs code自己会匹配
-        return Symbol.instance().getGlobalSymbol(true); // handler.query
+        handler: WorkspaceSymbolParams): SymbolInformation[] | null {
+        const query = handler.query.trim();
+        if (query === "") {
+            return null;
+        }
+
+        return Symbol.instance().getGlobalSymbol(true, sym => {
+            return fuzzysort.single(query, sym.name) ? true : false;
+        }, 128);
     }
 
     // 获取查询符号所在行的文本内容

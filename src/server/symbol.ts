@@ -838,7 +838,7 @@ export class Symbol {
     // @isSub: 是否查找子符号。跳转和自动补全无法精准定位时，会全局查找。这时并不
     // 希望查找子符号，因为这些符号都是必须通过模块名精准访问的
     public getGlobalSymbol(isSub: boolean,
-        filter?: (sym: SymInfoEx) => boolean): SymInfoEx[] {
+        filter?: (sym: SymInfoEx) => boolean, maxSize?: number): SymInfoEx[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }
@@ -846,6 +846,9 @@ export class Symbol {
         let symList: SymInfoEx[] = [];
         for (let [name, newSymList] of this.globalSymbol) {
             this.appendSymList(isSub, symList, newSymList, filter);
+            if (maxSize && symList.length >= maxSize) {
+                break;
+            }
         }
 
         return symList;
