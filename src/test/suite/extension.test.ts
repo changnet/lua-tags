@@ -104,8 +104,8 @@ async function testCompletion(
 	});
 	expectList.items.forEach((expectedItem, i) => {
 		const actualItem = actualList.items[i];
-		assert.equal(actualItem.label, expectedItem.label);
-		assert.equal(actualItem.kind, expectedItem.kind);
+		assert.equal(actualItem.label, expectedItem.label, "label check");
+		assert.equal(actualItem.kind, expectedItem.kind, "kind check");
 	});
 }
 
@@ -592,4 +592,29 @@ suite('Extension Test Suite', () => {
 	test("test exclude dir definition", async () => {
 		await testGoToDefinition(testUri, new vscode.Position(73, 21), []);
 	});
+
+	// 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
+	test("test filter local", async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testGoToDefinition(uri, new vscode.Position(64, 23), [{
+			uri: vscode.Uri.file(
+				path.join(samplePath, "conf", "battle_conf.lua")),
+			range: new vscode.Range(2, 0, 7, 1)
+		}]);
+	});
+
+	// 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
+	test('test filter local completion', async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(68, 6), {
+			items: [
+				{ label: 'new', kind: vscode.CompletionItemKind.Function },
+			]
+		});
+	});
+
 });

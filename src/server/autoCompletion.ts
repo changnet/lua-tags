@@ -246,6 +246,10 @@ export class AutoCompletion {
         items = filter(symbol.getGlobalSymbol(
             false, sym => sym.location.uri !== uri));
         if (items) {
+            let symList = search.filterLocalSym(items, query);
+            if (symList.length > 0) {
+                return symList;
+            }
             return items;
         }
 

@@ -599,6 +599,12 @@ export class Search {
         items = filter(symbol.getGlobalSymbol(
             false, sym => sym.location.uri !== uri));
         if (items) {
+            let symList = this.filterLocalSym(items, query);
+            if (symList.length > 0) {
+                return symList;
+            }
+            // 如果过滤后找不到任何符号，则使用未过滤后的
+            // 因为lua中的local函数等可以赋值传递
             return items;
         }
 

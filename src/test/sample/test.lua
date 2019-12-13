@@ -4,7 +4,7 @@ local Monster = require "Monster"
 -- 测试路径补全，打出这个.号才会触发路径补全
 require "conf."
 
-local BattleConf = require "conf.battle_conf"
+local BattleConf = require "conf.battle_conf" -- localized here and test at battle.lua
 
 -- 当我们搜索符号时，battle.start()和battle.的效果是不一样的
 -- 但battle.会导致当前文件不可编译，因为在注释中测试

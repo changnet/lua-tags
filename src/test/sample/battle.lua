@@ -62,4 +62,8 @@ end
 
 -- stop a battle
 function stop()
+    local scene = BattleConf.scene
 end
+
+-- should only show local new，not oo.lua new
+-- new
