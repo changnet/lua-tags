@@ -438,11 +438,19 @@ export class Search {
     // 根据模块名查找某个文档的符号
     public searchDocumentModule(query: SymbolQuery, filter: Filter) {
         let base = query.base;
-        if (!base) {
+        if (!base || "self" === base || "_G" === base) {
             return null;
         }
 
         let symbol = Symbol.instance();
+
+        // 先查找当前文档的local模块
+        const symList = filter(symbol.getDocumentModule(query.uri, base));
+        if (symList) {
+            return symList;
+        }
+
+        // 查找当前文档引用的其他模块
         let rawUri = symbol.getRawUri(query.uri, base);
         if (!rawUri) {
             return null;
@@ -479,6 +487,11 @@ export class Search {
         return symList.filter(sym => {
             if (!sym.local) {
                 return true;
+            }
+
+            // 不同文件的local无法访问
+            if (sym.location.uri !== query.uri) {
+                return false;
             }
 
             const loc = sym.location.range;
@@ -519,16 +532,20 @@ export class Search {
         return newList.length > 0 ? newList : null;
     }
 
-    private checkSymDefinition(
+    private checkSymList(
         symList: SymInfoEx[] | null, name: string, kind: SymbolKind) {
         if (!symList) { return null; }
 
         let foundList: SymInfoEx[] = [];
         for (let sym of symList) {
-            if (sym.name === name) { foundList.push(sym); }
+            if (sym.name === name) {
+                foundList.push(sym);
+            }
         }
 
-        if (foundList.length > 0) { return foundList; }
+        if (foundList.length > 0) {
+            return foundList;
+        }
 
         return null;
     }
@@ -540,7 +557,7 @@ export class Search {
         let filter: Filter = symList => {
             return this.filterPosition(query,
                 this.localizationFilter(query!,
-                    this.checkSymDefinition(symList, query!.name, query!.kind)
+                    this.checkSymList(symList, query!.name, query!.kind)
                 ));
         };
 

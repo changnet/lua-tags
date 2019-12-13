@@ -48,6 +48,7 @@ import {
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs";
 import { ExecException } from "child_process";
+import { stringify } from "querystring";
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -142,13 +143,18 @@ export interface SymInfoEx extends SymbolInformation {
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
-type SymInfoMap = Map<string, SymInfoEx[]>;
 
 interface NodeCache {
     uri: string;
     nodes: Node[];
     codeLine: number[];
     comments: Comment[];
+}
+
+// 单个模块的信息
+interface ModuleSymInfo {
+    symList: SymInfoEx[];
+    local?: boolean;
 }
 
 export class Symbol {
@@ -168,7 +174,7 @@ export class Symbol {
     // 各个文档的符号缓存，uri为key
     private documentSymbol = new Map<string, SymInfoEx[]>();
     // 各个文档的符号缓存，第一层uri为key，第二层模块名为key
-    private documentModule = new Map<string, Map<string, SymInfoEx[]>>();
+    private documentModule = new Map<string, Map<string, ModuleSymInfo>>();
 
     // 下面是一些解析当前文档的辅助变量
     private parseUri: string = "";
@@ -176,7 +182,7 @@ export class Symbol {
     private parseNodeList: Node[] = [];
     private parseSymList: SymInfoEx[] = [];
     // 各个文档的符号缓存，ider名为key
-    private parseModule = new Map<string, SymInfoEx[]>();
+    private parseModule = new Map<string, ModuleSymInfo>();
     private parseComments: Comment[] = [];
     private parseCodeLine: number[] = [];
     private parseModuleName: string | null = null;
@@ -318,13 +324,42 @@ export class Symbol {
             // function m:test()、M.val = xxx 或者 function m.test() 这种成员函数写法
             nameInfo.name = ider.identifier.name;
             if (ider.base.type === "Identifier") {
-                nameInfo.base = ider.base.name;
+                if ("_G" !== ider.base.name) {
+                    nameInfo.base = ider.base.name;
+                }
                 nameInfo.indexer = ider.indexer;
+
             }
         }
         // IndexExpression是list[idx]这种，暂时没用到
 
         return nameInfo;
+    }
+
+    private pushModuleSymbol(
+        base: string, local: boolean, ...symList: SymInfoEx[]) {
+        let moduleInfo = this.parseModule.get(base);
+        if (!moduleInfo) {
+            moduleInfo = {
+                symList: new Array<SymInfoEx>()
+            };
+            this.parseModule.set(base, moduleInfo);
+        }
+
+        /* 在同一个文档中，如果一个模块为local，则必定是local
+         * local M = {}
+         * M.val = true -- 这行代码解析出来的不是local
+         * 
+         * 如果在不同文件中，则必定不是local
+         * local M = require "m" -- require另一个模块，并对其扩展
+         * m.val = false
+         * 这种情况目前无法判断，也极少有人这样写
+         */
+        if (local) {
+            moduleInfo.local = true;
+        }
+
+        moduleInfo.symList.push(...symList);
     }
 
     // 把一个解析好的符号存到临时解析数组
@@ -335,13 +370,8 @@ export class Symbol {
         if (subSym) {
             // 如果这个符号包含子符号，则一定被当作模块
             // 目前只有table这样处理
-            const base = sym.name;
-            let symList = this.parseModule.get(base);
-            if (!symList) {
-                symList = new Array<SymInfoEx>();
-                this.parseModule.set(base, symList);
-            }
-            symList.push(...subSym);
+            this.pushModuleSymbol(
+                sym.name, sym.local ? true : false, ...subSym);
             this.parseSymList.push(...subSym);
         }
 
@@ -351,12 +381,13 @@ export class Symbol {
             base = this.parseModuleName || undefined;
         }
         if (base) {
-            let symList = this.parseModule.get(base);
-            if (!symList) {
-                symList = new Array<SymInfoEx>();
-                this.parseModule.set(base, symList);
-            }
-            symList.push(sym);
+            this.pushModuleSymbol(base, false, sym);
+        }
+
+        // table当作模块，主要是我们要确定一个模块是否为local
+        // local M = {} 这种情况才能知道是否为local
+        if (sym.kind === SymbolKind.Namespace) {
+            this.pushModuleSymbol(sym.name, sym.local ? true : false);
         }
     }
 
@@ -616,13 +647,17 @@ export class Symbol {
         });
 
         this.documentModule.forEach(moduleHash => {
-            moduleHash.forEach((symList, name) => {
+            moduleHash.forEach((moduleInfo, name) => {
+                // local模块不放到全局
+                if (moduleInfo.local) {
+                    return;
+                }
                 let moduleList = this.globalModule.get(name);
                 if (!moduleList) {
                     moduleList = new Array<SymInfoEx>();
                     this.globalModule.set(name, moduleList);
                 }
-                moduleList.push(...symList);
+                moduleList.push(...moduleInfo.symList);
             });
         });
 
@@ -679,7 +714,8 @@ export class Symbol {
             return [];
         }
 
-        this.parseModule = new Map<string, SymInfoEx[]>();
+        // 不能用clear，这里的数据会直接存到this.documentModule
+        this.parseModule = new Map<string, ModuleSymInfo>();
         this.parseSymList = [];
 
         const nodeList = this.rawParse(uri, text);
@@ -818,7 +854,9 @@ export class Symbol {
             return null;
         }
 
-        return moduleHash.get(base) || null;
+        const moduleInfo = moduleHash.get(base);
+
+        return moduleInfo ? moduleInfo.symList : null;
     }
 
     private appendSymList(isSub: boolean, symList: SymInfoEx[],

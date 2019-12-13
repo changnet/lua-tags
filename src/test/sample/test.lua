@@ -69,3 +69,6 @@ function top_function()
     end
     -- sub_fu
 end
+
+-- exclude context
+local exclude = EXCLUDE

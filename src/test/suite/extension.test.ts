@@ -270,6 +270,17 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	test('test local document module completion', async () => {
+		const docPath = path.join(samplePath, "new_object.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(19, 13), {
+			items: [
+				{ label: 'new', kind: vscode.CompletionItemKind.Function },
+			]
+		});
+	});
+
 	test('test external module completion', async () => {
 		await testCompletion(testUri, new vscode.Position(33, 7), {
 			items: [
@@ -576,5 +587,9 @@ suite('Extension Test Suite', () => {
 			activeSignature: 1,
 			activeParameter: 3
 		});
+	});
+
+	test("test exclude dir definition", async () => {
+		await testGoToDefinition(testUri, new vscode.Position(73, 21), []);
 	});
 });

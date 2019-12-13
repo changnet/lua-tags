@@ -17,3 +17,4 @@ function NewObject.new()
         test_other = test_other
     }
 end
+-- NewObject.
