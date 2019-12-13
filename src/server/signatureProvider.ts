@@ -48,8 +48,8 @@ export class SignatureProvider {
         return SignatureProvider.ins;
     }
 
-    private toSignature(
-        sym: SymInfoEx, uri: string): SignatureInformation | null {
+    private toSignature(sym: SymInfoEx,
+        uri: string, index: number): SignatureInformation | null {
         if (sym.kind !== SymbolKind.Function) {
             return null;
         }
@@ -59,13 +59,16 @@ export class SignatureProvider {
         if (sym.parameters) {
             strParam = sym.parameters.join(", ");
 
-            let offset = "function".length + sym.name.length + 2;
-            for (let param of sym.parameters) {
-                parameters.push({
-                    label: [offset, offset + param.length]
-                });
-                // test(a, b, c)每个参数的位置中包含一个逗号和上空格，所以加2
-                offset += param.length + 2;
+            // 如果参数索引已超过这个函数的参数，则不选中(vs code为带下划线)参数
+            if (index < sym.parameters.length) {
+                let offset = "function".length + sym.name.length + 2;
+                for (let param of sym.parameters) {
+                    parameters.push({
+                        label: [offset, offset + param.length]
+                    });
+                    // test(a, b, c)每个参数的位置中包含一个逗号和上空格，所以加2
+                    offset += param.length + 2;
+                }
             }
         }
 
@@ -158,16 +161,18 @@ export class SignatureProvider {
             return null;
         }
 
-        let activeIndex = -1;
+        let activeIndex: number | null = null;
+        let activeParam: number | null = null; // 为null则vs code不选中参数
         let signatureList: SignatureInformation[] = [];
         symList.forEach((sym, index) => {
-            let sig = this.toSignature(sym, uri);
+            let sig = this.toSignature(sym, uri, info.index);
             if (sig) {
                 signatureList.push(sig);
                 // 如果有多个函数，输入的参数超过了第一个，尝试下一个
-                if (-1 === activeIndex && (!sym.parameters
+                if (null === activeIndex && (!sym.parameters
                     || info.index < sym.parameters.length)) {
                     activeIndex = index;
+                    activeParam = info.index;
                 }
             }
         });
@@ -175,7 +180,7 @@ export class SignatureProvider {
         return {
             signatures: signatureList,
             activeSignature: activeIndex,
-            activeParameter: info.index
+            activeParameter: activeParam
         };
     }
 }
