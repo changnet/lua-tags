@@ -47,8 +47,6 @@ import {
 
 import Uri from 'vscode-uri';
 import { promises as fs } from "fs";
-import { ExecException } from "child_process";
-import { stringify } from "querystring";
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse

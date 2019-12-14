@@ -23,7 +23,8 @@ import {
     FileChangeType,
     InitializeResult,
     SignatureHelp,
-    DidChangeConfigurationParams
+    DidChangeConfigurationParams,
+    DidSaveTextDocumentParams
 } from 'vscode-languageserver';
 
 import {
@@ -41,6 +42,7 @@ import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
 import { SignatureProvider } from "./signatureProvider";
+import { DiagnosticProvider } from "./DiagnosticProvider";
 import { Setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -137,6 +139,14 @@ export class Server {
         });
 
         let doc = this.documents;
+        doc.onDidSave(handler => {
+            try {
+                return this.onSaveDocument(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
         doc.onDidChangeContent(handler => {
             try {
                 return this.onDocumentChange(handler);
@@ -435,6 +445,13 @@ export class Server {
     // 配置变化，现在并没有做热更处理，需要重启vs code
     private onConfiguration(handler: DidChangeConfigurationParams) {
         Setting.instance().setConfiguration(handler.settings, true);
+    }
+
+    // 保存文件
+    private onSaveDocument(handler: TextDocumentChangeEvent) {
+        const doc = handler.document;
+        DiagnosticProvider.instance().check(doc.uri, doc.getText());
+        return null;
     }
 }
 
