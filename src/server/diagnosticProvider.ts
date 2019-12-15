@@ -3,13 +3,18 @@
 import Uri from 'vscode-uri';
 import { Utils } from './utils';
 
-import * as util from 'util';
 import { execFile } from "child_process";
+
+
+import {
+    Diagnostic,
+    DiagnosticSeverity
+} from 'vscode-languageserver';
 
 // 对应child_process.execFile的Option字段
 interface ProcOption {
     timeout: number; // default 0
-    //Largest amount of data in bytes allowed on stdout or stderr. If exceeded,
+    // Largest amount of data in bytes allowed on stdout or stderr. If exceeded,
     // the child process is terminated and any output is truncated. See caveat
     // at maxBuffer and Unicode. Default: 1024 * 1024.
     maxBuffer: number;
@@ -22,6 +27,9 @@ export class DiagnosticProvider {
     private pending = new Map<string, string>();
     private option: ProcOption;
     private cmd: string;
+
+    // f:\lua-tags\src\test\sample\test.lua:1:7-13: (W211) unused variable 'Monster'
+    private static regx = /(\d+):(\d+)-(\d+): \(([EW])(\d+)\) (.+)$/;
 
     private constructor() {
         // https://nodejs.org/api/process.html#process_process_platform
@@ -55,9 +63,46 @@ export class DiagnosticProvider {
 
     private toDiagnostic(msg: string | null) {
         if (!msg || msg === "") {
-            return;
+            return [];
         }
         Utils.instance().log(msg);
+
+        let diags: Diagnostic[] = [];
+        const lines = msg.split(/\r?\n/g);
+        for (const line of lines) {
+            // empty line at end of stdout
+            if (line === "") {
+                continue;
+            }
+
+            const matchs = line.match(DiagnosticProvider.regx);
+            if (!matchs) {
+                Utils.instance().error(`luacheck: ${line}`);
+                continue;
+            }
+
+            const ln = parseInt(matchs[1]) - 1;
+            const col = parseInt(matchs[2]) - 1;
+            const endCol = parseInt(matchs[3]);
+            const msg = `(${matchs[4]}${matchs[5]})${matchs[6]}`;
+
+            let severity: DiagnosticSeverity = DiagnosticSeverity.Information;
+            switch (matchs[4]) {
+                case "E": severity = DiagnosticSeverity.Error; break;
+                case "W": severity = DiagnosticSeverity.Warning; break;
+            }
+
+            diags.push({
+                range: {
+                    start: { line: ln, character: col },
+                    end: { line: ln, character: endCol }
+                },
+                severity: severity,
+                message: msg
+            })
+        }
+
+        return diags;
     }
 
     /* luacheck chooses exit code as follows:
@@ -110,7 +155,8 @@ export class DiagnosticProvider {
                 '-' // 表示从stdin读取内容
             ], ctx);
 
-            this.toDiagnostic(msg);
+            const diags = this.toDiagnostic(msg);
+            Utils.instance().diagnostics(rawUri, diags);
         } catch (e) {
             Utils.instance().anyError(e);
             Utils.instance().error(`luacheck ${JSON.stringify(e)}`);
