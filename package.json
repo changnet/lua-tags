@@ -78,7 +78,7 @@
 				},
 				"lua-tags.checkOnInit": {
 					"scope": "resource",
-					"type": "string",
+					"type": "boolean",
 					"default": true,
 					"description": "run luacheck for all files at lua-tags initialization."
 				},

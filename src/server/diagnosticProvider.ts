@@ -1,5 +1,6 @@
 // lint 代码检查
 
+import * as path from "path";
 import Uri from 'vscode-uri';
 import { Utils } from './utils';
 
@@ -110,33 +111,37 @@ export class DiagnosticProvider {
      */
     private runCheck(cmd: string, args: string[], ctx: string): Thenable<any> {
         return new Promise((resolve, reject) => {
-            let child = execFile(
-                cmd, args, this.option, (error, stdout) => {
-                    if (!error) {
-                        resolve("");
-                        return;
-                    }
-                    const code: number = (error as any).code;
-                    if (1 === code || 2 === code) {
-                        resolve(stdout);
-                    } else {
-                        reject(error);
-                    }
-                });
+            try {
+                let child = execFile(
+                    cmd, args, this.option, (error, stdout) => {
+                        if (!error) {
+                            resolve("");
+                            return;
+                        }
+                        const code: number = (error as any).code;
+                        if (1 === code || 2 === code) {
+                            resolve(stdout);
+                        } else {
+                            reject(error);
+                        }
+                    });
 
-            if (ctx.length < 16384) {
-                return child.stdin.end(ctx);
-            }
+                if (ctx.length <= ChunkSize) {
+                    return child.stdin.end(ctx);
+                }
 
-            /* https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback
-             * you can NOT write large buffer using  child.stdin.end
-             * buf can write multi times
-             * While a stream is not draining, calls to write() will buffer chunk, and return false
-             */
-            for (let index = 0; index < ctx.length; index += ChunkSize) {
-                child.stdin.write(ctx.substring(index, index + ChunkSize));
+                /* https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback
+                 * you can NOT write large buffer using child.stdin.end once
+                 * but you can write multi times
+                 * While a stream is not draining, calls to write() will buffer chunk, and return false
+                 */
+                for (let index = 0; index < ctx.length; index += ChunkSize) {
+                    child.stdin.write(ctx.substring(index, index + ChunkSize));
+                }
+                child.stdin.end();
+            } catch (e) {
+                Utils.instance().anyError(e);
             }
-            child.stdin.end();
         })
     }
 
@@ -150,12 +155,14 @@ export class DiagnosticProvider {
         // 其他平台默认要把luacheck添加到path
         let cmd = "luackeck";
         const platform = process.platform;
+        Utils.instance().log(`check dir ${__dirname}`);
         if (platform === "win32") {
-            cmd = "../../../luacheck/luacheck_0.23.0.exe";
+            cmd = path.resolve(
+                __dirname, "../../luacheck/luacheck_0.23.0.exe");
         } else if (platform === "linux") {
             // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
-            cmd = "../../../luacheck/luacheck_0.23.0";
+            cmd = path.resolve(__dirname, "../../luacheck/luacheck_0.23.0");
         }
 
         return cmd;
