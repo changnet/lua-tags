@@ -11,6 +11,7 @@ import {
     DiagnosticSeverity
 } from 'vscode-languageserver';
 import { print } from 'util';
+import { Setting } from './setting';
 
 // 对应child_process.execFile的Option字段
 interface ProcOption {
@@ -182,9 +183,30 @@ export class DiagnosticProvider {
     public check(uri: string, ctx: string) {
         // 已经在等待检查，不用处理
         if (this.pending.get(uri)) {
+            this.pending.set(uri, ctx);
             return;
         }
 
-        this.rawCheck(uri, ctx);
+        let delay = Setting.instance().getCheckDelay();
+        // delay a very small time is meaningless
+        if (delay <= 100) {
+            this.rawCheck(uri, ctx);
+            return;
+        }
+
+        // delay too long may cause a lots of task pending
+        if (delay > 5000) {
+            delay = 5000;
+        }
+
+        this.pending.set(uri, ctx);
+        setTimeout(() => {
+            // ctx could be update, do't use ctx
+            let curCtx = this.pending.get(uri);
+            this.pending.delete(uri);
+            if (curCtx) {
+                this.rawCheck(uri, curCtx);
+            }
+        }, delay);
     }
 }

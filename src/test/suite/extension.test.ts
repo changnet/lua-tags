@@ -202,21 +202,19 @@ async function testSignatureHelp(uri: vscode.Uri,
 
 
 // test lua check
-async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic) {
+// !!! 如果需要测试其他文件，注意修改.luacheckrc !!!
+async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic[]) {
 
 	const actualList = vscode.languages.getDiagnostics(uri);
 
-	console.log(`${JSON.stringify(actualList)}`);
+	// console.log(`${JSON.stringify(actualList)}`);
 
-	// assert.equal(actualList.length, expectList.length);
-	// expectList.forEach((expectedItem, index) => {
-	// 	const actualItem = actualList[index];
-	// 	expectedItem.contents.forEach((ctx, ctxIdx) => {
-	// 		const expectCtx = ctx as vscode.MarkdownString;
-	// 		const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
-	// 		assert.equal(actualCtx.value, expectCtx.value);
-	// 	});
-	// });
+	assert.equal(actualList.length, expectList.length);
+	expectList.forEach((expectedItem, index) => {
+		const actualItem = actualList[index];
+		assert.equal(actualItem.severity, expectedItem.severity, "serverity");
+		assert.equal(actualItem.message, expectedItem.message, "message");
+	});
 }
 
 // BDD测试用descript、it
@@ -635,5 +633,35 @@ suite('Extension Test Suite', () => {
 			]
 		});
 	});
+
+	test('test luacheck', async () => {
+		const docPath = path.join(samplePath, "check.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testLuaCheck(uri, [{
+			range: new vscode.Range(0, 0, 0, 0),
+			severity: vscode.DiagnosticSeverity.Warning,
+			message: "(W211)unused variable 'foo'",
+		}, {
+			range: new vscode.Range(0, 0, 0, 0),
+			severity: vscode.DiagnosticSeverity.Warning,
+			message: "(W211)unused function 'bar'",
+		}]);
+	});
+	test('test large file luacheck', async () => {
+		const docPath = path.join(samplePath, "conf", "monster_conf.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testLuaCheck(uri, [{
+			range: new vscode.Range(0, 0, 0, 0),
+			severity: vscode.DiagnosticSeverity.Warning,
+			message: "(W111)setting non-standard global variable 'MonsterConf'",
+		}, {
+			range: new vscode.Range(0, 0, 0, 0),
+			severity: vscode.DiagnosticSeverity.Warning,
+			message: "(W211)unused variable 'MK'",
+		}]);
+	});
+
 
 });

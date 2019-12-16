@@ -163,5 +163,16 @@ export class Setting {
     public isCheckOnInit() {
         return this.luaCheck && this.checkOnInit;
     }
-}
 
+    public isCheckOnTyping() {
+        return this.luaCheck && "typing" === this.checkHow;
+    }
+
+    public isCheckOnSave() {
+        return this.luaCheck && "save" === this.checkHow;
+    }
+
+    public getCheckDelay() {
+        return this.checkDelay;
+    }
+}

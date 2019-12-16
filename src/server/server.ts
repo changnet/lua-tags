@@ -212,9 +212,12 @@ export class Server {
 
         let beg = Date.now();
 
+        const checkOnInit = setting.isCheckOnInit();
         await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
             symbol.parse(uri, ctx);
-            diagnostic.check(uri, ctx);
+            if (checkOnInit) {
+                diagnostic.check(uri, ctx);
+            }
         });
         symbol.setCacheOpen();
 
@@ -380,8 +383,27 @@ export class Server {
     // 已打开的文档内容变化，注意是已打开的
     // 在编辑器上修改文档内容没保存，或者其他软件直接修改文件都会触发
     private onDocumentChange(handler: TextDocumentChangeEvent) {
-        let uri = handler.document.uri;
-        Symbol.instance().parse(uri, handler.document.getText());
+        const uri = handler.document.uri;
+        const text = handler.document.getText();
+        Symbol.instance().parse(uri, text);
+
+        if (Setting.instance().isCheckOnTyping()) {
+            DiagnosticProvider.instance().check(uri, text);
+        }
+    }
+
+    // 这里处理因第三方软件直接修改文件造成的文件变化
+    private doFileChange(uri: string, doSym: boolean) {
+        let path = Uri.parse(uri);
+        DirWalker.instance().walkFile(path.fsPath, (fileUri, ctx) => {
+            if (doSym) {
+                Symbol.instance().parse(fileUri, ctx);
+            }
+            if (Setting.instance().isLuaCheckOpen()) {
+                DiagnosticProvider.instance().check(fileUri, ctx);
+            }
+        }, uri
+        );
     }
 
     // 文件增删
@@ -393,26 +415,19 @@ export class Server {
             let type = event.type;
             switch (type) {
                 case FileChangeType.Created: {
-                    let path = Uri.parse(uri);
-                    DirWalker.instance().walkFile(
-                        path.fsPath, (fileUri, ctx) => {
-                            symbol.parse(fileUri, ctx);
-                        }, uri
-                    );
+                    this.doFileChange(uri, true);
                     break;
                 }
                 case FileChangeType.Changed: {
                     let doc = this.documents.get(uri);
                     // 取得到文档，说明是已打开的文件，在 onDocumentChange 处理
                     // 这里只处理没打开的文件
-                    if (doc) { return; }
+                    if (doc) {
+                        this.doFileChange(uri, false);
+                        return;
+                    }
 
-                    let path = Uri.parse(uri);
-                    DirWalker.instance().walkFile(
-                        path.fsPath, (fileUri, ctx) => {
-                            symbol.parse(fileUri, ctx);
-                        }, uri
-                    );
+                    this.doFileChange(uri, true);
                     break;
                 }
                 case FileChangeType.Deleted: {
@@ -462,9 +477,11 @@ export class Server {
 
     // 保存文件
     private onSaveDocument(handler: TextDocumentChangeEvent) {
+        if (!Setting.instance().isCheckOnSave()) {
+            return;
+        }
         const doc = handler.document;
         DiagnosticProvider.instance().check(doc.uri, doc.getText());
-        return null;
     }
 }
 
