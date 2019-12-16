@@ -32,6 +32,12 @@
 				"lua-tags.luaVersion": {
 					"scope": "resource",
 					"type": "string",
+					"enum": [
+						"5.1",
+						"5.2",
+						"5.3",
+						"LuaJIT"
+					],
 					"default": "5.3",
 					"description": "Lua Version."
 				},
@@ -58,6 +64,46 @@
 					"type": "string",
 					"default": "",
 					"description": "lua-tags set the workspace dir as root dir by default, you cant set subdir as root dir."
+				},
+				"lua-tags.luacheck": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "enable or disable luacheck."
+				},
+				"lua-tags.checkOnInit": {
+					"scope": "resource",
+					"type": "string",
+					"default": true,
+					"description": "run luacheck for all files at lua-tags initialization."
+				},
+				"lua-tags.checkHow": {
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"typing",
+						"save"
+					],
+					"default": "save",
+					"description": "run luacheck on typing or on file save."
+				},
+				"lua-tags.checkDelay": {
+					"scope": "resource",
+					"type": "number",
+					"default": 1000,
+					"description": "delay run luacheck(millisecond)."
+				},
+				"lua-tags.luaCheckPath": {
+					"scope": "resource",
+					"type": "string",
+					"default": "",
+					"description": "specify extern luacheck instead of using default."
+				},
+				"lua-tags.luaCheckRc": {
+					"scope": "resource",
+					"type": "string",
+					"default": "",
+					"description": "specify .luacheckrc path."
 				},
 				"lua-tags.trace.server": {
 					"scope": "window",

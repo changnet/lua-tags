@@ -29,6 +29,14 @@ export class Setting {
     private rawRootUri: string = ""; // vs code打开的根目录uri
     private rootUri: string = ""; // 完整的工程根目录uri
 
+    // luacheck setting
+    private luaCheck = true; // enable or disable luacheck
+    private checkOnInit = true; // run luacheck on init
+    private checkHow = "save"; // run luacheck on file save or typing
+    private checkDelay = 1000; // delay run luacheck
+    private luaCheckPath = ""; // luacheck path
+    private luaCheckRc = ""; // .luacheckrc path
+
     private constructor() {
     }
 
@@ -66,8 +74,32 @@ export class Setting {
             this.rootDir = <string>(conf.rootDir) || "";
         }
 
+        if (conf.luacheck) {
+            this.luaCheck = <boolean>(conf.luacheck) || true;
+        }
+
+        if (conf.checkOnInit) {
+            this.checkOnInit = <boolean>(conf.checkOnInit) || true;
+        }
+
+        if (conf.checkHow) {
+            this.checkHow = <string>(conf.checkHow) || "save";
+        }
+
+        if (conf.checkDelay) {
+            this.checkDelay = <number>(conf.checkDelay) || 1000;
+        }
+
+        if (conf.luaCheckPath) {
+            this.luaCheckPath = <string>(conf.luaCheckPath) || "";
+        }
+
+        if (conf.luaCheckRc) {
+            this.luaCheckRc = <string>(conf.luaCheckRc) || "";
+        }
+
         if ("" !== this.rawRootUri) {
-            this.rootUri = this.getRoot(this.rawRootUri, "/");
+            this.rootUri = this.getRoot(this.rawRootUri);
         }
     }
 
@@ -87,12 +119,12 @@ export class Setting {
     }
 
     // 获取设置的根目录
-    public getRoot(oldPath: string, slash: string) {
+    public getRoot(oldPath: string) {
         if ("" === this.rootDir) {
             return oldPath;
         }
 
-        return oldPath + slash + this.rootDir;
+        return path.join(oldPath, this.rootDir);
     }
 
     // 获取文件的类型
@@ -122,6 +154,14 @@ export class Setting {
         }
 
         return ft;
+    }
+
+    public isLuaCheckOpen() {
+        return this.luaCheck;
+    }
+
+    public isCheckOnInit() {
+        return this.luaCheck && this.checkOnInit;
     }
 }
 

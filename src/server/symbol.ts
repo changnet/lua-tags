@@ -45,9 +45,6 @@ import {
     Definition
 } from 'vscode-languageserver';
 
-import Uri from 'vscode-uri';
-import { promises as fs } from "fs";
-
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
 // type expressed as an enum flag which can be matched with luaparse.tokenTypes.
@@ -184,8 +181,6 @@ export class Symbol {
     private parseComments: Comment[] = [];
     private parseCodeLine: number[] = [];
     private parseModuleName: string | null = null;
-
-    private pathSlash: string = "/";
 
     private openCache = false;
     // 缓存8个文档的符号数据，用于本地符号的查找等
@@ -888,65 +883,6 @@ export class Symbol {
         }
 
         return symList;
-    }
-
-    // 解析根目录的所有lua文件
-    public async parseRoot(path: string) {
-        // TODO:没打开目录时没有rootPath，后面再处理
-        // 使用和vs code一样的路径分隔符，不然无法根据uri快速查询符号
-        if (-1 === path.indexOf(this.pathSlash)) {
-            this.pathSlash = "\\";
-        }
-
-        let rootPath = Setting.instance().getRoot(path, this.pathSlash);
-
-        Utils.instance().log(`start parse root ${rootPath}`);
-        try {
-            await this.parseDir(rootPath);
-        } catch (e) {
-            Utils.instance().anyError(e);
-        }
-    }
-
-    // 解析单个目录的Lua文件
-    private async parseDir(path: string) {
-        if (Setting.instance().isExcludeDotDir(path)) {
-            return;
-        }
-
-        // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
-        // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
-        let files = await fs.readdir(path, { withFileTypes: true });
-
-        for (let file of files) {
-            let subPath = `${path}${this.pathSlash}${file.name}`;
-
-            if (file.isDirectory()) {
-                await this.parseDir(subPath);
-            }
-            else if (file.isFile()) {
-                await this.parseFile(subPath);
-            }
-
-        }
-    }
-
-    // 解析单个Lua文件
-    public async parseFile(path: string, ) {
-        if (!path.endsWith(".lua")) {
-            return;
-        }
-
-        // uri总是用/来编码，在win下，路径是用\的
-        // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
-        const uri = Uri.from({
-            scheme: "file",
-            path: "/" !== this.pathSlash ? path.replace(/\\/g, "/") : path
-        }).toString();
-
-        let data = await fs.readFile(path);
-
-        this.parse(uri, data.toString());
     }
 
     // 查找经过本地化的原符号uri

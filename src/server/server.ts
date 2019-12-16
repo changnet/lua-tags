@@ -36,7 +36,7 @@ import {
 // import assert from "assert";
 
 import Uri from 'vscode-uri';
-import { Utils } from "./utils";
+import { Utils, DirWalker } from "./utils";
 import * as fuzzysort from "fuzzysort";
 import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
@@ -210,7 +210,9 @@ export class Server {
 
         let beg = Date.now();
 
-        await symbol.parseRoot(uri.fsPath);
+        await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
+            symbol.parse(uri, ctx);
+        });
         symbol.setCacheOpen();
 
         let end = Date.now();
@@ -389,7 +391,11 @@ export class Server {
             switch (type) {
                 case FileChangeType.Created: {
                     let path = Uri.parse(uri);
-                    symbol.parseFile(path.fsPath);
+                    DirWalker.instance().walkFile(
+                        path.fsPath, (fileUri, ctx) => {
+                            symbol.parse(fileUri, ctx);
+                        }, uri
+                    );
                     break;
                 }
                 case FileChangeType.Changed: {
@@ -399,7 +405,11 @@ export class Server {
                     if (doc) { return; }
 
                     let path = Uri.parse(uri);
-                    symbol.parseFile(path.fsPath);
+                    DirWalker.instance().walkFile(
+                        path.fsPath, (fileUri, ctx) => {
+                            symbol.parse(fileUri, ctx);
+                        }, uri
+                    );
                     break;
                 }
                 case FileChangeType.Deleted: {

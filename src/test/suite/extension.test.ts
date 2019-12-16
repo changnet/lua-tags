@@ -200,6 +200,25 @@ async function testSignatureHelp(uri: vscode.Uri,
 	});
 }
 
+
+// test lua check
+async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic) {
+
+	const actualList = vscode.languages.getDiagnostics(uri);
+
+	console.log(`${JSON.stringify(actualList)}`);
+
+	// assert.equal(actualList.length, expectList.length);
+	// expectList.forEach((expectedItem, index) => {
+	// 	const actualItem = actualList[index];
+	// 	expectedItem.contents.forEach((ctx, ctxIdx) => {
+	// 		const expectCtx = ctx as vscode.MarkdownString;
+	// 		const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
+	// 		assert.equal(actualCtx.value, expectCtx.value);
+	// 	});
+	// });
+}
+
 // BDD测试用descript、it
 // TDD测试用suite、test
 
