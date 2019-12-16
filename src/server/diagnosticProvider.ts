@@ -10,6 +10,7 @@ import {
     Diagnostic,
     DiagnosticSeverity
 } from 'vscode-languageserver';
+import { print } from 'util';
 
 // 对应child_process.execFile的Option字段
 interface ProcOption {
@@ -19,6 +20,8 @@ interface ProcOption {
     // at maxBuffer and Unicode. Default: 1024 * 1024.
     maxBuffer: number;
 }
+
+const ChunkSize = 16384;
 
 export class DiagnosticProvider {
     private static ins: DiagnosticProvider;
@@ -127,7 +130,20 @@ export class DiagnosticProvider {
                         reject(error);
                     }
                 });
-            child.stdin.end(ctx);
+
+            if (ctx.length < 16384) {
+                return child.stdin.end(ctx);
+            }
+
+            /* https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback
+             * you can NOT write large buffer using  child.stdin.end
+             * buf can write multi times
+             * While a stream is not draining, calls to write() will buffer chunk, and return false
+             */
+            for (let index = 0; index < ctx.length; index += ChunkSize) {
+                child.stdin.write(ctx.substring(index, index + ChunkSize));
+            }
+            child.stdin.end();
         })
     }
 

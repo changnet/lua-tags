@@ -5640,3 +5640,4 @@ MonsterConf =
         defend = 800
     },
 }
+local MK = true

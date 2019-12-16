@@ -206,12 +206,15 @@ export class Server {
         setting.setConfiguration(conf);
 
         const uri = Uri.parse(this.rootUri);
+
         let symbol = Symbol.instance();
+        let diagnostic = DiagnosticProvider.instance();
 
         let beg = Date.now();
 
         await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
             symbol.parse(uri, ctx);
+            diagnostic.check(uri, ctx);
         });
         symbol.setCacheOpen();
 
