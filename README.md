@@ -20,9 +20,14 @@ Contributions page
 ATTENTION: Hot configure reload NOT support, restart Visual Studio Code to 
 activate new configure after configure changed
 
+#### luacheck
+lua-tags already integret with luacheck(win32 and linux)，if using MacOS or other
+platform, specify luaCheckPath at configure or add luacheck to os excuate PATH
+
 ## Thanks
 * https://github.com/fstirlitz/luaparse
 * https://github.com/farzher/fuzzysort
+* https://github.com/mpeterv/luacheck
 
 * https://www.cockos.com/licecap/
 

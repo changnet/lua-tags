@@ -152,7 +152,8 @@ export class DiagnosticProvider {
         const platform = process.platform;
         if (platform === "win32") {
             cmd = "../../../luacheck/luacheck_0.23.0.exe";
-        } else {
+        } else if (platform === "linux") {
+            // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
             cmd = "../../../luacheck/luacheck_0.23.0";
         }
