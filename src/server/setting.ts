@@ -175,4 +175,12 @@ export class Setting {
     public getCheckDelay() {
         return this.checkDelay;
     }
+
+    public getLuaCheckPath() {
+        return this.luaCheckPath;
+    }
+
+    public getLuaCheckRc() {
+        return this.luaCheckRc;
+    }
 }

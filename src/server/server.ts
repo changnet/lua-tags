@@ -408,7 +408,6 @@ export class Server {
 
     // 文件增删
     private onFilesChange(handler: DidChangeWatchedFilesParams) {
-        let symbol = Symbol.instance();
         for (let event of handler.changes) {
 
             let uri = event.uri;
@@ -431,7 +430,8 @@ export class Server {
                     break;
                 }
                 case FileChangeType.Deleted: {
-                    symbol.delDocumentSymbol(uri);
+                    Symbol.instance().delDocumentSymbol(uri);
+                    DiagnosticProvider.instance().deleteChecking(uri);
                     break;
                 }
             } // switch
