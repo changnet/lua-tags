@@ -56,7 +56,6 @@ export class Setting {
     }
 
     public setConfiguration(conf: any, isUpdate: boolean = false) {
-        Utils.instance().log(`check conf ${JSON.stringify(conf)}`);
         if (conf.luaVersion) {
             this.luaVersion = <Version>(conf.luaVersion) || "5.3";
         }

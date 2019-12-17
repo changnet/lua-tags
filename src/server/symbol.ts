@@ -793,11 +793,16 @@ export class Symbol {
         this.parseCodeLine = [];
         this.parseModuleName = null;
 
-        let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
-            this.parseText(uri, text) : this.parseLarge(text);
+        try {
+            let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
+                this.parseText(uri, text) : this.parseLarge(text);
 
-        if (!ok) {
-            return null;
+            if (!ok) {
+                return null;
+            }
+        } catch (e) {
+            Utils.instance().anyError(e);
+            Utils.instance().error(uri);
         }
 
         this.updateCache(uri, this.parseNodeList,

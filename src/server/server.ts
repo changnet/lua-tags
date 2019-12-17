@@ -204,7 +204,6 @@ export class Server {
 
         let conf = await this.connection.workspace.getConfiguration("lua-tags");
         setting.setConfiguration(conf);
-        Utils.instance().log(`check init ${JSON.stringify(conf)}`);
 
         const uri = Uri.parse(this.rootUri);
 

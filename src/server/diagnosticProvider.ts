@@ -48,7 +48,8 @@ export class DiagnosticProvider {
 
     private constructor() {
         this.option = {
-            timeout: 5000,
+            // it take some time to check large file
+            timeout: 10000,
             maxBuffer: 1024 * 1024
         };
 
@@ -147,7 +148,8 @@ export class DiagnosticProvider {
                 }
                 child.stdin.end();
             } catch (e) {
-                Utils.instance().anyError(e);
+                // Utils.instance().anyError(e);
+                reject(e);
             }
         });
     }
@@ -212,7 +214,7 @@ export class DiagnosticProvider {
         this.args[5] = uri.fsPath;
 
         this.checking.set(rawUri, 1);
-        Utils.instance().log(`start check ${rawUri}`);
+
         try {
             // 用promisify没找到输入stdin的方法
             // const procExecFile = util.promisify(execFile);
@@ -229,10 +231,10 @@ export class DiagnosticProvider {
         } catch (e) {
             Utils.instance().anyError(e);
             Utils.instance().error(`luacheck ${JSON.stringify(e)}`);
+            Utils.instance().error(rawUri);
         }
 
         this.checking.delete(rawUri);
-        Utils.instance().log(`stop check ${rawUri}`);
     }
 
     private async timeoutCheck() {
@@ -245,9 +247,11 @@ export class DiagnosticProvider {
                 const uri = task.uri;
                 let curCtx = this.pendingCtx.get(uri);
                 this.pendingCtx.delete(uri);
-                if (curCtx) {
-                    await this.rawCheck(uri, curCtx);
+                if (!curCtx) {
+                    continue;
                 }
+
+                await this.rawCheck(uri, curCtx);
             } else {
                 this.pendingTask = this.pendingTask.splice(0, index);
 
