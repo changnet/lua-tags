@@ -1,6 +1,7 @@
 // 插件配置
 
 import * as path from "path";
+import { Utils } from "./utils";
 
 // let ver:string = "5.1"
 // luaVersion = ver as Version
@@ -55,6 +56,7 @@ export class Setting {
     }
 
     public setConfiguration(conf: any, isUpdate: boolean = false) {
+        Utils.instance().log(`check conf ${JSON.stringify(conf)}`);
         if (conf.luaVersion) {
             this.luaVersion = <Version>(conf.luaVersion) || "5.3";
         }
@@ -67,21 +69,17 @@ export class Setting {
             this.maxFileSize = <number>(conf.maxFileSize) || 100 * 1024;
         }
 
-        if (conf.excludeDotDir) {
-            this.excludeDotDir = <boolean>(conf.excludeDotDir) || true;
-        }
+        // boolean类型不用if判断
+        this.excludeDotDir = <boolean>(conf.excludeDotDir);
 
         if (conf.rootDir) {
             this.rootDir = <string>(conf.rootDir) || "";
         }
 
-        if (conf.luacheck) {
-            this.luaCheck = <boolean>(conf.luacheck) || true;
-        }
 
-        if (conf.checkOnInit) {
-            this.checkOnInit = <boolean>(conf.checkOnInit) || true;
-        }
+        this.luaCheck = <boolean>(conf.luacheck);
+        this.checkOnInit = <boolean>(conf.checkOnInit);
+
 
         if (conf.checkHow) {
             this.checkHow = <string>(conf.checkHow) || "save";

@@ -647,7 +647,8 @@ suite('Extension Test Suite', () => {
 			severity: vscode.DiagnosticSeverity.Warning,
 			message: "(W211)unused function 'bar'",
 		}]);
-	});
+	}).timeout(2000);
+
 	test('test large file luacheck', async () => {
 		const docPath = path.join(samplePath, "conf", "monster_conf.lua");
 
@@ -661,7 +662,7 @@ suite('Extension Test Suite', () => {
 			severity: vscode.DiagnosticSeverity.Warning,
 			message: "(W211)unused variable 'MK'",
 		}]);
-	});
+	}).timeout(2000);
 
 
 });

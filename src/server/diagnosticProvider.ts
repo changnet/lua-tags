@@ -22,13 +22,19 @@ interface ProcOption {
     maxBuffer: number;
 }
 
+interface PendingTask {
+    timeout: number;
+    uri: string;
+}
+
 const ChunkSize = 16384;
 
 export class DiagnosticProvider {
     private static ins: DiagnosticProvider;
 
     // 正在等待检查的文件，key为uri
-    private pending = new Map<string, string>();
+    private pendingCtx = new Map<string, string>();
+    private pendingTask = new Array<PendingTask>();
     // 正在检查的文件，key为uri
     private checking = new Map<string, number>();
 
@@ -64,7 +70,6 @@ export class DiagnosticProvider {
         if (!msg || msg === "") {
             return [];
         }
-        Utils.instance().log(msg);
 
         let diags: Diagnostic[] = [];
         const lines = msg.split(/\r?\n/g);
@@ -98,7 +103,7 @@ export class DiagnosticProvider {
                 },
                 severity: severity,
                 message: msg
-            })
+            });
         }
 
         return diags;
@@ -144,7 +149,7 @@ export class DiagnosticProvider {
             } catch (e) {
                 Utils.instance().anyError(e);
             }
-        })
+        });
     }
 
     public updateCmdArgs() {
@@ -162,7 +167,7 @@ export class DiagnosticProvider {
         // 其他平台默认要把luacheck添加到path
         let cmd = "luackeck";
         const platform = process.platform;
-        Utils.instance().log(`check dir ${__dirname}`);
+
         if (platform === "win32") {
             cmd = path.resolve(
                 __dirname, "../../luacheck/luacheck_0.23.0.exe");
@@ -191,11 +196,11 @@ export class DiagnosticProvider {
         const setting = Setting.instance();
         const rc = setting.getLuaCheckRc();
         if (rc !== "") {
-            args.push('--config')
+            args.push('--config');
             args.push(rc);
         }
 
-        args.push('-'); '-' // 表示从stdin读取内容
+        args.push('-'); // 表示从stdin读取内容
 
         return args;
     }
@@ -207,6 +212,7 @@ export class DiagnosticProvider {
         this.args[5] = uri.fsPath;
 
         this.checking.set(rawUri, 1);
+        Utils.instance().log(`start check ${rawUri}`);
         try {
             // 用promisify没找到输入stdin的方法
             // const procExecFile = util.promisify(execFile);
@@ -226,6 +232,34 @@ export class DiagnosticProvider {
         }
 
         this.checking.delete(rawUri);
+        Utils.instance().log(`stop check ${rawUri}`);
+    }
+
+    private async timeoutCheck() {
+        let index = 0;
+        let now = Date.now();
+
+        for (const task of this.pendingTask) {
+            if (task.timeout <= now) {
+                index++;
+                const uri = task.uri;
+                let curCtx = this.pendingCtx.get(uri);
+                this.pendingCtx.delete(uri);
+                if (curCtx) {
+                    await this.rawCheck(uri, curCtx);
+                }
+            } else {
+                this.pendingTask = this.pendingTask.splice(0, index);
+
+                setTimeout(() => {
+                    this.timeoutCheck();
+                }, (now - task.timeout) * 1000);
+
+                return;
+            }
+        }
+
+        this.pendingTask = [];
     }
 
     public check(uri: string, ctx: string) {
@@ -235,8 +269,8 @@ export class DiagnosticProvider {
         }
 
         // 已经在等待检查，不用处理
-        if (this.pending.get(uri)) {
-            this.pending.set(uri, ctx);
+        if (this.pendingCtx.get(uri)) {
+            this.pendingCtx.set(uri, ctx);
             return;
         }
 
@@ -252,20 +286,22 @@ export class DiagnosticProvider {
             delay = 5000;
         }
 
-        this.pending.set(uri, ctx);
+        this.pendingCtx.set(uri, ctx);
+        this.pendingTask.push({ uri: uri, timeout: Date.now() + delay / 1000 });
+
+        // already have a pending task, do NOT spawn massive child process
+        if (this.pendingTask.length > 1) {
+            return;
+        }
+
         setTimeout(() => {
-            // ctx could be update, do't use ctx
-            let curCtx = this.pending.get(uri);
-            this.pending.delete(uri);
-            if (curCtx) {
-                this.rawCheck(uri, curCtx);
-            }
+            this.timeoutCheck();
         }, delay);
     }
 
     // delete checking mark,make sure do send diagnostic to vs code
     public deleteChecking(uri: string) {
-        this.pending.delete(uri);
+        this.pendingCtx.delete(uri);
         this.checking.delete(uri);
 
         // clear existed diagnostics
