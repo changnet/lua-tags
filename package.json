@@ -110,6 +110,12 @@
 					"default": "",
 					"description": "specify .luacheckrc path."
 				},
+				"lua-tags.checkExclude": {
+					"scope": "resource",
+					"type": "array",
+					"default": [],
+					"description": "regex to exclude luacheck dir and files, like: config/*.luacheckrc can exclude files too"
+				},
 				"lua-tags.trace.server": {
 					"scope": "window",
 					"type": "string",

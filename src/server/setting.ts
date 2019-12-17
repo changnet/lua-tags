@@ -36,6 +36,7 @@ export class Setting {
     private checkDelay = 1000; // delay run luacheck
     private luaCheckPath = ""; // luacheck path
     private luaCheckRc = ""; // .luacheckrc path
+    private checkExclude: string[] = []; // luacheck exclude dir
 
     private constructor() {
     }
@@ -98,6 +99,10 @@ export class Setting {
             this.luaCheckRc = <string>(conf.luaCheckRc) || "";
         }
 
+        if (conf.checkExclude) {
+            this.checkExclude = <string[]>(conf.checkExclude) || [];
+        }
+
         if ("" !== this.rawRootUri) {
             this.rootUri = this.getRoot(this.rawRootUri);
         }
@@ -127,6 +132,17 @@ export class Setting {
         return path.join(oldPath, this.rootDir);
     }
 
+    private isUriExclude(uri: string, excludes: string[]): boolean {
+        for (let dir of excludes) {
+            let re = new RegExp(`${this.rootDir}/${dir}`, "g");
+            if (uri.match(re)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // 获取文件的类型
     public getFileType(uri: string, size: number): FileParseType {
         let ft = FileParseType.FPT_NORMAL;
@@ -140,14 +156,7 @@ export class Setting {
         }
 
         // 是否被排除
-        let isExclude = false;
-        for (let dir of this.excludeDir) {
-            let re = new RegExp(`${this.rootDir}/${dir}`, "g");
-            if (uri.match(re)) {
-                isExclude = true;
-                break;
-            }
-        }
+        let isExclude = this.isUriExclude(uri, this.excludeDir);
 
         if (!isInRoot || isExclude) {
             ft = ft | FileParseType.FPT_SINGLE;
@@ -182,5 +191,9 @@ export class Setting {
 
     public getLuaCheckRc() {
         return this.luaCheckRc;
+    }
+
+    public isCheckExclude(uri: string) {
+        return this.isUriExclude(uri, this.checkExclude);
     }
 }

@@ -205,10 +205,12 @@ export class Server {
         let conf = await this.connection.workspace.getConfiguration("lua-tags");
         setting.setConfiguration(conf);
 
+
         const uri = Uri.parse(this.rootUri);
 
         let symbol = Symbol.instance();
         let diagnostic = DiagnosticProvider.instance();
+        diagnostic.updateCmdArgs();
 
         let beg = Date.now();
 
@@ -473,6 +475,7 @@ export class Server {
     // 配置变化，现在并没有做热更处理，需要重启vs code
     private onConfiguration(handler: DidChangeConfigurationParams) {
         Setting.instance().setConfiguration(handler.settings, true);
+        DiagnosticProvider.instance().updateCmdArgs();
     }
 
     // 保存文件

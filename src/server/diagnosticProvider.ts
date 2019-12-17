@@ -34,6 +34,8 @@ export class DiagnosticProvider {
 
     // node.js child_process参数
     private option: ProcOption;
+    private cmd: string = "";
+    private args: string[] = [];
 
     // f:\lua-tags\src\test\sample\test.lua:1:7-13: (W211) unused variable 'Monster'
     private static regx = /(\d+):(\d+)-(\d+): \(([EW])(\d+)\) (.+)$/;
@@ -145,6 +147,11 @@ export class DiagnosticProvider {
         })
     }
 
+    public updateCmdArgs() {
+        this.cmd = this.getLuaCheckCmd();
+        this.args = this.getLuaCheckArgs();
+    }
+
     private getLuaCheckCmd() {
         const checkPath = Setting.instance().getLuaCheckPath();
         if (checkPath !== "") {
@@ -168,7 +175,7 @@ export class DiagnosticProvider {
         return cmd;
     }
 
-    private getLuaCheckArgs(fileName: string) {
+    private getLuaCheckArgs() {
         let args = [
             '--codes', // 日志里显示是错误还是警告(例如：W211)
             '--ranges', // 日志里显示有问题的范围
@@ -178,7 +185,7 @@ export class DiagnosticProvider {
 
             // 文件名，由于是从stdin输入
             // 需要指定一个文件名，这样在输入日志的时候才有文件名
-            '--filename', fileName,
+            '--filename', "__placeholder",
         ];
 
         const setting = Setting.instance();
@@ -197,15 +204,14 @@ export class DiagnosticProvider {
     private async rawCheck(rawUri: string, ctx: string) {
         // 判断一下文件是否还存在，可能被删除了
         const uri = Uri.parse(rawUri);
-        const cmd = this.getLuaCheckCmd();
-        const args = this.getLuaCheckArgs(uri.fsPath);
+        this.args[5] = uri.fsPath;
 
         this.checking.set(rawUri, 1);
         try {
             // 用promisify没找到输入stdin的方法
             // const procExecFile = util.promisify(execFile);
             // await procExecFile(this.cmd, ['--filename', path, '-'], this.option);
-            const msg = await this.runCheck(cmd, args, ctx);
+            const msg = await this.runCheck(this.cmd, this.args, ctx);
 
             // likely,delete file from disk,no need to send to vs code anymore
             if (!this.checking.get(rawUri)) {
@@ -223,13 +229,18 @@ export class DiagnosticProvider {
     }
 
     public check(uri: string, ctx: string) {
+        let setting = Setting.instance();
+        if (setting.isCheckExclude(uri)) {
+            return;
+        }
+
         // 已经在等待检查，不用处理
         if (this.pending.get(uri)) {
             this.pending.set(uri, ctx);
             return;
         }
 
-        let delay = Setting.instance().getCheckDelay();
+        let delay = setting.getCheckDelay();
         // delay a very small time is meaningless
         if (delay <= 100) {
             this.rawCheck(uri, ctx);
