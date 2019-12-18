@@ -49,7 +49,7 @@ export class DiagnosticProvider {
     private constructor() {
         this.option = {
             // it take some time to check large file
-            timeout: 10000,
+            timeout: 15000,
             maxBuffer: 1024 * 1024
         };
 
@@ -253,7 +253,7 @@ export class DiagnosticProvider {
 
                 await this.rawCheck(uri, curCtx);
             } else {
-                this.pendingTask = this.pendingTask.splice(0, index);
+                this.pendingTask.splice(0, index);
 
                 setTimeout(() => {
                     this.timeoutCheck();

@@ -2,6 +2,10 @@
 
 All notable changes to the "lua-tags" extension will be documented in this file.
 
+## [1.0.0] 2019-12-18
+1. set luacheck timeout to 15s
+2. fix luacheck pending task stop
+
 ## [1.0.0] 2019-12-17
 1. fix signature help parameter index incorrect
 2. fix workspace symbol send too many symbol infomation
