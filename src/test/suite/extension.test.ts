@@ -268,11 +268,16 @@ suite('Extension Test Suite', () => {
 	});
 
 	test('test require path completion', async () => {
-		await testCompletion(testUri, new vscode.Position(4, 14), {
+		await testCompletion(testUri, new vscode.Position(4, 16), {
 			items: [
-				{ label: 'battle_conf', kind: vscode.CompletionItemKind.File },
-				{ label: 'monster_conf', kind: vscode.CompletionItemKind.File },
-				{ label: 'skill_conf', kind: vscode.CompletionItemKind.File },
+				{ label: 'animal', kind: vscode.CompletionItemKind.File },
+				{ label: 'battle', kind: vscode.CompletionItemKind.File },
+				{ label: 'check', kind: vscode.CompletionItemKind.File },
+				{ label: 'conf', kind: vscode.CompletionItemKind.File },
+				{ label: 'monster', kind: vscode.CompletionItemKind.File },
+				{ label: 'new_object', kind: vscode.CompletionItemKind.File },
+				{ label: 'oo', kind: vscode.CompletionItemKind.File },
+				{ label: 'test', kind: vscode.CompletionItemKind.File },
 			]
 		});
 	}).timeout(10240);

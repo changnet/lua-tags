@@ -92,20 +92,70 @@ export class AutoCompletion {
         return item;
     }
 
+    // 检测路径匹配
+    // @beg: 比如sample.conf中写了一半sample.co中的co
+    // @end: 结束的路径，比如sample.conf.monster_conf.lua中的conf.monster_conf.lua
+    private checkPathMatch(beg: string | null, end: string) {
+        // 得到左边的路径名conf.monster中的conf
+        let matchs = end.match(/^\w+/g);
+        if (!matchs) {
+            return null;
+        }
+        if (!beg || matchs[0].startsWith(beg)) {
+            return matchs[0];
+        }
+
+        return null;
+    }
+
+    // 检测文件名匹配
+    private checkFileMatch(beg: string | null, end: string) {
+        if (!beg) {
+            return null;
+        }
+
+        // 自动补全多级路径直到文件名
+        // sample.mon 补全为 sample.conf.monster
+        let matchs = end.match(/(\w+)\.lua$/);
+        if (!matchs) {
+            return null;
+        }
+
+        // 匹配文件名
+        if (!fuzzysort.single(beg, matchs[1])) {
+            return null;
+        }
+
+        // 得到没有后缘的文件路径
+        let endPath = end.substring(0, end.length - ".lua".length);
+        // 把uri中的/替换为.
+        return endPath.replace(/\//g, ".");
+    }
+
     // require "a.b.c" 自动补全后面的路径
     public getRequireCompletion(line: string, pos: number) {
         const text = line.substring(0, pos);
 
+        // 匹配require "a.b.c"或者 require（"a.b.c"）
         let found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)/);
-        if (!found || !found[1]) { return null; }
+        if (!found || !found[1]) {
+            return null;
+        }
 
+        // 得到path = a.b.c
         let symbol = Symbol.instance();
         let path = symbol.toUriFormat(found[1]);
 
+        // 匹配写了一半的路径，比如 sample.conf只写了sqmple.co中的co
         let leftWord: string | null = null;
-        let lMathList = path.match(/\w*$/g);
-        if (lMathList) { leftWord = lMathList[0]; }
+        let lMathList = path.match(/\w+$/g);
+        if (lMathList) {
+            leftWord = lMathList[0];
+            path = path.substring(0, path.length - leftWord.length);
+        }
 
+        // 同一个路径下可能有多个文件，过滤掉同名文件
+        let itemFilter = new Map<string, boolean>();
         let items: CompletionItem[] = [];
 
         symbol.eachUri(uri => {
@@ -114,17 +164,22 @@ export class AutoCompletion {
                 return;
             }
 
-            let rightText = uri.substring(index + path.length);
-
-            let rMatchList = rightText.match(/^\w*/g);
-            if (!rMatchList) {
-                return;
+            const endPath = uri.substring(index + path.length);
+            // 检测下一级目录 sample.co中的sample.conf
+            const nextPath = this.checkPathMatch(leftWord, endPath);
+            if (nextPath && !itemFilter.get(nextPath)) {
+                itemFilter.set(nextPath, true);
+                items.push({ label: nextPath, kind: CompletionItemKind.File });
             }
 
-            let name = rMatchList[0];
-            if (leftWord) { name = leftWord + name; }
-
-            items.push({ label: name, kind: CompletionItemKind.File });
+            // TODO:这个暂时没用，因为在字符串中，只有打出指定的字符.才会触发自动完成
+            // 自动补全多级路径直到文件名
+            // sample.mon 补全为 sample.conf.monster
+            const filePath = this.checkFileMatch(leftWord, endPath);
+            if (filePath && !itemFilter.get(filePath)) {
+                itemFilter.set(filePath, true);
+                items.push({ label: filePath, kind: CompletionItemKind.File });
+            }
         });
 
         if (items.length <= 0) { return null; }

@@ -2,6 +2,9 @@
 
 All notable changes to the "lua-tags" extension will be documented in this file.
 
+## [1.0.3] 2019-12-??
+1. fix require path auto completion show duplicate path
+
 ## [1.0.2] 2019-12-18
 1. set luacheck timeout to 15s
 2. fix luacheck pending task stop

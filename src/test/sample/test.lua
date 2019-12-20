@@ -2,7 +2,7 @@ local Monster = require "Monster"
 
 -- test path auto completion
 -- 测试路径补全，打出这个.号才会触发路径补全
-require "conf."
+require "sample."
 
 local BattleConf = require "conf.battle_conf" -- localized here and test at battle.lua
 
