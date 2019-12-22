@@ -22,9 +22,15 @@ interface ProcOption {
     maxBuffer: number;
 }
 
+export enum CheckHow {
+    DEFAULT = 0,
+    INITIALIZE = 1
+}
+
 interface PendingTask {
     timeout: number;
     uri: string;
+    how?: CheckHow;
 }
 
 const ChunkSize = 16384;
@@ -187,6 +193,7 @@ export class DiagnosticProvider {
             // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
             cmd = path.resolve(__dirname, "../../luacheck/luacheck_0.23.0");
+            Utils.instance().setExec(cmd);
         }
 
         return cmd;
@@ -218,7 +225,7 @@ export class DiagnosticProvider {
     }
 
     // https://nodejs.org/api/child_process.html
-    private async rawCheck(rawUri: string, ctx: string) {
+    private async rawCheck(rawUri: string, ctx: string, how?: CheckHow) {
         // 判断一下文件是否还存在，可能被删除了
         const uri = Uri.parse(rawUri);
         this.args[5] = uri.fsPath;
@@ -237,7 +244,10 @@ export class DiagnosticProvider {
             }
 
             const diags = this.toDiagnostic(msg);
-            Utils.instance().diagnostics(rawUri, diags);
+            // no need to send a message to vs code if no error
+            if (how !== CheckHow.INITIALIZE || diags.length > 0) {
+                Utils.instance().diagnostics(rawUri, diags);
+            }
         } catch (e) {
             // if there are too many files in root dir,send too many error
             // message to vs code will crash it
@@ -266,7 +276,7 @@ export class DiagnosticProvider {
                     continue;
                 }
 
-                await this.rawCheck(uri, curCtx);
+                await this.rawCheck(uri, curCtx, task.how);
             } else {
                 this.pendingTask.splice(0, index);
 
@@ -281,7 +291,7 @@ export class DiagnosticProvider {
         this.pendingTask = [];
     }
 
-    public check(uri: string, ctx: string) {
+    public check(uri: string, ctx: string, how?: CheckHow) {
         if (this.abort) {
             return;
         }
@@ -310,7 +320,9 @@ export class DiagnosticProvider {
         }
 
         this.pendingCtx.set(uri, ctx);
-        this.pendingTask.push({ uri: uri, timeout: Date.now() + delay / 1000 });
+        this.pendingTask.push({
+            uri: uri, how: how, timeout: Date.now() + delay / 1000
+        });
 
         // already have a pending task, do NOT spawn massive child process
         if (this.pendingTask.length > 1) {

@@ -42,7 +42,7 @@ import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
 import { SignatureProvider } from "./signatureProvider";
-import { DiagnosticProvider } from "./DiagnosticProvider";
+import { DiagnosticProvider, CheckHow } from "./DiagnosticProvider";
 import { Setting } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -217,7 +217,7 @@ export class Server {
         const files = await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
             symbol.parse(uri, ctx);
             if (checkOnInit) {
-                diagnostic.check(uri, ctx);
+                diagnostic.check(uri, ctx, CheckHow.INITIALIZE);
             }
         });
         symbol.setCacheOpen();

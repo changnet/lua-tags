@@ -151,5 +151,15 @@ export class Utils {
     public diagnostics(uri: string, diags: Diagnostic[]): void {
         this.conn!.sendDiagnostics({ uri: uri, diagnostics: diags });
     }
+
+    // set file executable, use sync make sure luacheck executable before run
+    // luacheck
+    public setExec(exePath: string) {
+        const stat = syncfs.statSync(exePath);
+        if (stat.mode & syncfs.constants.S_IXUSR) {
+            return; // already have permission
+        }
+        syncfs.chmodSync(exePath, stat.mode | syncfs.constants.S_IXUSR);
+    }
 }
 
