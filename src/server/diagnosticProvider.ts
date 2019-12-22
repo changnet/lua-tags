@@ -42,6 +42,7 @@ export class DiagnosticProvider {
     private option: ProcOption;
     private cmd: string = "";
     private args: string[] = [];
+    private abort: boolean = false;
 
     // f:\lua-tags\src\test\sample\test.lua:1:7-13: (W211) unused variable 'Monster'
     private static regx = /(\d+):(\d+)-(\d+): \(([EW])(\d+)\) (.+)$/;
@@ -134,6 +135,15 @@ export class DiagnosticProvider {
                         }
                     });
 
+                /* execFile is async
+                 * child.on("error") or child.on("exit") does not work here.
+                 * I do NOT find any thing to check if child is ready except
+                 * it's pid. if child exec fail(e.g. permission denied),don't
+                 * write to stdin.just return, it will throw a error later.
+                 */
+                if (!child.pid) {
+                    return;
+                }
                 if (ctx.length <= ChunkSize) {
                     return child.stdin.end(ctx);
                 }
@@ -229,6 +239,11 @@ export class DiagnosticProvider {
             const diags = this.toDiagnostic(msg);
             Utils.instance().diagnostics(rawUri, diags);
         } catch (e) {
+            // if there are too many files in root dir,send too many error
+            // message to vs code will crash it
+            if (e.errno === "ENOENT" || e.errno === "EACCES") {
+                this.abort = true;
+            }
             Utils.instance().anyError(e);
             Utils.instance().error(`luacheck ${JSON.stringify(e)}`);
             Utils.instance().error(rawUri);
@@ -247,7 +262,7 @@ export class DiagnosticProvider {
                 const uri = task.uri;
                 let curCtx = this.pendingCtx.get(uri);
                 this.pendingCtx.delete(uri);
-                if (!curCtx) {
+                if (!curCtx || this.abort) {
                     continue;
                 }
 
@@ -267,6 +282,10 @@ export class DiagnosticProvider {
     }
 
     public check(uri: string, ctx: string) {
+        if (this.abort) {
+            return;
+        }
+
         let setting = Setting.instance();
         if (setting.isCheckExclude(uri)) {
             return;

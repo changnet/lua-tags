@@ -13,6 +13,8 @@ type WalkerCallBack = (uri: string, ctx: string) => void;
 
 export class DirWalker {
     private static ins: DirWalker;
+
+    private files: number = 0;
     private constructor() {
     }
 
@@ -63,10 +65,12 @@ export class DirWalker {
 
         let data = await fs.readFile(filePath);
 
+        this.files++;
         callBack(uri, data.toString());
     }
 
     public async walk(dirPath: string, callBack: WalkerCallBack) {
+        this.files = 0;
         let rootPath = Setting.instance().getRoot(dirPath);
 
         Utils.instance().log(`start parse root ${rootPath}`);
@@ -75,6 +79,8 @@ export class DirWalker {
         } catch (e) {
             Utils.instance().anyError(e);
         }
+
+        return this.files;
     }
 }
 

@@ -214,7 +214,7 @@ export class Server {
         let beg = Date.now();
 
         const checkOnInit = setting.isCheckOnInit();
-        await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
+        const files = await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
             symbol.parse(uri, ctx);
             if (checkOnInit) {
                 diagnostic.check(uri, ctx);
@@ -224,7 +224,7 @@ export class Server {
 
         let end = Date.now();
         Utils.instance().log(
-            `Lua initialized done:${this.rootUri}, msec:${end - beg}`);
+            `Lua initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
     }
 
     // 返回当前文档的符号
