@@ -125,7 +125,7 @@ export enum CommentType {
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
 export interface SymInfoEx extends SymbolInformation {
     scope: number; // 第几层作用域
-    refType?: string; // local N = M时记录引用的类型M
+    refType?: string[]; // local N = M时记录引用的类型M
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
     parameters?: string[]; // 如果是函数，记录其参数
@@ -519,6 +519,26 @@ export class Symbol {
         };
     }
 
+    // 记录local MAX = M.X.Y 这种引用
+    private toRefVallue(node: MemberExpression) {
+        let refVal: string[] = [];
+
+        let init = node;
+        for (let deepth = 0; deepth < 8; deepth++) {
+            if (init.indexer !== ".") {
+                return;
+            }
+
+            if (init.base.type !== "MemberExpression") {
+                return;
+            }
+            init = init.base;
+            refVal.push(init.identifier.name);
+        }
+
+        return refVal;
+    }
+
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
     public toSym(nameInfo: NameInfo,
@@ -546,7 +566,13 @@ export class Symbol {
                 // 如果是local M = M这种同名的，则不处理，反正都是根据名字去查找
                 // 仅仅处理文件顶层作用域
                 if (0 === sym.scope && nameInfo.name !== initNode.name) {
-                    sym.refType = initNode.name;
+                    sym.refType = [initNode.name];
+                }
+                break;
+            }
+            case "MemberExpression": {
+                if (0 === sym.scope) {
+                    sym.refType = this.toRefVallue(initNode);
                 }
                 break;
             }
@@ -942,13 +968,13 @@ export class Symbol {
                 break;
             }
         }
-        if (!sym) {
+        if (!sym || !sym.refType || sym.refType?.length > 1) {
             return base;
         }
 
         // local N = M 这种用法
         // 都找不到，默认查找当前文档
-        return sym.refType || base;
+        return sym.refType[0] || base;
     }
 
     // 转换成uri路径格式
