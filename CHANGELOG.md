@@ -5,6 +5,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 ## [1.0.3] 2019-12-??
 1. fix require path auto completion show duplicate path
 2. fix permission deny on linux
+3. allow jump to local unreachable symbol definition
 
 ## [1.0.2] 2019-12-18
 1. set luacheck timeout to 15s

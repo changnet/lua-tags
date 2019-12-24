@@ -491,6 +491,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test local unreachable definition", async () => {
+		await testGoToDefinition(testUri, new vscode.Position(77, 2), [{
+			uri: testUri,
+			range: new vscode.Range(78, 0, 79, 3)
+		}
+		]);
+	});
+
 	test("test query no base but symbol has hove", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 

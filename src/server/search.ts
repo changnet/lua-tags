@@ -587,11 +587,20 @@ export class Search {
         }
 
         // 忽略模块名，直接查找当前文档符号
+        let possibleSym;
         items = filter(symbol.getDocumentSymbol(uri));
         if (items) {
             let symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
                 return symList;
+            } else {
+                /*
+                 * foo()
+                 * local function foo() end
+                 * allow the first foo() call to jump to the later definition if
+                 * no other fefinition found
+                 */
+                possibleSym = items;
             }
         }
 
@@ -605,9 +614,9 @@ export class Search {
             }
             // 如果过滤后找不到任何符号，则使用未过滤后的
             // 因为lua中的local函数等可以赋值传递
-            return items;
+            return possibleSym || items;
         }
 
-        return null;
+        return possibleSym;
     }
 }

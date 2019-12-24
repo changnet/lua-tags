@@ -3,12 +3,14 @@
 Lua IntelliSense for Visual Studio Code.
 
 ## Features
-* Workspace Symbol
+
+* Hover
+* Lint(luacheck)
+* Signature Helps
 * Document Symbol
 * Auto Completion
+* Workspace Symbol
 * Go To Definition
-* Hover
-* Signature Helps
 
 ![animation](animation.gif)
 

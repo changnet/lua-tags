@@ -72,3 +72,9 @@ end
 
 -- exclude context
 local exclude = EXCLUDE
+
+-- 在找不到其他符号情况下，允许跳转到无法访问的local变量
+-- 因为写代码的时候有时候会写错，允许直接跳转到对应变量去改顺序
+foo()
+local function foo()
+end
