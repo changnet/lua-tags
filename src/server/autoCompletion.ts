@@ -26,7 +26,8 @@ import {
     Symbol,
     SymInfoEx,
     SymbolQuery,
-    CommentType
+    CommentType,
+    LocalType
 } from "./symbol";
 
 import * as fuzzysort from "fuzzysort";
@@ -200,6 +201,13 @@ export class AutoCompletion {
                 if (base !== baseName) {
                     return;
                 }
+                // 如果当前正在写函数的参数，则不要补全已有的参数
+                if (local === LocalType.LT_PARAMETER) {
+                    const loc = node.loc;
+                    if (loc && query.position.line === loc.start.line - 1) {
+                        return;
+                    }
+                }
                 if (emptyName || fuzzysort.single(symName, name)) {
                     let sym = symbol.toSym(
                         { name: name, base: base }, node, init, local);
@@ -261,7 +269,6 @@ export class AutoCompletion {
                     || fuzzysort.single(symName, sym.name);
             });
         };
-
         // 优先根据模块名匹配全局符号
         let items = search.searchGlobalModule(query, filter);
         if (items) {

@@ -81,8 +81,8 @@ async function testCompletion(
 	docUri: vscode.Uri,
 	position: vscode.Position,
 	expectList: vscode.CompletionList) {
-	const doc = await vscode.workspace.openTextDocument(testUri);
-	await vscode.window.showTextDocument(doc);
+	// const doc = await vscode.workspace.openTextDocument(testUri);
+	// await vscode.window.showTextDocument(doc);
 
 	// https://code.visualstudio.com/api/references/commands
 	// Executing the command `vscode.executeCompletionItemProvider` to simulate triggering completion
@@ -92,7 +92,7 @@ async function testCompletion(
 		position
 	)) as vscode.CompletionList;
 
-	// console.log(`check ${JSON.stringify(actualList)}`);
+	// console.log(`check completion ${JSON.stringify(actualList)}`);
 	assert.equal(actualList.items.length, expectList.items.length);
 	// vs code返回的数组是不规则的，内容是同一样的
 	// 但位置不一定，导致多次测试结果不一致，暂时不知道原因
@@ -112,9 +112,6 @@ async function testCompletion(
 // test go to definition
 async function testGoToDefinition(uri: vscode.Uri,
 	position: vscode.Position, expectList: vscode.Location[]) {
-
-	const doc = await vscode.workspace.openTextDocument(testUri);
-	await vscode.window.showTextDocument(doc);
 
 	const actualList = (await vscode.commands.executeCommand(
 		'vscode.executeDefinitionProvider',
@@ -143,9 +140,6 @@ async function testGoToDefinition(uri: vscode.Uri,
 async function testHover(uri: vscode.Uri,
 	position: vscode.Position, expectList: vscode.Hover[]) {
 
-	const doc = await vscode.workspace.openTextDocument(testUri);
-	await vscode.window.showTextDocument(doc);
-
 	const actualList = (await vscode.commands.executeCommand(
 		'vscode.executeHoverProvider',
 		uri,
@@ -168,9 +162,6 @@ async function testHover(uri: vscode.Uri,
 // test signature help
 async function testSignatureHelp(uri: vscode.Uri,
 	position: vscode.Position, expect: vscode.SignatureHelp) {
-
-	const doc = await vscode.workspace.openTextDocument(testUri);
-	await vscode.window.showTextDocument(doc);
 
 	const actual = (await vscode.commands.executeCommand(
 		'vscode.executeSignatureHelpProvider',
@@ -229,6 +220,12 @@ suite('Extension Test Suite', () => {
 	test("test active", async () => {
 		await activateExtension();
 	}).timeout(10240);
+
+	test('test no function itself parameters completion', async () => {
+		await testCompletion(testUri, new vscode.Position(78, 27), {
+			items: []
+		});
+	});
 
 	test('test no workspace symbol', async () => {
 		await testWorkspaceSymbol("", []);
