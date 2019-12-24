@@ -31,7 +31,7 @@ import {
 import { Server } from './server';
 import { Utils } from './utils';
 import { GoToDefinition } from './goToDefinition';
-import { Symbol, SymInfoEx } from './symbol';
+import { Symbol, SymInfoEx, LocalType } from './symbol';
 import { Search } from './search';
 
 
@@ -149,8 +149,9 @@ export class SignatureProvider {
             return null;
         }
 
+        const line = pos.line - info.line;
         let query = srv.getSymbolQuery(uri, info.lineText, {
-            line: pos.line - info.line, character: info.character
+            line: line, character: info.character
         });
         if (!query) {
             return null;
@@ -165,6 +166,11 @@ export class SignatureProvider {
         let activeParam: number | null = null; // 为null则vs code不选中参数
         let signatureList: SignatureInformation[] = [];
         symList.forEach((sym, index) => {
+            // when define a function, do signature itself
+            if (uri === sym.location.uri
+                && line === sym.location.range.start.line) {
+                return;
+            }
             let sig = this.toSignature(sym, uri, info.index);
             if (sig) {
                 signatureList.push(sig);

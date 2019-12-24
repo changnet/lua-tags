@@ -221,12 +221,6 @@ suite('Extension Test Suite', () => {
 		await activateExtension();
 	}).timeout(10240);
 
-	test('test no function itself parameters completion', async () => {
-		await testCompletion(testUri, new vscode.Position(78, 27), {
-			items: []
-		});
-	});
-
 	test('test no workspace symbol', async () => {
 		await testWorkspaceSymbol("", []);
 	});
@@ -262,6 +256,12 @@ suite('Extension Test Suite', () => {
 			// {name: "scene", kind: 0, containerName: "", location: {uri: uri, range: range}},
 			// {name: "timeout", kind: 0, containerName: "", location: {uri: uri, range: range}},
 		]);
+	});
+
+	test('test no function itself parameters completion', async () => {
+		await testCompletion(testUri, new vscode.Position(78, 27), {
+			items: []
+		});
 	});
 
 	test('test require path completion', async () => {
@@ -613,6 +613,15 @@ suite('Extension Test Suite', () => {
 			],
 			activeSignature: 1,
 			activeParameter: 3
+		});
+	});
+
+	test("test no self function defintion signature help", async () => {
+		await testSignatureHelp(testUri, new vscode.Position(78, 57), {
+			signatures: [
+			],
+			activeSignature: 0,
+			activeParameter: 0
 		});
 	});
 
