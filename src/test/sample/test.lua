@@ -78,3 +78,5 @@ local exclude = EXCLUDE
 foo()
 local function foo(args, arg) -- local function foo(args,)
 end
+
+local scene = BattleConf.scene

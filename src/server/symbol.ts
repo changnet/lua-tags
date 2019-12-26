@@ -24,26 +24,12 @@ import {
 } from 'luaparse';
 
 import {
-    Range,
-    Position,
     Location,
-    createConnection,
-    TextDocuments,
-    TextDocument,
-    Diagnostic,
-    DiagnosticSeverity,
-    ProposedFeatures,
-    InitializeParams,
-    DidChangeConfigurationNotification,
-    CompletionItem,
-    SymbolInformation,
-    CompletionItemKind,
-    DocumentSymbolParams,
-    WorkspaceSymbolParams,
-    TextDocumentPositionParams,
     SymbolKind,
-    Definition
+    SymbolInformation
 } from 'vscode-languageserver';
+import { start } from "repl";
+import { normalize } from "path";
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -129,7 +115,7 @@ export interface SymInfoEx extends SymbolInformation {
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
     parameters?: string[]; // 如果是函数，记录其参数
-    subSym?: SymInfoEx[]; // 子符号
+    subSymList?: SymInfoEx[]; // 子符号
     base?: string; // M.N时记录模块名M
     local?: LocalType; // 是否Local符号
     indexer?: string; // M.N或者M:N中的[., :]
@@ -146,12 +132,6 @@ interface NodeCache {
     comments: Comment[];
 }
 
-// 单个模块的信息
-interface ModuleSymInfo {
-    symList: SymInfoEx[];
-    local?: boolean;
-}
-
 export class Symbol {
     private static ins: Symbol;
 
@@ -164,20 +144,20 @@ export class Symbol {
     private globalSymbol = new Map<string, SymInfoEx[]>();
 
     // 全局模块缓存，方便快速查询符号 identifier
-    private globalModule = new Map<string, SymInfoEx[]>();
+    private globalModule = new Map<string, SymInfoEx>();
 
     // 各个文档的符号缓存，uri为key
     private documentSymbol = new Map<string, SymInfoEx[]>();
+
     // 各个文档的符号缓存，第一层uri为key，第二层模块名为key
-    private documentModule = new Map<string, Map<string, ModuleSymInfo>>();
+    private documentModule = new Map<string, Map<string, SymInfoEx>>();
 
     // 下面是一些解析当前文档的辅助变量
     private parseUri: string = "";
     private parseScopeDeepth: number = 0;
     private parseNodeList: Node[] = [];
     private parseSymList: SymInfoEx[] = [];
-    // 各个文档的符号缓存，ider名为key
-    private parseModule = new Map<string, ModuleSymInfo>();
+    private parseModule = new Map<string, SymInfoEx>();
     private parseComments: Comment[] = [];
     private parseCodeLine: number[] = [];
     private parseModuleName: string | null = null;
@@ -330,41 +310,44 @@ export class Symbol {
     }
 
     private pushModuleSymbol(
-        base: string, local: boolean, ...symList: SymInfoEx[]) {
-        let moduleInfo = this.parseModule.get(base);
-        if (!moduleInfo) {
-            moduleInfo = {
-                symList: new Array<SymInfoEx>()
+        name: string, sym: SymInfoEx) {
+        let moduleSym = this.parseModule.get(name);
+        // 不存在则可能是外部模块
+        // 比如 table.empty = function() end 这种找不到table模块声明的模块
+        // 可能是扩展标准库或者C++中定义，又或者是同一个模块，分成多个文件
+        // key为模块名，Value为uri
+        if (!moduleSym) {
+            moduleSym = {
+                name: name,
+                kind: SymbolKind.Namespace,
+                location: {
+                    uri: "",
+                    range: {
+                        start: { line: 0, character: 0 },
+                        end: { line: 0, character: 0 },
+                    }
+                },
+                scope: 0,
+                subSymList: []
             };
-            this.parseModule.set(base, moduleInfo);
+            this.parseModule.set(name, moduleSym);
         }
 
-        /* 在同一个文档中，如果一个模块为local，则必定是local
-         * local M = {}
-         * M.val = true -- 这行代码解析出来的不是local
-         * 
-         * 如果在不同文件中，则必定不是local
-         * local M = require "m" -- require另一个模块，并对其扩展
-         * m.val = false
-         * 这种情况目前无法判断，也极少有人这样写
-         */
-        if (local) {
-            moduleInfo.local = true;
+        if (!moduleSym.subSymList) {
+            moduleSym.subSymList = [];
         }
-
-        moduleInfo.symList.push(...symList);
+        moduleSym.subSymList.push(sym);
     }
 
     // 把一个解析好的符号存到临时解析数组
     private pushParseSymbol(sym: SymInfoEx) {
         this.parseSymList.push(sym);
 
-        const subSym = sym.subSym;
+        const subSym = sym.subSymList;
         if (subSym) {
             // 如果这个符号包含子符号，则一定被当作模块
             // 目前只有table这样处理
-            this.pushModuleSymbol(
-                sym.name, sym.local ? true : false, ...subSym);
+            this.parseModule.set(sym.name, sym);
             this.parseSymList.push(...subSym);
         }
 
@@ -374,13 +357,13 @@ export class Symbol {
             base = this.parseModuleName || undefined;
         }
         if (base) {
-            this.pushModuleSymbol(base, false, sym);
+            this.pushModuleSymbol(base, sym);
         }
 
         // table当作模块，主要是我们要确定一个模块是否为local
         // local M = {} 这种情况才能知道是否为local
         if (sym.kind === SymbolKind.Namespace) {
-            this.pushModuleSymbol(sym.name, sym.local ? true : false);
+            this.parseModule.set(sym.name, sym);
         }
     }
 
@@ -447,19 +430,13 @@ export class Symbol {
         return symList;
     }
 
-    // 解析 return
+    // 解析 return 仅特殊处理 return { a = 1, b = c } 这种返回
     private parseReturnStatement(node: ReturnStatement) {
         for (let argument of node.arguments) {
             // 如果是用来显示文档符号的，只处理 return {}
             if ("TableConstructorExpression" === argument.type) {
                 return this.parseTableConstructorExpr(argument);
             }
-
-            // parseOptSub是用来处理局部符号的，只处理return function() ... end
-            if ("FunctionDeclaration" === argument.type) {
-                return this.parseFunctionExpr(argument);
-            }
-
         }
 
         return [];
@@ -489,7 +466,7 @@ export class Symbol {
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
             if (init && "TableConstructorExpression" === init.type) {
-                sym.subSym = this.parseTableConstructorExpr(init);
+                sym.subSymList = this.parseTableConstructorExpr(init);
                 // vs code在显示文档符号时，会自动判断各个符号的位置，如果发现某个符号
                 // 属于另一个符号的位置范围内，则认为这个符号是另一个符号的子符号，可以
                 // 把子符号折叠起来
@@ -529,13 +506,23 @@ export class Symbol {
                 return;
             }
 
-            if (init.base.type !== "MemberExpression") {
+            const base = init.base;
+            // 最后一个是Identifier而不是MemberExpression
+            if (base.type === "Identifier") {
+                refVal.push(base.name);
+                break;
+            }
+
+            if (base.type !== "MemberExpression") {
                 return;
             }
-            init = init.base;
             refVal.push(init.identifier.name);
+
+            init = base;
         }
 
+        // luaparse解析 M.X.Y 是逆序的
+        refVal.reverse();
         return refVal;
     }
 
@@ -665,32 +652,74 @@ export class Symbol {
             });
         });
 
-        this.documentModule.forEach(moduleHash => {
-            moduleHash.forEach((moduleInfo, name) => {
+        for (let [uri, docModules] of this.documentModule) {
+            for (let [name, sym] of docModules) {
                 // local模块不放到全局
-                if (moduleInfo.local) {
-                    return;
+                if (sym.local) {
+                    continue;
                 }
-                let moduleList = this.globalModule.get(name);
-                if (!moduleList) {
-                    moduleList = new Array<SymInfoEx>();
-                    this.globalModule.set(name, moduleList);
+                let moduleSym = this.globalModule.get(name);
+                if (!moduleSym) {
+                    this.globalModule.set(name, sym);
+                    continue;
                 }
-                moduleList.push(...moduleInfo.symList);
-            });
-        });
-
+                // 同一个模块，分布在不同文件，其中一个是没有uri的
+                if (moduleSym.location.uri === "") {
+                    moduleSym.location = sym.location;
+                }
+                // 合并模块中的符号
+                if (!sym.subSymList) {
+                    continue;
+                }
+                if (!moduleSym.subSymList) {
+                    moduleSym.subSymList = [];
+                }
+                moduleSym.subSymList.push(...sym.subSymList);
+            }
+        }
         this.needUpdate = false;
     }
 
-    // 获取某个模块的符号
+    // 获取某个模块的符号，注意是模块本身，不是该模块的符号
+    // @base: local N = M.X.Y中的Y X M
+    public getGlobalModuleSym(base: string[]) {
+        if (base.length <= 0) {
+            return null;
+        }
+
+        let sym = this.globalModule.get(base[0]);
+        for (let idx = 1; idx < base.length; idx++) {
+            if (!sym) {
+                return null;
+            }
+            const subSym = sym.subSymList;
+            if (!subSym) {
+                return null;
+            }
+
+            // TODO: 这里是否需要一个 Map
+            let found;
+            const name = base[idx];
+            for (let sub of subSym) {
+                if (sub.name === name) {
+                    sym = sub;
+                    break;
+                }
+            }
+        }
+
+        return sym ? sym : null;
+    }
+
+    // 获取某个模块的所有符号
+    // @base: local N = M.X.Y中的Y X M
     public getGlobalModule(base: string) {
         if (this.needUpdate) {
             this.updateGlobal();
         }
 
-        let symList = this.globalModule.get(base);
-        return this.globalModule.get(base) || null;
+        let sym = this.globalModule.get(base);
+        return sym && sym.subSymList ? sym.subSymList : null;
     }
 
     // 正常解析
@@ -734,7 +763,7 @@ export class Symbol {
         }
 
         // 不能用clear，这里的数据会直接存到this.documentModule
-        this.parseModule = new Map<string, ModuleSymInfo>();
+        this.parseModule = new Map<string, SymInfoEx>();
         this.parseSymList = [];
 
         const nodeList = this.rawParse(uri, text);
@@ -871,16 +900,16 @@ export class Symbol {
         return this.documentSymbol.get(uri) || null;
     }
 
-    // 获取某个文档里的某个模块
+    // 获取某个文档里的某个模块的所有符号
     public getDocumentModule(uri: string, base: string) {
         let moduleHash = this.documentModule.get(uri);
         if (!moduleHash) {
             return null;
         }
 
-        const moduleInfo = moduleHash.get(base);
+        const sym = moduleHash.get(base);
 
-        return moduleInfo ? moduleInfo.symList : null;
+        return sym && sym.subSymList ? sym.subSymList : null;
     }
 
     private appendSymList(isSub: boolean, symList: SymInfoEx[],
@@ -890,8 +919,8 @@ export class Symbol {
                 symList.push(sym);
             }
 
-            if (isSub && sym.subSym) {
-                this.appendSymList(isSub, symList, sym.subSym, filter);
+            if (isSub && sym.subSymList) {
+                this.appendSymList(isSub, symList, sym.subSymList, filter);
             }
         }
     }
@@ -968,7 +997,7 @@ export class Symbol {
                 break;
             }
         }
-        if (!sym || !sym.refType || sym.refType?.length > 1) {
+        if (!sym || !sym.refType || sym.refType.length > 1) {
             return base;
         }
 
@@ -1124,6 +1153,7 @@ export class Symbol {
         return -1;
     }
 
+    // 获取注释字符串
     private getCommentValue(comment: Comment) {
         if (comment.loc!.start.line === comment.loc!.end.line) {
             return "-- " + comment.value.trim();
@@ -1199,7 +1229,7 @@ export class Symbol {
             // 子符号已经放到parseSymList里了，不用额外查找
             // 但是这里要reset = true，因为现在函数是不解析局部变量的，防止
             // 函数每一行都有注释时注释被连续拼接
-            if (2 === comp && sym.subSym) {
+            if (2 === comp && sym.subSymList) {
                 reset = true;
                 // this.AppendOneComment(
                 //     sym.subSym, comments, 0, index, continueIndex);
@@ -1257,5 +1287,23 @@ export class Symbol {
                 return;
             }
         });
+    }
+
+    // 获取变量本地化的引用提示
+    // local M = X.Y.Z 提示为 local M -> X.Y.Z = 5
+    public getRefValue(sym: SymInfoEx) {
+        if (!sym.refType) {
+            return "";
+        }
+
+        const refSym = this.getGlobalModuleSym(sym.refType);
+        if (!refSym) {
+            return "";
+        }
+
+        // 如果引用的是一个常量，那显示常量
+        let val = refSym.value ? ` = ${refSym.value}` : "";
+
+        return ` -> ${sym.refType.join(".")}${val}`;
     }
 }

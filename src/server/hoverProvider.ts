@@ -84,7 +84,8 @@ export class HoverProvider {
         if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
             lineEnd = " " + sym.comment;
         }
-        return `${path}\`\`\`lua\n${above}${ctx}${lineEnd}\n\`\`\``;
+        let ref = Symbol.instance().getRefValue(sym);
+        return `${path}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
