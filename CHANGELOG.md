@@ -7,6 +7,14 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 2. fix permission deny on linux
 3. allow jump to local unreachable symbol definition
 4. do't do completion or signature when definte a function
+5. show reference value at hover and completion
+```lua
+X.Y = true
+local V = X.Y
+
+-- v is show as
+local V -> X.Y = true
+```
 
 ## [1.0.2] 2019-12-18
 1. set luacheck timeout to 15s

@@ -79,4 +79,6 @@ foo()
 local function foo(args, arg) -- local function foo(args,)
 end
 
+-- test ref value
 local scene = BattleConf.scene
+-- scen

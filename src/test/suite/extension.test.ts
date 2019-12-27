@@ -106,6 +106,9 @@ async function testCompletion(
 		const actualItem = actualList.items[i];
 		assert.equal(actualItem.label, expectedItem.label, "label check");
 		assert.equal(actualItem.kind, expectedItem.kind, "kind check");
+		if (expectedItem.detail) {
+			assert.equal(actualItem.detail, expectedItem.detail, "detail check");
+		}
 	});
 }
 
@@ -374,6 +377,39 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	// 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
+	test('test filter local completion', async () => {
+		const docPath = path.join(samplePath, "battle.lua");
+
+		const uri = vscode.Uri.file(docPath);
+		await testCompletion(uri, new vscode.Position(68, 6), {
+			items: [
+				{ label: 'new', kind: vscode.CompletionItemKind.Function },
+			]
+		});
+	});
+
+	test('test ref value completion', async () => {
+		await testCompletion(testUri, new vscode.Position(83, 7), {
+			items: [
+				{
+					label: 'MonsterConf',
+					kind: vscode.CompletionItemKind.Module
+				},
+				{
+					label: 'scene',
+					detail: "-- test ref value\n -> BattleConf.scene = 1000",
+					kind: vscode.CompletionItemKind.Variable
+				},
+				{
+					label: 'support_comment',
+					kind: vscode.CompletionItemKind.Variable
+				},
+			]
+		});
+	});
+
+
 	test("test require path definition", async () => {
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
 		await testGoToDefinition(testUri, new vscode.Position(6, 33), [{
@@ -574,6 +610,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test ref value hove", async () => {
+		const val = "```lua\n-- test ref value\nlocal scene -> BattleConf.scene = 1000\n```";
+		await testHover(testUri, new vscode.Position(82, 9), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
 	test("test other file signature help", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
@@ -630,7 +674,7 @@ suite('Extension Test Suite', () => {
 	});
 
 	// 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
-	test("test filter local", async () => {
+	test("test filter local definition", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
@@ -639,18 +683,6 @@ suite('Extension Test Suite', () => {
 				path.join(samplePath, "conf", "battle_conf.lua")),
 			range: new vscode.Range(2, 0, 7, 1)
 		}]);
-	});
-
-	// 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
-	test('test filter local completion', async () => {
-		const docPath = path.join(samplePath, "battle.lua");
-
-		const uri = vscode.Uri.file(docPath);
-		await testCompletion(uri, new vscode.Position(68, 6), {
-			items: [
-				{ label: 'new', kind: vscode.CompletionItemKind.Function },
-			]
-		});
 	});
 
 	test('test luacheck', async () => {

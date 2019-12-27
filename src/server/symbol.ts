@@ -506,6 +506,8 @@ export class Symbol {
                 return;
             }
 
+            refVal.push(init.identifier.name);
+
             const base = init.base;
             // 最后一个是Identifier而不是MemberExpression
             if (base.type === "Identifier") {
@@ -516,7 +518,6 @@ export class Symbol {
             if (base.type !== "MemberExpression") {
                 return;
             }
-            refVal.push(init.identifier.name);
 
             init = base;
         }
@@ -685,6 +686,10 @@ export class Symbol {
     public getGlobalModuleSym(base: string[]) {
         if (base.length <= 0) {
             return null;
+        }
+
+        if (this.needUpdate) {
+            this.updateGlobal();
         }
 
         let sym = this.globalModule.get(base[0]);

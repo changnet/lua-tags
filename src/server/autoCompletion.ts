@@ -50,7 +50,7 @@ export class AutoCompletion {
     }
 
     // 符号转自动完成格式
-    private toCompletion(sym: SymInfoEx): CompletionItem {
+    private toCompletion(sym: SymInfoEx, uri: string): CompletionItem {
         // vs code会自动补全上下文中的单词，默认类型为CompletionItemKind.Text
         // 所以我们默认使用variable类型，与text区分
         let kind: CompletionItemKind = CompletionItemKind.Variable;
@@ -60,7 +60,10 @@ export class AutoCompletion {
             case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
-        let file = Symbol.getSymbolPath(sym);
+        let file;
+        if (sym.location.uri !== uri) {
+            file = Symbol.getSymbolPath(sym);
+        }
 
         let item: CompletionItem = {
             label: sym.name,
@@ -81,6 +84,11 @@ export class AutoCompletion {
             let parameters = sym.parameters.join(", ");
             let local = Symbol.getLocalTypePrefix(sym.local);
             detail += `${local}function ${sym.name}(${parameters})`;
+        }
+        // 显示引用的变量
+        let ref = Symbol.instance().getRefValue(sym);
+        if (ref) {
+            detail += ref;
         }
         // 显示行尾的注释
         if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
@@ -337,7 +345,7 @@ export class AutoCompletion {
 
         items = [];
         for (let sym of list) {
-            items.push(this.toCompletion(sym));
+            items.push(this.toCompletion(sym, uri));
         }
 
         return this.searchModuleName(query.name, items, query.base);
