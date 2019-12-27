@@ -156,6 +156,7 @@ export class Symbol {
     private parseUri: string = "";
     private parseScopeDeepth: number = 0;
     private parseNodeList: Node[] = [];
+    private parseCacheList: Node[] = [];
     private parseSymList: SymInfoEx[] = [];
     private parseModule = new Map<string, SymInfoEx>();
     private parseComments: Comment[] = [];
@@ -213,6 +214,9 @@ export class Symbol {
         if (this.parseScopeDeepth > 1) {
             return;
         }
+
+        // 用来搜索局部变量的缓存，记录所有可能的语句
+        this.parseCacheList.push(node);
 
         switch (node.type) {
             case "FunctionDeclaration": // 函数
@@ -849,6 +853,7 @@ export class Symbol {
         this.parseUri = uri;
         this.parseScopeDeepth = 0;
         this.parseNodeList = [];
+        this.parseCacheList = [];
         this.parseComments = [];
         this.parseCodeLine = [];
         this.parseModuleName = null;
@@ -865,7 +870,7 @@ export class Symbol {
             Utils.instance().error(uri);
         }
 
-        this.updateCache(uri, this.parseNodeList,
+        this.updateCache(uri, this.parseCacheList,
             this.parseComments, this.parseCodeLine);
 
         return this.parseNodeList;
@@ -1096,6 +1101,7 @@ export class Symbol {
         };
 
         this.parseNodeList.push(node);
+        this.parseCacheList.push(node);
         return true;
     }
 

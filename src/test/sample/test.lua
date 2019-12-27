@@ -82,3 +82,20 @@ end
 -- test ref value
 local scene = BattleConf.scene
 -- scen
+
+-- main chunk for local symbol search
+for idx = 1, 100 do
+    local count = idx
+    count = count + 1
+end
+
+-- main chunk do end block local symbol search
+do
+    local function sub()
+        local var = 100 -- const
+
+        return var
+    end
+    
+    sub();
+end

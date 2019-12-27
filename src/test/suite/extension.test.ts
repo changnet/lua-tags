@@ -532,6 +532,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test main chunk for loop local var definition", async () => {
+		await testGoToDefinition(testUri, new vscode.Position(88, 15), [{
+			uri: testUri,
+			range: new vscode.Range(87, 10, 87, 15)
+		}
+		]);
+	});
+
 	test("test query no base but symbol has hove", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
@@ -546,6 +554,14 @@ suite('Extension Test Suite', () => {
 	test("test local hove", async () => {
 		const val = "\`\`\`lua\n-- 测试声明多个变量\nlocal N = 1\n\`\`\`";
 		await testHover(testUri, new vscode.Position(13, 9), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
+	test("test main chunk do end block local hove", async () => {
+		const val = "```lua\nlocal var = 100 -- const\n```";
+		await testHover(testUri, new vscode.Position(96, 17), [{
 			contents: [{ value: val } as vscode.MarkdownString],
 		}
 		]);

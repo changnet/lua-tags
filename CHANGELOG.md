@@ -2,12 +2,13 @@
 
 All notable changes to the "lua-tags" extension will be documented in this file.
 
-## [1.0.3] 2019-12-??
+## [1.0.3] 2019-12-27
 1. fix require path auto completion show duplicate path
-2. fix permission deny on linux
+2. fix luacheck permission deny on linux
 3. allow jump to local unreachable symbol definition
 4. do't do completion or signature when definte a function
-5. show reference value at hover and completion
+5. add main chunk none function local symbol search
+6. show reference value at hover and completion
 ```lua
 X.Y = true
 local V = X.Y

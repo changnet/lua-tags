@@ -96,49 +96,40 @@ export class Search {
             loc.start.column, loc.end.line - 1, loc.end.column, pos);
     }
 
-    // local X = { a = 1 }，需要X来定位
-    private searchExpression(expr: Expression, base?: string) {
-        if (expr.type === "FunctionDeclaration"
-            && !this.searchFunctionDeclaration(expr)) {
-            return false;
-        } else if (expr.type === "TableConstructorExpression"
-            && !this.searchTableExpression(expr, base)) {
-            return false;
-        }
-
-        // 其他类型的不用搜索，不确定是否继续。返回true表示继续搜索
-        return true;
-    }
-
-    private searchStatement(stat: Statement) {
-        switch (stat.type) {
-            case "LocalStatement":
-                return this.searchLocalStatement(stat);
-            case "AssignmentStatement":
-                return this.searchAssignmentStatement(stat);
+    // local X = { a = 1 }，搜索table时，需要base（X）来判断是否为需要搜索的符号
+    private searchNode(node: Node, base?: string) {
+        switch (node.type) {
             case "FunctionDeclaration":
-                return this.searchFunctionDeclaration(stat);
+                return this.searchFunctionDeclaration(node);
+            case "TableConstructorExpression":
+                return this.searchTableExpression(node, base);
+            case "LocalStatement":
+                return this.searchLocalStatement(node);
+            case "AssignmentStatement":
+                return this.searchAssignmentStatement(node);
+            case "FunctionDeclaration":
+                return this.searchFunctionDeclaration(node);
             case "ReturnStatement":
-                return this.searchReturnStatement(stat);
+                return this.searchReturnStatement(node);
             case "IfStatement":
-                return this.searchIfStatement(stat);
+                return this.searchIfStatement(node);
             case "DoStatement":
             case "WhileStatement":
             case "RepeatStatement": {
-                if (2 !== this.compNodePos(stat, this.pos!)) {
+                if (2 !== this.compNodePos(node, this.pos!)) {
                     return true;
                 }
-                stat.body.forEach(sub => {
-                    if (!this.searchStatement(sub)) {
+                node.body.forEach(sub => {
+                    if (!this.searchNode(sub)) {
                         return;
                     }
                 });
                 break;
             }
             case "ForGenericStatement":
-                return this.searchForGenericStatement(stat);
+                return this.searchForGenericStatement(node);
             case "ForNumericStatement":
-                return this.searchForNumbericStatement(stat);
+                return this.searchForNumbericStatement(node);
         }
 
         return true;
@@ -171,7 +162,7 @@ export class Search {
     private searchIfStatement(stat: IfStatement) {
         for (const clause of stat.clauses) {
             for (const sub of clause.body) {
-                if (!this.searchStatement(sub)) {
+                if (!this.searchNode(sub)) {
                     return false;
                 }
             }
@@ -190,7 +181,7 @@ export class Search {
             return false;
         }
         for (const sub of stat.body) {
-            if (!this.searchStatement(sub)) {
+            if (!this.searchNode(sub)) {
                 return false;
             }
         }
@@ -210,7 +201,7 @@ export class Search {
         }
 
         for (const sub of stat.body) {
-            if (!this.searchStatement(sub)) {
+            if (!this.searchNode(sub)) {
                 return false;
             }
         }
@@ -237,7 +228,7 @@ export class Search {
         // 先搜索变量名，再搜索初始化。因为是按位置判断是否继续搜索的
         nextSearch = stat.init.every((expr, index) => {
             let sub = stat.variables[index];
-            return this.searchExpression(expr, sub.name);
+            return this.searchNode(expr, sub.name);
         });
         if (!nextSearch) {
             return false;
@@ -272,7 +263,7 @@ export class Search {
                 base = sub.name;
             }
 
-            return this.searchExpression(expr, base);
+            return this.searchNode(expr, base);
         });
         if (!nextSearch) {
             return false;
@@ -324,7 +315,7 @@ export class Search {
         }
         // 扫完函数局部变量
         for (const stat of expr.body) {
-            if (!this.searchStatement(stat)) {
+            if (!this.searchNode(stat)) {
                 return false;
             }
         }
@@ -357,9 +348,8 @@ export class Search {
         // 从函数开始搜索，非函数会在文档符号中查找
         // TODO: 目前只搜索局部函数，以后考虑加上其他类型，比如 for循环
         for (const node of cache.nodes) {
-            if (node.type === "FunctionDeclaration"
-                && 2 === this.compNodePos(node, pos)) {
-                if (!this.searchFunctionDeclaration(node)) {
+            if (2 === this.compNodePos(node, pos)) {
+                if (!this.searchNode(node)) {
                     return;
                 }
             }
@@ -579,19 +569,13 @@ export class Search {
         }
 
         // 查找局部变量
+        let possibleSym;
         const uri = query.uri;
         srv.ensureSymbolCache(uri);
         items = this.searchlocal(query);
         if (items) {
-            return items;
-        }
-
-        // 忽略模块名，直接查找当前文档符号
-        let possibleSym;
-        items = filter(symbol.getDocumentSymbol(uri));
-        if (items) {
-            let symList = this.filterLocalSym(items, query);
-            if (symList.length > 0) {
+            let symList = this.localizationFilter(query, items);
+            if (symList) {
                 return symList;
             } else {
                 /*
@@ -600,6 +584,17 @@ export class Search {
                  * allow the first foo() call to jump to the later definition if
                  * no other fefinition found
                  */
+                possibleSym = items;
+            }
+        }
+
+        // 忽略模块名，直接查找当前文档符号
+        items = filter(symbol.getDocumentSymbol(uri));
+        if (items) {
+            let symList = this.filterLocalSym(items, query);
+            if (symList.length > 0) {
+                return symList;
+            } else {
                 possibleSym = items;
             }
         }
