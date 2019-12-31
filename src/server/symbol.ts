@@ -82,11 +82,6 @@ export interface NameInfo {
     indexer?: string;
 }
 
-interface ModuleSymbol {
-    raw?: boolean;
-    symList: SymInfoEx[];
-}
-
 /* luaparse
  * scope: 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
  * node: 语法节点，注意顺序和编译器一样，从右到左。其类型参考luaparse的ast.Node声明
@@ -147,7 +142,7 @@ export class Symbol {
     private globalSymbol = new Map<string, SymInfoEx[]>();
 
     // 全局模块缓存，方便快速查询符号 identifier
-    private globalModule = new Map<string, ModuleSymbol>();
+    private globalModule = new Map<string, SymInfoEx>();
 
     // 各个文档的符号缓存，uri为key
     private documentSymbol = new Map<string, SymInfoEx[]>();
@@ -316,6 +311,23 @@ export class Symbol {
         return nameInfo;
     }
 
+    // 创建一个不存在的外部模块符号
+    private createModuleSym(name: string, scope: number = 0) : SymInfoEx {
+        return {
+            name: name,
+            kind: SymbolKind.Namespace,
+            location: {
+                uri: "",
+                range: {
+                    start: { line: 0, character: 0 },
+                    end: { line: 0, character: 0 },
+                }
+            },
+            scope: scope,
+            subSymList: []
+        };
+    }
+
     private pushModuleSymbol(
         name: string, sym: SymInfoEx) {
         let moduleSym = this.parseModule.get(name);
@@ -324,19 +336,7 @@ export class Symbol {
         // 可能是扩展标准库或者C++中定义，又或者是同一个模块，分成多个文件
         // key为模块名，Value为uri
         if (!moduleSym) {
-            moduleSym = {
-                name: name,
-                kind: SymbolKind.Namespace,
-                location: {
-                    uri: "",
-                    range: {
-                        start: { line: 0, character: 0 },
-                        end: { line: 0, character: 0 },
-                    }
-                },
-                scope: 0,
-                subSymList: []
-            };
+            moduleSym = this.createModuleSym(name);
             this.parseModule.set(name, moduleSym);
         }
 
@@ -660,21 +660,28 @@ export class Symbol {
             });
         });
 
-        for (let [uri, docModules] of this.documentModule) {
-            for (let [name, sym] of docModules) {
+        for (const [uri, docModules] of this.documentModule) {
+            for (const [name, sym] of docModules) {
                 // local模块不放到全局
                 if (sym.local) {
                     continue;
                 }
                 let moduleSym = this.globalModule.get(name);
                 if (!moduleSym) {
-                    this.globalModule.set(name, {
-                        raw: true, symList: sym.subSymList || []
-                    });
+                    this.globalModule.set(name, sym);
                     continue;
                 }
-                // 同一个模块，分布在不同文件，其中一个是没有uri的
-                if (moduleSym.location.uri === "") {
+                // 当同一个模块的符号分布在不同文档时，最终需要合并
+                // 合并时不能修改原符号，只能重新创建一个
+                if (-1 !== moduleSym.scope) {
+                    let newSym: SymInfoEx = Object.assign(moduleSym);
+                    this.globalModule.set(name, newSym);
+
+                    moduleSym = newSym;
+                }
+
+                // 之前保存的可能是外部符号，现在遇到定义的地方，则把位置修正为定义的位置
+                if ("" !== sym.location.uri) {
                     moduleSym.location = sym.location;
                 }
                 // 合并模块中的符号
@@ -731,8 +738,8 @@ export class Symbol {
             this.updateGlobal();
         }
 
-        let sym = this.globalModule.get(base);
-        return sym && sym.subSymList ? sym.subSymList : null;
+        const module = this.globalModule.get(base);
+        return module ? module.subSymList : null;
     }
 
     // 正常解析
