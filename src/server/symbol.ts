@@ -28,8 +28,6 @@ import {
     SymbolKind,
     SymbolInformation
 } from 'vscode-languageserver';
-import { start } from "repl";
-import { normalize } from "path";
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -82,6 +80,11 @@ export interface NameInfo {
     name: string;
     base?: string;
     indexer?: string;
+}
+
+interface ModuleSymbol {
+    raw?: boolean;
+    symList: SymInfoEx[];
 }
 
 /* luaparse
@@ -144,7 +147,7 @@ export class Symbol {
     private globalSymbol = new Map<string, SymInfoEx[]>();
 
     // 全局模块缓存，方便快速查询符号 identifier
-    private globalModule = new Map<string, SymInfoEx>();
+    private globalModule = new Map<string, ModuleSymbol>();
 
     // 各个文档的符号缓存，uri为key
     private documentSymbol = new Map<string, SymInfoEx[]>();
@@ -665,7 +668,9 @@ export class Symbol {
                 }
                 let moduleSym = this.globalModule.get(name);
                 if (!moduleSym) {
-                    this.globalModule.set(name, sym);
+                    this.globalModule.set(name, {
+                        raw: true, symList: sym.subSymList || []
+                    });
                     continue;
                 }
                 // 同一个模块，分布在不同文件，其中一个是没有uri的
@@ -707,7 +712,6 @@ export class Symbol {
             }
 
             // TODO: 这里是否需要一个 Map
-            let found;
             const name = base[idx];
             for (let sub of subSym) {
                 if (sub.name === name) {
