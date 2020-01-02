@@ -312,7 +312,7 @@ export class Symbol {
     }
 
     // 创建一个不存在的外部模块符号
-    private createModuleSym(name: string, scope: number = 0) : SymInfoEx {
+    private createModuleSym(name: string, scope: number = 0): SymInfoEx {
         return {
             name: name,
             kind: SymbolKind.Namespace,
@@ -674,7 +674,16 @@ export class Symbol {
                 // 当同一个模块的符号分布在不同文档时，最终需要合并
                 // 合并时不能修改原符号，只能重新创建一个
                 if (-1 !== moduleSym.scope) {
-                    let newSym: SymInfoEx = Object.assign(moduleSym);
+                    // let newSym: SymInfoEx = Object.assign(moduleSym);
+                    let newSym = this.createModuleSym(name, -1);
+
+                    newSym.location = moduleSym.location;
+                    if (!newSym.subSymList) {
+                        newSym.subSymList = [];
+                    }
+                    if (moduleSym.subSymList) {
+                        newSym.subSymList.push(...moduleSym.subSymList);
+                    }
                     this.globalModule.set(name, newSym);
 
                     moduleSym = newSym;
@@ -739,7 +748,7 @@ export class Symbol {
         }
 
         const module = this.globalModule.get(base);
-        return module ? module.subSymList : null;
+        return module && module.subSymList ? module.subSymList : null;
     }
 
     // 正常解析

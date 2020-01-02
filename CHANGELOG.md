@@ -2,6 +2,9 @@
 
 All notable changes to the "lua-tags" extension will be documented in this file.
 
+## [1.0.4] 2020-01-02
+1. fix duplicate symbol bug from 1.0.3
+
 ## [1.0.3] 2019-12-27
 1. fix require path auto completion show duplicate path
 2. fix luacheck permission deny on linux
