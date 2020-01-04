@@ -137,6 +137,15 @@ export class Server {
                 return null;
             }
         });
+        conn.onNotification("__export", handler => {
+            try {
+                const symList = Symbol.instance().getGlobalSymbolList();
+                Utils.instance().writeGlobalSymbols(symList);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
 
         let doc = this.documents;
         doc.onDidSave(handler => {

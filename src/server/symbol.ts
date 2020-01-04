@@ -108,7 +108,7 @@ export enum CommentType {
 
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
 export interface SymInfoEx extends SymbolInformation {
-    scope: number; // 第几层作用域
+    scope: number; // 第几层作用域, -1表示外部符号
     refType?: string[]; // local N = M时记录引用的类型M
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
@@ -119,6 +119,7 @@ export interface SymInfoEx extends SymbolInformation {
     indexer?: string; // M.N或者M:N中的[., :]
     comment?: string; // 注释
     ctType?: CommentType; // 注释类型
+    baseModule?: string; // 用于处理处理module()
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
@@ -360,8 +361,10 @@ export class Symbol {
 
         // 如果声明了模块，那么所有没有模块名的符号都会被加上一个符号名
         let base = sym.base;
-        if (!base && sym.kind !== SymbolKind.Module && !sym.local) {
-            base = this.parseModuleName || undefined;
+        if (!base && sym.kind !== SymbolKind.Module
+            && !sym.local && this.parseModuleName) {
+            base = this.parseModuleName;
+            sym.baseModule = this.parseModuleName;
         }
         if (base) {
             this.pushModuleSymbol(base, sym);
@@ -1336,5 +1339,20 @@ export class Symbol {
         let val = refSym.value ? ` = ${refSym.value}` : "";
 
         return ` -> ${sym.refType.join(".")}${val}`;
+    }
+
+    // 获取全局符号
+    public getGlobalSymbolList() {
+        let symList: SymInfoEx[] = [];
+        for (const [uri, docSymList] of this.documentSymbol) {
+            for (const sym of docSymList) {
+                if (0 === sym.scope && !sym.local
+                    && !sym.base && !sym.baseModule) {
+                    symList.push(sym);
+                }
+            }
+        }
+
+        return symList;
     }
 }

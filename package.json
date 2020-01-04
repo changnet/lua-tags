@@ -30,6 +30,12 @@
 				]
 			}
 		],
+		"commands": [
+			{
+				"command": "lua-tags.exportglobal",
+				"title": "lua-tags:export global symbol"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "lua-tags configuration",

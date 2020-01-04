@@ -81,10 +81,17 @@ export function activate(context: vscode.ExtensionContext) {
     // 在新打开的的vsc里的控制台OUTPUT里即可看到这个选项，可以看到server日志
 
     // Start the client. This will also launch the server
-    const disposable = client.start();
+    const disposable_clt = client.start();
+
+    // 命令先要在package.json中定义
+    let disposable = vscode.commands.registerCommand(
+        "lua-tags.exportglobal", () => {
+            client.sendNotification("__export"); // 后面可以发送一个any参数
+        });
 
     // 在插件deactivate时，把这个client销毁掉
     context.subscriptions.push(disposable);
+    context.subscriptions.push(disposable_clt);
 }
 
 // this method is called when your extension is deactivated

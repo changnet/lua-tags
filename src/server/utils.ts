@@ -8,6 +8,7 @@ import Uri from 'vscode-uri';
 import * as syncfs from "fs";
 import { promises as fs } from "fs";
 import { Setting } from './setting';
+import { SymInfoEx } from './symbol';
 
 type WalkerCallBack = (uri: string, ctx: string) => void;
 
@@ -73,7 +74,6 @@ export class DirWalker {
         this.files = 0;
         let rootPath = Setting.instance().getRoot(dirPath);
 
-        Utils.instance().log(`start parse root ${rootPath}`);
         try {
             await this.walkDir(rootPath, callBack);
         } catch (e) {
@@ -106,6 +106,25 @@ export class Utils {
     // 写日志到终端，设置了lua-tags.trace: verbose就可以在OUTPUT看到
     public log(ctx: string) {
         this.conn!.console.log(ctx);
+    }
+
+    // 导出全局符号，不常用，直接用同步写入就可以了
+    public writeGlobalSymbols(symList: SymInfoEx[]) {
+        const fileName = "lua-tags-global-symbols";
+        const option = { encoding: "utf8", flag: "a" };
+
+        syncfs.writeFileSync(fileName,
+            `-- auto export by lua-tags ${symList.length} symbols\n\n`,
+            { encoding: "utf8", flag: "w" });
+
+        let lastUri: string | null = null;
+        for (const sym of symList) {
+            if (lastUri !== sym.location.uri) {
+                lastUri = sym.location.uri;
+                syncfs.writeFileSync(fileName, `\n-- ${lastUri}\n`, option);
+            }
+            syncfs.writeFileSync(fileName, `"${sym.name}"\n`, option);
+        }
     }
 
     public static pad(num: number, size: number) {

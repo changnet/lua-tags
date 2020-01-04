@@ -2,6 +2,9 @@
 
 All notable changes to the "lua-tags" extension will be documented in this file.
 
+## [1.0.4] 2020-01-??
+1. add command: export global symbols
+
 ## [1.0.4] 2020-01-02
 1. fix duplicate symbol bug from 1.0.3
 
