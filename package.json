@@ -88,6 +88,12 @@
 					"default": true,
 					"description": "run luacheck for all files at lua-tags initialization."
 				},
+				"lua-tags.checkOnFileOpen": {
+					"scope": "resource",
+					"type": "boolean",
+					"default": false,
+					"description": "run luacheck when open a lua file in editor."
+				},
 				"lua-tags.checkHow": {
 					"scope": "resource",
 					"type": "string",

@@ -164,6 +164,17 @@ export class Server {
                 return null;
             }
         });
+        doc.onDidOpen(handler => {
+            try {
+                if (Setting.instance().isCheckOnFileOpen()) {
+                    DiagnosticProvider.instance().check(
+                        handler.document.uri, handler.document.getText());
+                }
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        })
     }
 
     public init() {

@@ -38,6 +38,7 @@ export class Setting {
     private luaCheckPath = ""; // luacheck path
     private luaCheckRc = ""; // .luacheckrc path
     private checkExclude: string[] = []; // luacheck exclude dir
+    private checkOnFileOpen = false; // run luacheck when open a lua file
 
     private constructor() {
     }
@@ -78,7 +79,7 @@ export class Setting {
 
         this.luaCheck = <boolean>(conf.luacheck);
         this.checkOnInit = <boolean>(conf.checkOnInit);
-
+        this.checkOnFileOpen = <boolean>(conf.checkOnFileOpen);
 
         if (conf.checkHow) {
             this.checkHow = <string>(conf.checkHow) || "save";
@@ -192,5 +193,10 @@ export class Setting {
 
     public isCheckExclude(uri: string) {
         return this.isUriExclude(uri, this.checkExclude);
+    }
+
+    // 是否在打开文件时运行luacheck，仅打开工程不运行luacheck时有效
+    public isCheckOnFileOpen() {
+        return this.luaCheck && this.checkOnFileOpen && !this.checkOnInit
     }
 }
