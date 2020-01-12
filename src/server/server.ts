@@ -327,6 +327,10 @@ export class Server {
         let beg: number = pos.character;
         let end: number = pos.character;
 
+        // /(\w+[.|:])*(\w+)?$/
+        // A:B.C.D.E: ==>  Array ["A:B.C.D.E:", "E:", undefined]
+        // A:B.C.D.E:F ==> Array ["A:B.C.D.E:F", "E:", "F"]
+
         /*
          * https://javascript.info/regexp-groups
          * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
