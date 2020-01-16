@@ -99,3 +99,12 @@ do
     
     sub();
 end
+
+-- test local symbol duplicate filter
+local function local_symbol_duplicate_filter(lsdf_name)
+    lsdf_name = "local"
+    lsdf_name = "symbol"
+
+    -- should only show one auto completion item
+    --  lsdf_na
+end

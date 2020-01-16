@@ -34,6 +34,7 @@ import * as fuzzysort from "fuzzysort";
 import { Utils } from './utils';
 import { Server } from './server';
 import { Search, Filter } from './search';
+import { stringify } from 'querystring';
 
 export class AutoCompletion {
     private static ins: AutoCompletion;
@@ -199,6 +200,8 @@ export class AutoCompletion {
     private getlocalCompletion(query: SymbolQuery) {
         let symList: SymInfoEx[] = [];
 
+        let duplicateSym = new Map<string, boolean>();
+
         const baseName = query.base;
         const symName = query.name;
         const emptyName = 0 === symName.length;
@@ -216,10 +219,15 @@ export class AutoCompletion {
                         return;
                     }
                 }
+                // 局部变量如果不是local，多数是同一个变量赋值
+                if (!local && duplicateSym.get(name)) {
+                    return;
+                }
                 if (emptyName || fuzzysort.single(symName, name)) {
                     let sym = symbol.toSym(
                         { name: name, base: base }, node, init, local);
                     if (sym) {
+                        duplicateSym.set(name, true);
                         symList.push(sym);
                     }
                 }
