@@ -70,6 +70,7 @@ export interface QueryPos {
 export interface SymbolQuery {
     uri: string; // 要查询的符号在哪个文档
     base?: string; // 模块名，m:test中的m
+    extBase?: string[]; // A.B.C.E中的B.C
     name: string; // 符号名，m:test中的test
     kind: SymbolKind; // 查询的符号是什么类型
     position: QueryPos; //符号位置

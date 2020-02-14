@@ -172,7 +172,7 @@ export class HoverProvider {
         let line = srv.getQueryText(uri, pos);
         if (!line) { return null; }
 
-        let query = srv.getSymbolQuery(uri, line, pos);
+        let query = srv.getQuerySymbol(uri, line, pos);
         if (!query || query.name === "") { return null; }
 
         let list = Search.instance().search(srv, query);

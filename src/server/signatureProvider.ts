@@ -150,7 +150,7 @@ export class SignatureProvider {
         }
 
         const line = pos.line - info.line;
-        let query = srv.getSymbolQuery(uri, info.lineText, {
+        let query = srv.getQuerySymbol(uri, info.lineText, {
             line: line, character: info.character
         });
         if (!query) {

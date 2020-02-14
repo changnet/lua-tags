@@ -91,7 +91,7 @@ export class GoToDefinition {
         let loc: Definition | null = this.getRequireDefinition(line, pos);
         if (loc) { return loc; }
 
-        let query = srv.getSymbolQuery(uri, line, pos);
+        let query = srv.getQuerySymbol(uri, line, pos);
         if (!query || query.name === "") { return []; }
 
         let list = Search.instance().search(srv, query);

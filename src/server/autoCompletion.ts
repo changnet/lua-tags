@@ -343,7 +343,7 @@ export class AutoCompletion {
             this.getRequireCompletion(line, pos.character);
         if (items) { return items; }
 
-        let query = srv.getSymbolQuery(uri, line, pos);
+        let query = srv.getQuerySymbol(uri, line, pos);
         if (!query) { return []; }
 
         let list = this.doSearch(srv, query);

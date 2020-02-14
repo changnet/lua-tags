@@ -174,7 +174,7 @@ export class Server {
                 Utils.instance().anyError(e);
                 return null;
             }
-        })
+        });
     }
 
     public init() {
@@ -311,7 +311,7 @@ export class Server {
     }
 
     // 根据光标位置分解出要查询的符号信息
-    public getSymbolQuery(
+    public getQuerySymbol(
         uri: string, text: string, pos: Position): SymbolQuery | null {
         // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
         const leftText = text.substring(0, pos.character);
@@ -323,33 +323,34 @@ export class Server {
 
         // 模块名，即m:test()中的m
         let base;
+        let extBase;
 
         let beg: number = pos.character;
         let end: number = pos.character;
-
-        // /(\w+[.|:])*(\w+)?$/
-        // A:B.C.D.E: ==>  Array ["A:B.C.D.E:", "E:", undefined]
-        // A:B.C.D.E:F ==> Array ["A:B.C.D.E:F", "E:", "F"]
 
         /*
          * https://javascript.info/regexp-groups
          * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
          * \w是匹配单词字符，即a-zA-Z0-9_
          * .|:是匹配lua中m.n或者m:n的调用方式
-         * (\w+)([.|:]))?是说m:n中，m:可能不会出现，只有一个n
          * (\w+)?$是在自动自动完成时，可能会出现 ev: 这种情况，有模块名无符号名
+         * A:B.C.D.E: ==>  Array ["A:B.C.D.E:", "E:", undefined]
+         * A:B.C.D.E:F ==> Array ["A:B.C.D.E:F", "E:", "F"]
+         * ABC ==> Array ["ABC", undefined, "ABC"]
          */
-        const leftWords = leftText.match(/((\w+)([.|:]))?\s*(\w+)?$/);
+        const leftWords = leftText.match(/(\w+[.|:])*(\w+)?$/);
         if (leftWords) {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
-            //m:n将会匹配到strs = ["m:n","m:","m",".","n"]
-            if (leftWords[2]) {
-                base = leftWords[2];
+            if (leftWords[1]) {
+                // A:B.C.D.E:F ==> Array ["A", "B", "C", "D", "E", "F"]
+                let allBase = leftWords[0].split(/[.|:]/g);
+                base = allBase[0];
+                extBase = allBase.slice(1, allBase.length - 1);
             }
-            if (leftWords[4]) {
-                name = leftWords[4];
+            if (leftWords[2]) {
+                name = leftWords[2];
+                // name开始的位置，查找时用于精准对比符号的位置
                 beg -= name.length;
-                // assert(beg >= 0);
             }
         }
 
@@ -362,6 +363,7 @@ export class Server {
                 name += rightSym;
                 end += rightSym.length;
             }
+            // 如果有括号，查找的是函数
             if (rightWords[2]) {
                 kind = SymbolKind.Function;
             }
