@@ -47,7 +47,7 @@ async function testWorkspaceSymbol(query: string, expect: string[]) {
 		"vscode.executeWorkspaceSymbolProvider", query)
 	) as vscode.SymbolInformation[];
 
-	assert.equal(actualList.length, expect.length);
+	assert.equal(actualList.length, expect.length, "workspace symbol count");
 
 	actualList.sort((src, dst) => {
 		if (src.name === dst.name) {
@@ -56,7 +56,7 @@ async function testWorkspaceSymbol(query: string, expect: string[]) {
 		return src.name > dst.name ? 1 : 0;
 	});
 
-	// console.log(`check ${JSON.stringify(actualList)}`);
+	//console.log(`check ${JSON.stringify(actualList)}`);
 	expect.forEach((name, index) => {
 		assert.equal(actualList[index].name, name, "sym name");
 	});
@@ -70,7 +70,7 @@ async function testDocumentSymbol(
 
 	// console.log(`check ${JSON.stringify(rawList)}`);
 	const list = rawList as vscode.SymbolInformation[];
-	assert.equal(list.length, items.length);
+	assert.equal(list.length, items.length, "document symbol count");
 	items.forEach((sym, index) => {
 		assert.equal(sym.name, list[index].name);
 	});
@@ -228,9 +228,10 @@ suite('Extension Test Suite', () => {
 		await testWorkspaceSymbol("", []);
 	});
 
+	// 工作区所有符号模糊搜索
 	test('test fuzz workspace symbol', async () => {
 		await testWorkspaceSymbol("mon", [
-			"MonsterConf", "Monster", "Monster", "multi_comment"
+			"monster", "MonsterConf", "Monster", "Monster", "multi_comment"
 		]);
 	});
 
@@ -243,6 +244,10 @@ suite('Extension Test Suite', () => {
 			{ name: "skill_id", kind: 0, containerName: "", location: { uri: uri, range: range } },
 			{ name: "level", kind: 0, containerName: "", location: { uri: uri, range: range } },
 			{ name: "desc", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{ name: "parameters", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{ name: "boss", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{ name: "monster", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{ name: "player", kind: 0, containerName: "", location: { uri: uri, range: range } },
 		]);
 	});
 
@@ -334,8 +339,12 @@ suite('Extension Test Suite', () => {
 		const uri = vscode.Uri.file(docPath);
 		await testCompletion(uri, new vscode.Position(28, 48), {
 			items: [
+				{ label: 'boss', kind: vscode.CompletionItemKind.Module },
 				{ label: 'desc', kind: vscode.CompletionItemKind.Variable },
 				{ label: 'level', kind: vscode.CompletionItemKind.Variable },
+				{ label: 'monster', kind: vscode.CompletionItemKind.Module },
+				{ label: 'parameters', kind: vscode.CompletionItemKind.Module },
+				{ label: 'player', kind: vscode.CompletionItemKind.Module },
 				{ label: 'skill_id', kind: vscode.CompletionItemKind.Variable },
 			]
 		});
@@ -416,6 +425,22 @@ suite('Extension Test Suite', () => {
 			items: [
 				{
 					label: 'lsdf_name',
+					kind: vscode.CompletionItemKind.Variable
+				},
+			]
+		});
+	});
+
+	// 全局符号递归搜索
+	test('test global recursive search symbol completion', async () => {
+		await testCompletion(testUri, new vscode.Position(112, 28), {
+			items: [
+				{
+					label: 'boss',
+					kind: vscode.CompletionItemKind.Variable
+				},
+				{
+					label: 'monster',
 					kind: vscode.CompletionItemKind.Variable
 				},
 			]
@@ -529,7 +554,8 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	test("test local filter definition", async () => {
+	// 符号被同名本地化时，要能区分本地和全局
+	test("test localize filter definition", async () => {
 		await testGoToDefinition(testUri, new vscode.Position(49, 14), [{
 			uri: testUri,
 			range: new vscode.Range(45, 0, 48, 3)
@@ -616,7 +642,7 @@ suite('Extension Test Suite', () => {
 	});
 
 	test("test multi comment hove", async () => {
-		const val = '```lua\n-- 测试混合多行注释\n-- comment 111\n--[[\n    这是\r\n    多行\r\n    注释\r\n]]\nlocal multi_comment = true\n```';
+		const val = "```lua\n-- 测试混合多行注释\n-- comment 111\n--[[\n    这是\n    多行\n    注释\n]]\nlocal multi_comment = true\n```";
 		await testHover(testUri, new vscode.Position(62, 14), [{
 			contents: [{ value: val } as vscode.MarkdownString],
 		}
@@ -710,7 +736,7 @@ suite('Extension Test Suite', () => {
 		await testGoToDefinition(uri, new vscode.Position(64, 23), [{
 			uri: vscode.Uri.file(
 				path.join(samplePath, "conf", "battle_conf.lua")),
-			range: new vscode.Range(2, 0, 7, 1)
+			range: new vscode.Range(2, 0, 17, 1)
 		}]);
 	});
 
