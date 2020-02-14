@@ -214,7 +214,6 @@ export class Server {
         };
     }
     private async onInitialized() {
-        Utils.instance().log(`Lua LSP Server started:${this.rootUri}`);
         if (!this.rootUri) {
             return;
         }
@@ -244,7 +243,7 @@ export class Server {
 
         let end = Date.now();
         Utils.instance().log(
-            `Lua initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
+            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
     }
 
     // 返回当前文档的符号
@@ -374,6 +373,7 @@ export class Server {
             base: base,
             name: name,
             kind: kind,
+            extBase: extBase,
             position: { line: pos.line, beg: beg, end: end },
             text: text
         };

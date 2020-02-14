@@ -108,3 +108,13 @@ local function local_symbol_duplicate_filter(lsdf_name)
     -- should only show one auto completion item
     --  lsdf_na
 end
+
+-- test global recursive search symbol
+-- BattleConf.resource.area.
+
+-- test recursive search symbol
+local SkillConf = require "conf.skill_conf"
+local BossParam = SkillConf.parameters.boss
+
+-- BossParam
+-- SkillConf.parameters.boss

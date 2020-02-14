@@ -409,8 +409,7 @@ export class Search {
     }
 
     // 根据模块名查找符号
-    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错。
-    // 暂时不考虑这种情况，真实项目只没见过允许这种写法的
+    // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错，暂时不考虑这种情况
     public searchGlobalModule(query: SymbolQuery, filter: Filter) {
         let base = query.base;
         if (!base) {
@@ -419,10 +418,16 @@ export class Search {
 
         let symbol = Symbol.instance();
 
-        let rawName = symbol.getRawModule(query.uri, base);
-        let symList = symbol.getGlobalModule(rawName);
+        let rawBases = symbol.getRawModule(query.uri, base);
+        let sym = symbol.getGlobalModuleSubSym(rawBases);
+        if (sym && query.extBase) {
+            sym = symbol.getSubSymbolFromSym(sym, query.extBase, 0);
+        }
 
-        return filter(symList);
+        if (!sym || !sym.subSymList) {
+            return null;
+        }
+        return filter(sym.subSymList);
     }
 
     // 根据模块名查找某个文档的符号
@@ -553,7 +558,7 @@ export class Search {
 
         /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
          * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
-         * 全局和文档都做了符号hash缓存，因此优先匹配
+         * 全局和文档都做了符号hash缓存，优先匹配
          */
 
         // 优先根据模块名匹配全局符号

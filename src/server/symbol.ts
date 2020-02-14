@@ -110,7 +110,7 @@ export enum CommentType {
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
 export interface SymInfoEx extends SymbolInformation {
     scope: number; // 第几层作用域, -1表示外部符号
-    refType?: string[]; // local N = M时记录引用的类型M
+    refType?: string[]; // local N = M时记录引用的类型M，local MAX = M.X.Y为多层引用
     refUri?: string; // local M = require "x"时记录引用的文件x
     value?: string; // local V = 2这种静态数据时记录它的值
     parameters?: string[]; // 如果是函数，记录其参数
@@ -434,7 +434,15 @@ export class Symbol {
                 name: field.key.name
             }, field.key, field.value);
 
-            if (sym) { symList.push(sym); }
+            // 解析子table
+            if (sym && this.parseScopeDeepth < 8
+                && field.value.type === "TableConstructorExpression") {
+                sym.subSymList = this.parseTableConstructorExpr(field.value);
+            }
+
+            if (sym) {
+                symList.push(sym);
+            }
         }
         this.parseScopeDeepth--;
 
@@ -744,15 +752,48 @@ export class Symbol {
         return sym ? sym : null;
     }
 
+    // 获取某个符号的子符号
+    public getSubSymbolFromSym(sym: SymInfoEx, base: string[], index: number) {
+        for (let idx = index; idx < base.length;idx ++) {
+            if (!sym || !sym.subSymList) {
+                return null;
+            }
+
+            let found;
+            let name = base[idx];
+            for (let subSym of sym.subSymList) {
+                if (name === subSym.name) {
+                    found = subSym;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return null;
+            }
+
+            sym = found;
+        }
+
+        return sym || null;
+    }
+
     // 获取某个模块的所有符号
-    // @base: local N = M.X.Y中的Y X M
-    public getGlobalModule(base: string) {
+    // @base: local N = M.X.Y中的M X Y
+    public getGlobalModuleSubSym(base: string[]) {
+        if (base.length <= 0) {
+            return null;
+        }
+
         if (this.needUpdate) {
             this.updateGlobal();
         }
 
-        const module = this.globalModule.get(base);
-        return module && module.subSymList ? module.subSymList : null;
+        let sym = this.globalModule.get(base[0]);
+        if (!sym) {
+            return null;
+        }
+        return this.getSubSymbolFromSym(sym, base, 1);
     }
 
     // 正常解析
@@ -1013,15 +1054,15 @@ export class Symbol {
 
     // 查找经过本地化的原符号名字
     // local N = M时转到模块M查找
-    public getRawModule(uri: string, base: string): string {
+    public getRawModule(uri: string, base: string): string[] {
         // 模块名为self则是当前文档self:test()这种用法
         if ("self" === base || "_G" === base) {
-            return base;
+            return [base];
         }
 
         const symList = this.documentSymbol.get(uri);
         if (!symList) {
-            return base;
+            return [base];
         }
 
         let sym;
@@ -1031,13 +1072,11 @@ export class Symbol {
                 break;
             }
         }
-        if (!sym || !sym.refType || sym.refType.length > 1) {
-            return base;
+        if (!sym || !sym.refType) {
+            return [base];
         }
 
-        // local N = M 这种用法
-        // 都找不到，默认查找当前文档
-        return sym.refType[0] || base;
+        return sym.refType;
     }
 
     // 转换成uri路径格式
