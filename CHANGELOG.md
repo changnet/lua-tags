@@ -3,13 +3,13 @@
 All notable changes to the "lua-tags" extension will be documented in this file.
 
 ## [TODO]
-1. recursive search table symbol
 2. read type from comments like phpdoc
 3. add lua、ngx_lua、love2d std library support
 
 ## [1.0.4] 2020-01-??
 1. add command: export global symbols
 2. local symbol duplicate completion item filter
+3. recursive search table symbol
 
 ## [1.0.4] 2020-01-02
 1. fix duplicate symbol bug from 1.0.3
