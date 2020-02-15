@@ -447,6 +447,21 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	// 当前文档符号递归搜索
+	test('test document recursive search symbol completion', async () => {
+		await testCompletion(testUri, new vscode.Position(118, 13), {
+			items: [
+				{
+					label: 'effect',
+					kind: vscode.CompletionItemKind.Variable
+				},
+				{
+					label: 'factor',
+					kind: vscode.CompletionItemKind.Variable
+				},
+			]
+		});
+	});
 
 	test("test require path definition", async () => {
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
@@ -668,6 +683,14 @@ suite('Extension Test Suite', () => {
 	test("test ref value hove", async () => {
 		const val = "```lua\n-- test ref value\nlocal scene -> BattleConf.scene = 1000\n```";
 		await testHover(testUri, new vscode.Position(82, 9), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
+	test("test document recursive search hover", async () => {
+		const val = "skill_conf.lua\n```lua\nfactor = 0.01\n```";
+		await testHover(testUri, new vscode.Position(119, 33), [{
 			contents: [{ value: val } as vscode.MarkdownString],
 		}
 		]);

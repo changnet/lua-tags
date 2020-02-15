@@ -344,7 +344,9 @@ export class Server {
                 // A:B.C.D.E:F ==> Array ["A", "B", "C", "D", "E", "F"]
                 let allBase = leftWords[0].split(/[.|:]/g);
                 base = allBase[0];
-                extBase = allBase.slice(1, allBase.length - 1);
+                if (allBase.length > 2) {
+                    extBase = allBase.slice(1, allBase.length - 1);
+                }
             }
             if (leftWords[2]) {
                 name = leftWords[2];

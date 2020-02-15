@@ -161,7 +161,7 @@ export class HoverProvider {
      * 所以这里特殊处理
      */
     private searchModuleName(name: string) {
-        if (!Symbol.instance().getGlobalModuleSubSym([name])) {
+        if (!Symbol.instance().getGlobalModuleSubList([name])) {
             return null;
         }
 

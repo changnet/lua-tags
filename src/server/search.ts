@@ -419,15 +419,12 @@ export class Search {
         let symbol = Symbol.instance();
 
         let rawBases = symbol.getRawModule(query.uri, base);
-        let sym = symbol.getGlobalModuleSubSym(rawBases);
-        if (sym && query.extBase) {
-            sym = symbol.getSubSymbolFromSym(sym, query.extBase, 0);
+        let symList = symbol.getGlobalModuleSubList(rawBases);
+        if (symList && query.extBase) {
+            symList = symbol.getSubSymbolFromList(query.extBase, 0, symList);
         }
 
-        if (!sym || !sym.subSymList) {
-            return null;
-        }
-        return filter(sym.subSymList);
+        return filter(symList);
     }
 
     // 根据模块名查找某个文档的符号
@@ -440,18 +437,11 @@ export class Search {
         let symbol = Symbol.instance();
 
         // 先查找当前文档的local模块
-        const symList = filter(symbol.getDocumentModule(query.uri, base));
-        if (symList) {
-            return symList;
+        let symList = symbol.getDocumentModuleSubList(query.uri, [base]);
+        if (symList && query.extBase) {
+            symList = symbol.getSubSymbolFromList(query.extBase, 0, symList);
         }
-
-        // 查找当前文档引用的其他模块
-        let rawUri = symbol.getRawUri(query.uri, base);
-        if (!rawUri) {
-            return null;
-        }
-
-        return filter(symbol.getDocumentSymbol(rawUri));
+        return filter(symList);
     }
 
     // 如果找到了位置一致的符号，则认为是需要查找的符号，过滤掉其他同名符号

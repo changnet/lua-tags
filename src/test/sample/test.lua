@@ -112,9 +112,9 @@ end
 -- test global recursive search symbol
 -- BattleConf.resource.area.
 
--- test recursive search symbol
+-- test document recursive search symbol
 local SkillConf = require "conf.skill_conf"
 local BossParam = SkillConf.parameters.boss
 
--- BossParam
--- SkillConf.parameters.boss
+-- BossParam.
+-- SkillConf.parameters.boss.factor
