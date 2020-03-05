@@ -39,7 +39,7 @@ help to set .luacheckrc.
 * https://www.cockos.com/licecap/
 
 ## Known Bugs and Issues
-The luaparse package at npm are very old(0.2.1), some bug already been fixed at 
+The luaparse package at npm are very old(0.2.1), some bugs already been fixed at 
 github repository like https://github.com/fstirlitz/luaparse/issues/58
 
-manually download and build package if necessary
+manually download luaparse if you build extension package youself.

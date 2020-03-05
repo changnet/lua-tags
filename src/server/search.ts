@@ -228,6 +228,10 @@ export class Search {
         // 先搜索变量名，再搜索初始化。因为是按位置判断是否继续搜索的
         nextSearch = stat.init.every((expr, index) => {
             let sub = stat.variables[index];
+            // like local a = 1, 2, you dont get the sub for 2nd init value
+            if (!sub) {
+                return true;
+            }
             return this.searchNode(expr, sub.name);
         });
         if (!nextSearch) {
@@ -345,8 +349,6 @@ export class Search {
         this.pos = pos;
         this.callBack = callBack;
 
-        // 从函数开始搜索，非函数会在文档符号中查找
-        // TODO: 目前只搜索局部函数，以后考虑加上其他类型，比如 for循环
         for (const node of cache.nodes) {
             if (2 === this.compNodePos(node, pos)) {
                 if (!this.searchNode(node)) {
