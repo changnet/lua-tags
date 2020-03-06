@@ -696,6 +696,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test member ref function hove", async () => {
+		const val = "```lua\nref_tbl.empty -> function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
+		await testHover(testUri, new vscode.Position(127, 10), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
 	test("test document recursive search hover", async () => {
 		const val = "skill_conf.lua\n```lua\nfactor = 0.01\n```";
 		await testHover(testUri, new vscode.Position(119, 33), [{

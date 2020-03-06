@@ -123,3 +123,6 @@ local BossParam = SkillConf.parameters.boss
 
 local empty = table.empty
 local is_empty = empty({})
+
+local ref_tbl = {}
+ref_tbl.empty = table.empty

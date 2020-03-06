@@ -95,12 +95,10 @@ export class HoverProvider {
                 `${local}${sym.name} = ${sym.value}`, uri);
         }
 
-        if (sym.local) {
+        if (sym.local || sym.refType) {
             let local = Symbol.getLocalTypePrefix(sym.local);
-            if ("" === local) {
-                return null;
-            }
-            return this.toLuaMarkdown(sym, `${local}${sym.name}`, uri);
+            let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri);
         }
 
         if (sym.location.uri !== uri) {
