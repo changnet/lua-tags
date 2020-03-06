@@ -570,9 +570,7 @@ export class Symbol {
             case "Identifier": {
                 // local N = M 会被视为把模块M本地化为N
                 // 在跟踪N的符号时会在M查找
-                // 如果是local M = M这种同名的，则不处理，反正都是根据名字去查找
-                // 仅仅处理文件顶层作用域
-                if (0 === sym.scope && nameInfo.name !== initNode.name) {
+                if (0 === sym.scope) {
                     sym.refType = [initNode.name];
                 }
                 break;
