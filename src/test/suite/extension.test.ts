@@ -704,6 +704,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test same name ref symbol dead loop hove", async () => {
+		const val = "```lua\nlocal ipair -> ipair\n```";
+		await testHover(testUri, new vscode.Position(129, 8), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
 	test("test document recursive search hover", async () => {
 		const val = "skill_conf.lua\n```lua\nfactor = 0.01\n```";
 		await testHover(testUri, new vscode.Position(119, 33), [{

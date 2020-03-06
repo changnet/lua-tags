@@ -126,3 +126,5 @@ local is_empty = empty({})
 
 local ref_tbl = {}
 ref_tbl.empty = table.empty
+
+local ipair = ipair

@@ -570,13 +570,13 @@ export class Symbol {
             case "Identifier": {
                 // local N = M 会被视为把模块M本地化为N
                 // 在跟踪N的符号时会在M查找
-                if (0 === sym.scope) {
+                if (0 === sym.scope && init) {
                     sym.refType = [initNode.name];
                 }
                 break;
             }
             case "MemberExpression": {
-                if (0 === sym.scope) {
+                if (0 === sym.scope && init) {
                     sym.refType = this.toRefVallue(initNode);
                 }
                 break;
@@ -718,16 +718,20 @@ export class Symbol {
 
     // 获取引用的符号
     // @base: local N = M.X.Y中的M X Y
-    public getRefSym(bases: string[], uri: string): VSCodeSymbol {
-        if (bases.length <= 0) {
+    public getRefSym(sym: SymInfoEx, uri: string): VSCodeSymbol {
+        const refType = sym.refType;
+        if (!refType || refType.length <= 0) {
             return null;
         }
 
-        let sym = this.getGlobalModule(bases);
-        if (sym) {
-            return sym;
+        let globalSym = this.getGlobalModule(refType);
+        if (globalSym) {
+            return globalSym;
         }
-        let docSym = this.getDocumentModule(uri, bases);
+
+        // 本次查找不再递归查找引用的符号
+        // 防止 local ipairs = ipairs这种同名引用死循环
+        let docSym = this.getDocumentModule(uri, refType, false);
         if (docSym instanceof Array) {
             return null;
         }
@@ -975,7 +979,7 @@ export class Symbol {
     }
 
     // 获取某个文档里的某个模块
-    public getDocumentModule(uri: string, bases: string[]) {
+    public getDocumentModule(uri: string, bases: string[], ref = true) {
         // 先在当前文档的模块中查找
         const base = bases[0];
         let moduleHash = this.documentModule.get(uri);
@@ -1001,8 +1005,8 @@ export class Symbol {
                 continue;
             }
 
-            if (sym.refType) {
-                let rawSym = this.getRefSym(sym.refType, uri);
+            if (ref && sym.refType) {
+                let rawSym = this.getRefSym(sym, uri);
                 if (1 === bases.length) {
                     return rawSym;
                 }
@@ -1423,7 +1427,7 @@ export class Symbol {
             return "";
         }
 
-        const refSym = this.getRefSym(sym.refType, sym.location.uri);
+        const refSym = this.getRefSym(sym, sym.location.uri);
         if (!refSym) {
             return "";
         }
