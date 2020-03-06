@@ -1431,9 +1431,26 @@ export class Symbol {
         }
 
         // 如果引用的是一个常量，那显示常量
-        let val = refSym.value ? ` = ${refSym.value}` : "";
+        let val = "";
+        let prefix = "";
+        if (refSym.value) {
+            val = ` = ${refSym.value}`;
+        } else if (refSym.kind === SymbolKind.Function) {
+            prefix = "function ";
 
-        return ` -> ${sym.refType.join(".")}${val}`;
+            let parameters = "";
+            if (refSym.parameters) {
+                parameters = refSym.parameters.join(", ");
+            }
+            val = `(${parameters})`;
+
+            // 如果原符号无注释，这里在后面显示注释
+            if (refSym.comment && !sym.comment) {
+                val += "\n" + refSym.comment;
+            }
+        }
+
+        return ` -> ${prefix}${sym.refType.join(".")}${val}`;
     }
 
     // 获取全局符号

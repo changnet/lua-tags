@@ -408,7 +408,7 @@ suite('Extension Test Suite', () => {
 				},
 				{
 					label: 'scene',
-					detail: "-- test ref value\n -> BattleConf.scene = 1000",
+					detail: "-- test ref value\nlocal scene -> BattleConf.scene = 1000",
 					kind: vscode.CompletionItemKind.Variable
 				},
 				{
@@ -683,6 +683,14 @@ suite('Extension Test Suite', () => {
 	test("test ref value hove", async () => {
 		const val = "```lua\n-- test ref value\nlocal scene -> BattleConf.scene = 1000\n```";
 		await testHover(testUri, new vscode.Position(82, 9), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
+	test("test ref function hove", async () => {
+		const val = "```lua\nlocal empty -> function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
+		await testHover(testUri, new vscode.Position(124, 18), [{
 			contents: [{ value: val } as vscode.MarkdownString],
 		}
 		]);

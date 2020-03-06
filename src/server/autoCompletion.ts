@@ -79,13 +79,18 @@ export class AutoCompletion {
         // 如果是常量，显示常量值： test.lua: val = 999
         if (sym.value) {
             detail += `${sym.name} = ${sym.value}`;
-        }
-        // 如果是函数，显示参数: test.lua: function(a, b, c)
-        if (sym.parameters) {
-            let parameters = sym.parameters.join(", ");
+        } else if (sym.kind === SymbolKind.Function) {
+            // 如果是函数，显示参数: test.lua: function(a, b, c)
             let local = Symbol.getLocalTypePrefix(sym.local);
-            detail += `${local}function ${sym.name}(${parameters})`;
+            let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            let parameters = sym.parameters ? sym.parameters.join(", ") : "";
+            detail += `${local}function ${base}${sym.name}(${parameters})`;
+        } else {
+            let local = Symbol.getLocalTypePrefix(sym.local);
+            let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            detail += `${local}${base}${sym.name}`;
         }
+
         // 显示引用的变量
         let ref = Symbol.instance().getRefValue(sym);
         if (ref) {

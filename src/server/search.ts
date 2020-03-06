@@ -349,6 +349,8 @@ export class Search {
         this.pos = pos;
         this.callBack = callBack;
 
+        // 仅当某个节点包含所需要查找的符号时，才进入该节点内部搜索
+        // 这导致当需要查找的符号在文件顶层定义时，无法搜索到，在search中额外处理
         for (const node of cache.nodes) {
             if (2 === this.compNodePos(node, pos)) {
                 if (!this.searchNode(node)) {
@@ -537,6 +539,24 @@ export class Search {
         return null;
     }
 
+    // searchLocal只查找非顶层的局部符号，因此顶层的local符号在这里处理
+    private checkDocTopLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
+        // 带base肯定不是局部符号
+        if (query.base) {
+            return null;
+        }
+
+        // 不需要对比名字了，在checkSymList中对比过了
+        for (let sym of symList) {
+            if (sym.local) {
+                // 暂不考虑出现多个同名local变量的情况
+                return [sym];
+            }
+        }
+
+        return null;
+    }
+
     // 搜索符号
     public search(srv: Server, query: SymbolQuery) {
         let symbol = Symbol.instance();
@@ -565,7 +585,7 @@ export class Search {
             return items;
         }
 
-        // 查找局部变量
+        // 查找局部变量(不包含顶层局部变量)
         let possibleSym;
         const uri = query.uri;
         srv.ensureSymbolCache(uri);
@@ -588,6 +608,11 @@ export class Search {
         // 忽略模块名，直接查找当前文档符号
         items = filter(symbol.getDocumentSymbol(uri));
         if (items) {
+            // 优先查找顶层的local变量
+            const topSym = this.checkDocTopLocalSym(items, query);
+            if (topSym) {
+                return topSym;
+            }
             let symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
                 return symList;

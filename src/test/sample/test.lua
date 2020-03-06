@@ -118,3 +118,8 @@ local BossParam = SkillConf.parameters.boss
 
 -- BossParam.
 -- SkillConf.parameters.boss.factor
+
+-- test function reference
+
+local empty = table.empty
+local is_empty = empty({})
