@@ -68,10 +68,10 @@ export class Server {
         // I didn't find a better way to do this. It is any ?
 
         conn.onInitialize(handler => this.onInitialize(handler));
-        conn.onInitialized(() => {
+        conn.onInitialized(async () => {
             try {
                 // 阻塞初始一些必须的参数
-                this.preInitialized();
+                await this.preInitialized();
                 // 解析、luacheck这些比较耗时，异步进行就可以了
                 this.onInitialized();
             } catch (e) {
