@@ -57,6 +57,8 @@ export class Server {
 
     private rootUri: string | null = null;
 
+    private isPreInit = false;
+
     public constructor() {
         let conn = this.connection;
 
@@ -68,6 +70,9 @@ export class Server {
         conn.onInitialize(handler => this.onInitialize(handler));
         conn.onInitialized(() => {
             try {
+                // 阻塞初始一些必须的参数
+                this.preInitialized();
+                // 解析、luacheck这些比较耗时，异步进行就可以了
                 this.onInitialized();
             } catch (e) {
                 Utils.instance().anyError(e);
@@ -156,16 +161,18 @@ export class Server {
                 return null;
             }
         });
-        doc.onDidChangeContent(handler => {
+        doc.onDidChangeContent(async handler => {
             try {
+                await this.waitForPreInit();
                 return this.onDocumentChange(handler);
             } catch (e) {
                 Utils.instance().anyError(e);
                 return null;
             }
         });
-        doc.onDidOpen(handler => {
+        doc.onDidOpen(async handler => {
             try {
+                await this.waitForPreInit();
                 if (Setting.instance().isCheckOnFileOpen()) {
                     DiagnosticProvider.instance().check(
                         handler.document.uri, handler.document.getText());
@@ -180,6 +187,25 @@ export class Server {
     public init() {
         this.documents.listen(this.connection);
         this.connection.listen();
+    }
+
+    private async waitForPreInit() {
+        if (this.isPreInit) {
+            return true;
+        }
+
+        // could not find a better way to wait...
+        for (let ts = 0; ts < 32; ts++) {
+            let ok = await new Promise((resolve) => setTimeout(() => {
+                resolve(this.isPreInit);
+            }, 100));
+
+            if (ok) {
+                return ok;
+            }
+        }
+
+        return true;
     }
 
     private onInitialize(params: InitializeParams): InitializeResult {
@@ -213,7 +239,8 @@ export class Server {
             }
         };
     }
-    private async onInitialized() {
+
+    private async preInitialized() {
         if (!this.rootUri) {
             return;
         }
@@ -224,15 +251,25 @@ export class Server {
         let conf = await this.connection.workspace.getConfiguration("lua-tags");
         setting.setConfiguration(conf);
 
+        let diagnostic = DiagnosticProvider.instance();
+        diagnostic.updateCmdArgs();
+
+        this.isPreInit = true;
+    }
+
+    private async onInitialized() {
+        if (!this.rootUri) {
+            return;
+        }
+
         const uri = Uri.parse(this.rootUri);
 
         let symbol = Symbol.instance();
         let diagnostic = DiagnosticProvider.instance();
-        diagnostic.updateCmdArgs();
 
         let beg = Date.now();
 
-        const checkOnInit = setting.isCheckOnInit();
+        const checkOnInit = Setting.instance().isCheckOnInit();
         const files = await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
             symbol.parse(uri, ctx);
             if (checkOnInit) {

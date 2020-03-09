@@ -12,6 +12,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 local a = 1, 2
 ```
 2. show ref function infomation at hover and auto completion
+3. fix document open/change event run before configuration sync
 
 ## [1.0.5] 2020-01-15
 1. add command: export global symbols

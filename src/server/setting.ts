@@ -197,6 +197,6 @@ export class Setting {
 
     // 是否在打开文件时运行luacheck，仅打开工程不运行luacheck时有效
     public isCheckOnFileOpen() {
-        return this.luaCheck && this.checkOnFileOpen && !this.checkOnInit
+        return this.luaCheck && this.checkOnFileOpen && !this.checkOnInit;
     }
 }
