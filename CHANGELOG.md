@@ -6,7 +6,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 2. read type from comments like phpdoc
 3. add lua、ngx_lua、love2d std library support
 
-## [1.0.6] 2020-03-??
+## [1.0.6] 2020-03-10
 1. fix symbol search error when init more values than expect:
 ```lua
 local a = 1, 2
@@ -14,7 +14,7 @@ local a = 1, 2
 2. show ref function infomation at hover and auto completion
 3. fix document open/change event run before configuration sync
 
-## [1.0.5] 2020-01-15
+## [1.0.5] 2020-02-15
 1. add command: export global symbols
 2. local symbol duplicate completion item filter
 3. recursive search table symbol
