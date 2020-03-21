@@ -34,7 +34,9 @@ import { GoToDefinition } from './goToDefinition';
 import { Symbol, SymInfoEx, LocalType } from './symbol';
 import { Search } from './search';
 
-
+/**
+ * 处理函数特征(参数)显示
+ */
 export class SignatureProvider {
     private static ins: SignatureProvider;
     private constructor() {
@@ -50,19 +52,37 @@ export class SignatureProvider {
 
     private toSignature(sym: SymInfoEx,
         uri: string, index: number): SignatureInformation | null {
-        if (sym.kind !== SymbolKind.Function) {
+
+        /**
+         * local comp = string_comp
+         * 当string_comp是函数时，需要显示string_comp的参数
+         */
+        const refSym = Symbol.instance().getRefSym(sym, uri);
+        if (sym.kind !== SymbolKind.Function
+            && (!refSym || refSym.kind !== SymbolKind.Function)) {
             return null;
         }
 
-        let strParam = "";
+        /**
+         * 拼接的参数
+         */
+        let funcParam = "";
+        let symParam = sym.parameters;
+        let funcName = `function ${sym.name}`;
+        if (refSym && sym.refType) {
+            symParam = refSym.parameters;
+            funcName = `${funcName} -> ${sym.refType.join(".")}`;
+        }
         let parameters: ParameterInformation[] = [];
-        if (sym.parameters) {
-            strParam = sym.parameters.join(", ");
+        if (symParam) {
+            funcParam = symParam.join(", ");
 
-            // 如果参数索引已超过这个函数的参数，则不选中(vs code为带下划线)参数
-            if (index < sym.parameters.length) {
-                let offset = "function".length + sym.name.length + 2;
-                for (let param of sym.parameters) {
+            // 如果当前输入的参数已超过这个函数的参数，则不用计算当前输入的参数
+            // 显示全部参数就可以了
+            if (index < symParam.length) {
+                // +1是因为函数名和参数之间有个左括号
+                let offset = funcName.length + 1;
+                for (let param of symParam) {
                     parameters.push({
                         label: [offset, offset + param.length]
                     });
@@ -78,7 +98,7 @@ export class SignatureProvider {
         }
 
         return {
-            label: `function ${sym.name}(${strParam})`,
+            label: `${funcName}(${funcParam})`,
             parameters: parameters,
             documentation: doc ? doc : undefined
         };

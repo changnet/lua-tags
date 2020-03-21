@@ -128,3 +128,6 @@ local ref_tbl = {}
 ref_tbl.empty = table.empty
 
 local ipair = ipair
+
+-- test ref function signature
+-- ref_tbl.empty()

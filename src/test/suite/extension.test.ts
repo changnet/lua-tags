@@ -771,6 +771,21 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	// local comp = string_comp，comp应该能提示string_comp的参数
+	test("test ref function signature help", async () => {
+		await testSignatureHelp(testUri, new vscode.Position(132, 17), {
+			signatures: [{
+				label: 'function empty -> table.empty(tbl)',
+				parameters: [
+					{ label: [30, 33] },
+				]
+			}
+			],
+			activeSignature: 0,
+			activeParameter: 0
+		});
+	});
+
 	test("test exclude dir definition", async () => {
 		await testGoToDefinition(testUri, new vscode.Position(73, 21), []);
 	});
