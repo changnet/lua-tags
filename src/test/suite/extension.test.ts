@@ -730,13 +730,13 @@ suite('Extension Test Suite', () => {
 				parameters: [
 					{ label: [17, 20] }, { label: [22, 25] }
 				],
-				documentation: 'animal.lua'
+				documentation: 'animal.lua\n-- called when the animal be killed'
 			}, {
 				label: 'function on_kill(who, ...)',
 				parameters: [
 					{ label: [17, 20] }, { label: [22, 25] }
 				],
-				documentation: 'monster.lua'
+				documentation: 'monster.lua\n-- called when monster was killed'
 			}
 			],
 			activeSignature: 0,
@@ -778,7 +778,8 @@ suite('Extension Test Suite', () => {
 				label: 'function empty -> table.empty(tbl)',
 				parameters: [
 					{ label: [30, 33] },
-				]
+				],
+				documentation: '-- test function assignment\n-- multiline comment1\n-- multiline comment2'
 			}
 			],
 			activeSignature: 0,

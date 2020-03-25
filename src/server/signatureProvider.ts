@@ -57,7 +57,7 @@ export class SignatureProvider {
          * local comp = string_comp
          * 当string_comp是函数时，需要显示string_comp的参数
          */
-        const refSym = Symbol.instance().getRefSym(sym, uri);
+        const refSym = Symbol.instance().getRefSym(sym, sym.location.uri);
         if (sym.kind !== SymbolKind.Function
             && (!refSym || refSym.kind !== SymbolKind.Function)) {
             return null;
@@ -95,6 +95,11 @@ export class SignatureProvider {
         let doc;
         if (uri !== sym.location.uri) {
             doc = Symbol.getSymbolPath(sym);
+        }
+        if (sym.comment) {
+            doc = doc ? `${doc}\n${sym.comment}` : sym.comment;
+        } else if (refSym && refSym.comment) {
+            doc = doc ? `${doc}\n${refSym.comment}` : refSym.comment;
         }
 
         return {
