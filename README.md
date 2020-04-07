@@ -15,8 +15,10 @@ Lua IntelliSense for Visual Studio Code.
 ![animation](animation.gif)
 
 ## Configure & Usage
-Download and installation are available at Visual Studio Code Extension 
-Marketplace. Once installed, all configure options details are at extension
+Download and installation are available at [Visual Studio Code Extension 
+Marketplace](https://marketplace.visualstudio.com/items?itemName=changnet.lua-tags). 
+
+Once installed, all configure options details are at extension
 Contributions page
 
 ATTENTION: Hot configure reload NOT support, restart Visual Studio Code to 
@@ -38,8 +40,4 @@ help to set .luacheckrc.
 
 * https://www.cockos.com/licecap/
 
-## Known Bugs and Issues
-The luaparse package at npm are very old(0.2.1), some bugs already been fixed at 
-github repository like https://github.com/fstirlitz/luaparse/issues/58
 
-manually download luaparse if you build extension package youself.
