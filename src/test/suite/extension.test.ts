@@ -720,6 +720,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test const expression hover", async () => {
+		const val = "```lua\n-- test const expression hover\nlocal const_v = -16 + 1 << 32 + 8 >> \"32\" + 2 * 4 - 5 / 2 + 8 % 2\n```";
+		await testHover(testUri, new vscode.Position(135, 11), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
 	test("test other file signature help", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 

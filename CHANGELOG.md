@@ -3,12 +3,16 @@
 All notable changes to the "lua-tags" extension will be documented in this file.
 
 ## [TODO]
-2. read type from comments like phpdoc
-3. add lua、ngx_lua、love2d std library support
+*. read type from comments like phpdoc
+*. add lua、ngx_lua、love2d std library support
 
 ## [1.0.7] 2020-04-??
 1. show ref function at signature
 2. update luaparse from 0.2.1 to 0.3.0
+3. show const expression at hover
+```lua
+local a = 1 << 32
+```
 
 ## [1.0.6] 2020-03-10
 1. fix symbol search error when init more values than expect:

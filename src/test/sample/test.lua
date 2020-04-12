@@ -131,3 +131,6 @@ local ipair = ipair
 
 -- test ref function signature
 -- ref_tbl.empty()
+
+-- test const expression hover
+local const_v = -16 + 1 << 32 + 8 >> "32" + 2 * 4 - 5 / 2 + 8 % 2

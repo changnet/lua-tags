@@ -20,7 +20,11 @@ import {
     IndexExpression,
     ReturnStatement,
     TableConstructorExpression,
-    CallStatement
+    CallStatement,
+    UnaryExpression,
+    BinaryExpression,
+    StringLiteral,
+    NumericLiteral
 } from 'luaparse';
 
 import {
@@ -546,6 +550,41 @@ export class Symbol {
         return refVal;
     }
 
+    private toConst(expr: Node): string | null {
+        switch (expr.type) {
+            case "UnaryExpression": return this.toConstUnaryVal(expr);
+            case "BinaryExpression": return this.toConstBinaryVal(expr);
+            case "StringLiteral": return expr.raw;
+            case "NumericLiteral": return expr.raw;
+        }
+
+        return null;
+    }
+
+    // 把 local a = -1中的-1表达式转换成常量显示
+    private toConstUnaryVal(expr: UnaryExpression) {
+        const arg = expr.argument;
+        if (arg.type === "StringLiteral" || arg.type === "NumericLiteral") {
+            return expr.operator + arg.value;
+        }
+
+        return null;
+    }
+
+    // 把 local a = 1 << 32中的 1 << 32表达式转换成常量显示
+    private toConstBinaryVal(expr: BinaryExpression) {
+        // TODO: 这里的字符串格式化可能有问题，AST后，括号去掉了，简单地按左右拼接可能
+        // 导致优先级错误
+        let left = this.toConst(expr.left);
+        let right = this.toConst(expr.right);
+
+        if (left && right) {
+            return `${left} ${expr.operator} ${right}`;
+        }
+
+        return null;
+    }
+
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
     public toSym(nameInfo: NameInfo,
@@ -594,6 +633,24 @@ export class Symbol {
             case "BooleanLiteral": {
                 sym.value = initNode.raw;
                 sym.kind = SymbolKind.Boolean;
+                break;
+            }
+            case "UnaryExpression": {
+                // local a = -1
+                let val = this.toConstUnaryVal(initNode);
+                if (val) {
+                    sym.value = val;
+                    sym.kind = SymbolKind.Number;
+                }
+                break;
+            }
+            case "BinaryExpression": {
+                // local a = 1 << 2
+                let val = this.toConstBinaryVal(initNode);
+                if (val) {
+                    sym.value = val;
+                    sym.kind = SymbolKind.Number;
+                }
                 break;
             }
             case "TableConstructorExpression": {
