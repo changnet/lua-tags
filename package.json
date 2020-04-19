@@ -2,9 +2,9 @@
 	"name": "lua-tags",
 	"displayName": "lua_tags",
 	"description": "Lua IntelliSense for Visual Studio Code",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"engines": {
-		"vscode": "^1.38.0"
+		"vscode": ">=1.38.0"
 	},
 	"categories": [
 		"Programming Languages"
@@ -154,7 +154,7 @@
 		"@types/mocha": "^5.2.6",
 		"@types/node": "^10.12.21",
 		"@types/vscode": "^1.38.0",
-		"@types/luaparse": "^0.2.6",
+		"@types/luaparse": ">=0.2.6",
 		"glob": "^7.1.4",
 		"mocha": "^6.1.4",
 		"typescript": "^3.3.1",
@@ -165,7 +165,7 @@
 		"vscode-languageclient": "^5.2.1",
 		"vscode-languageserver": "^5.2.1",
 		"luaparse": "^0.3.0",
-		"fuzzysort": "^1.1.4"
+		"fuzzysort": ">=1.1.4"
 	},
 	"icon": "icon.png",
 	"publisher": "changnet",

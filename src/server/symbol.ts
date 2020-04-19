@@ -181,7 +181,11 @@ export class Symbol {
             luaVersion: Setting.instance().getLuaVersion(),
             onCreateScope: () => this.onCreateScope(),
             onDestroyScope: () => this.onDestoryScope(),
-            onCreateNode: (node) => this.onCreateNode(node)
+            onCreateNode: (node) => this.onCreateNode(node),
+            onLocalDeclaration: () => { },
+            extendedIdentifiers: false,
+            // luaparse v0.3.0 需要指定编码才会把字符串解析到value字段
+            encodingMode: "x-user-defined"
         } as Options;
     }
 
