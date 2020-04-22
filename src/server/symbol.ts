@@ -185,7 +185,7 @@ export class Symbol {
             onLocalDeclaration: () => { },
             extendedIdentifiers: false,
             // luaparse v0.3.0 需要指定编码才会把字符串解析到value字段
-            encodingMode: "x-user-defined"
+            encodingMode: "none"
         } as Options;
     }
 
@@ -262,7 +262,7 @@ export class Symbol {
             return null;
         }
 
-        return argument.value;
+        return this.stringLiteralValue(argument);
     }
 
     // 解析节点
@@ -554,6 +554,25 @@ export class Symbol {
         return refVal;
     }
 
+    /**
+     * 获取字符串内容
+     * luaparse 0.3.0后，根据encodingMode来解析字符串，但是没有提供解析utf8的方式？
+     * x-user-defined pseudo-latin1都无法解析出中文
+     */
+    private stringLiteralValue(val: StringLiteral) {
+        if (val.value) {
+            return val.value;
+        }
+
+        // lua的字符串可能包含在 ''、""、[[]]中
+        let raw = val.raw;
+        if (raw.startsWith("'") || raw.startsWith("\"")) {
+            return raw.substring(1, raw.length - 1);
+        }
+
+        return raw.substring(2, raw.length - 2);
+    }
+
     private toConst(expr: Node): string | null {
         switch (expr.type) {
             case "UnaryExpression": return this.toConstUnaryVal(expr);
@@ -568,7 +587,11 @@ export class Symbol {
     // 把 local a = -1中的-1表达式转换成常量显示
     private toConstUnaryVal(expr: UnaryExpression) {
         const arg = expr.argument;
-        if (arg.type === "StringLiteral" || arg.type === "NumericLiteral") {
+        if (arg.type === "StringLiteral") {
+            return expr.operator + this.stringLiteralValue(arg);
+        }
+
+        if (arg.type === "NumericLiteral") {
             return expr.operator + arg.value;
         }
 
@@ -678,7 +701,7 @@ export class Symbol {
                 if ("Identifier" === base.type && "require" === base.name) {
                     let arg = initNode.arguments[0];
                     if (arg.type === "StringLiteral") {
-                        sym.refUri = arg.value;
+                        sym.refUri = this.stringLiteralValue(arg);
                     }
                 }
                 break;
@@ -688,7 +711,7 @@ export class Symbol {
                 if ("Identifier" === base.type && "require" === base.name) {
                     let arg = initNode.argument;
                     if (arg.type === "StringLiteral") {
-                        sym.refUri = arg.value;
+                        sym.refUri = this.stringLiteralValue(arg);
                     }
                 }
                 break;

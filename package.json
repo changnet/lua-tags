@@ -2,7 +2,7 @@
 	"name": "lua-tags",
 	"displayName": "lua_tags",
 	"description": "Lua IntelliSense for Visual Studio Code",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"engines": {
 		"vscode": ">=1.38.0"
 	},
@@ -150,21 +150,21 @@
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
-		"@types/glob": "^7.1.1",
-		"@types/mocha": "^5.2.6",
-		"@types/node": "^10.12.21",
-		"@types/vscode": "^1.38.0",
+		"@types/glob": ">=7.1.1",
+		"@types/mocha": ">=5.2.6",
+		"@types/node": ">=10.12.21",
+		"@types/vscode": ">=1.38.0",
 		"@types/luaparse": ">=0.2.6",
-		"glob": "^7.1.4",
-		"mocha": "^6.1.4",
-		"typescript": "^3.3.1",
-		"tslint": "^5.12.1",
-		"vscode-test": "^1.2.0"
+		"glob": ">=7.1.4",
+		"mocha": ">=6.1.4",
+		"typescript": ">=3.3.1",
+		"tslint": ">=5.12.1",
+		"vscode-test": ">=1.2.0"
 	},
 	"dependencies": {
-		"vscode-languageclient": "^5.2.1",
-		"vscode-languageserver": "^5.2.1",
-		"luaparse": "^0.3.0",
+		"vscode-languageclient": ">=5.2.1",
+		"vscode-languageserver": ">=5.2.1",
+		"luaparse": ">=0.3.0",
 		"fuzzysort": ">=1.1.4"
 	},
 	"icon": "icon.png",

@@ -134,3 +134,6 @@ local ipair = ipair
 
 -- test const expression hover
 local const_v = -16 + 1 << 32 + 8 >> "32" + 2 * 4 - 5 / 2 + 8 % 2
+
+-- test luaparse v0.3.0 encoding mode
+local str = "能不能正常解析中文utf8字符"
