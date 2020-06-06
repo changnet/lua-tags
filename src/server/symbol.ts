@@ -1240,7 +1240,11 @@ export class Symbol {
         // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
         for (let [uri, val] of this.documentModule) {
             if (uri.endsWith(endUri)) {
-                return uri;
+                // make sure bbb do not match conf/aaabbb
+                let offset = uri.length - endUri.length;
+                if (0 === offset || "/" === uri[offset - 1]) {
+                    return uri;
+                }
             }
         }
 

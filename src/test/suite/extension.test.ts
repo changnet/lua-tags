@@ -124,7 +124,11 @@ async function testGoToDefinition(uri: vscode.Uri,
 
 	// console.log(`${JSON.stringify(actualList)}`);
 
-	assert.equal(actualList.length, expectList.length);
+	if (actualList.length !== expectList.length) {
+		console.log(`${JSON.stringify(expectList)}`);
+		console.log(`${JSON.stringify(actualList)}`);
+		assert.equal(actualList.length, expectList.length);
+	}
 	expectList.forEach((expectedItem, index) => {
 		const actualItem = actualList[index];
 		assert.equal(actualItem.uri.path, expectedItem.uri.path);
@@ -592,6 +596,11 @@ suite('Extension Test Suite', () => {
 			range: new vscode.Range(87, 10, 87, 15)
 		}
 		]);
+	});
+
+	// 当require bbb时，不要跳转到aaabbb
+	test("test require file path definition", async () => {
+		await testGoToDefinition(testUri, new vscode.Position(141, 37), []);
 	});
 
 	test("test query no base but symbol has hove", async () => {

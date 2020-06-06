@@ -11,6 +11,11 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 ```lua
 E = { FAIL = function() end } -- FAIL will be show as E.FAIL
 ```
+2. fix goto require file error
+```lua
+local conf = require "conf/aaabbb"
+local err_conf = require "bbb" -- do NOT goto file conf/aaabbb
+```
 
 ## [1.0.8] 2020-04-22
 1. fix chinese string parse error when using luaparse v0.3.0
