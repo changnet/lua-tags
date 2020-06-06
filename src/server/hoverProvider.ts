@@ -90,14 +90,14 @@ export class HoverProvider {
 
     private defaultTips(sym: SymInfoEx, uri: string) {
         if (sym.value) {
-            let local = Symbol.getLocalTypePrefix(sym.local);
+            let prefix = Symbol.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(sym,
-                `${local}${sym.name} = ${sym.value}`, uri);
+                `${prefix}${sym.name} = ${sym.value}`, uri);
         }
 
         if (sym.local || sym.refType) {
             let local = Symbol.getLocalTypePrefix(sym.local);
-            let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            let base = Symbol.getBasePrefix(sym);
             return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri);
         }
 
@@ -117,7 +117,7 @@ export class HoverProvider {
                 if (sym.parameters) {
                     parameters = sym.parameters.join(", ");
                 }
-                let base = sym.base ? `${sym.base}${sym.indexer}` : "";
+                let base = Symbol.getBasePrefix(sym);
 
                 tips = this.toLuaMarkdown(sym,
                     `${local}function ${base}${sym.name}(${parameters})`, uri);

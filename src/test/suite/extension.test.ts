@@ -728,6 +728,14 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	test("test table function hover", async () => {
+		const val = "```lua\nfunction ENUM.E_FUNCTION() -- enum function\n```";
+		await testHover(testUri, new vscode.Position(22, 6), [{
+			contents: [{ value: val } as vscode.MarkdownString],
+		}
+		]);
+	});
+
 	test("test other file signature help", async () => {
 		const docPath = path.join(samplePath, "battle.lua");
 

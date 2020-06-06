@@ -426,7 +426,7 @@ export class Symbol {
 
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
-    public parseTableConstructorExpr(expr: TableConstructorExpression) {
+    public parseTableConstructorExpr(expr: TableConstructorExpression, base?: string) {
         let symList: SymInfoEx[] = [];
 
         this.parseScopeDeepth++;
@@ -439,13 +439,14 @@ export class Symbol {
             }
 
             let sym = this.toSym({
-                name: field.key.name
+                name: field.key.name, base: base
             }, field.key, field.value);
 
             // 解析子table
             if (sym && this.parseScopeDeepth < 8
                 && field.value.type === "TableConstructorExpression") {
-                sym.subSymList = this.parseTableConstructorExpr(field.value);
+                sym.subSymList = this.parseTableConstructorExpr(
+                    field.value, field.key.name);
             }
 
             if (sym) {
@@ -493,7 +494,7 @@ export class Symbol {
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
             if (init && "TableConstructorExpression" === init.type) {
-                sym.subSymList = this.parseTableConstructorExpr(init);
+                sym.subSymList = this.parseTableConstructorExpr(init, name);
                 // vs code在显示文档符号时，会自动判断各个符号的位置，如果发现某个符号
                 // 属于另一个符号的位置范围内，则认为这个符号是另一个符号的子符号，可以
                 // 把子符号折叠起来
@@ -1326,6 +1327,17 @@ export class Symbol {
             case LocalType.LT_PARAMETER: return "(parameter) ";
             default: return "";
         }
+    }
+
+    // 获取符号的base，如 E = { FAIL = 1 } 中 E.FAIL中E.为base
+    public static getBasePrefix(sym: SymInfoEx) {
+        if (!sym.base) {
+            return "";
+        }
+
+        // table field like: local tbl = { a = false } have no index
+        let indexer = sym.indexer ? sym.indexer : ".";
+        return `${sym.base}${indexer}`;
     }
 
     // 对比符号和luaparse的位置
