@@ -623,7 +623,7 @@ export class Search {
 
         // 忽略模块名，直接查找全局符号
         items = filter(symbol.getGlobalSymbol(
-            false, sym => sym.location.uri !== uri));
+            true, sym => sym.location.uri !== uri));
         if (items) {
             let symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {

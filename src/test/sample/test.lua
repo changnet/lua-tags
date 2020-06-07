@@ -140,3 +140,6 @@ local str = "能不能正常解析中文utf8字符"
 
 -- do NOT jump to file battle_conf
 local BattleConfErr = require "attle_conf"
+
+-- max_player should jump to BattleConf.max_player
+local dummy_max_player = max_player

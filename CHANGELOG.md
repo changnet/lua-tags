@@ -16,6 +16,15 @@ E = { FAIL = function() end } -- FAIL will be show as E.FAIL
 local conf = require "conf/aaabbb"
 local err_conf = require "bbb" -- do NOT goto file conf/aaabbb
 ```
+3. if symbol not found,fall back to table field
+```lua
+tbl = 
+{
+    sym = "a table field"
+}
+-- sym will jump to tbl.sym if no other symbol name "sym" found
+local str = "try to find " .. sym
+```
 
 ## [1.0.8] 2020-04-22
 1. fix chinese string parse error when using luaparse v0.3.0
