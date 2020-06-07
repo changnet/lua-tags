@@ -1,6 +1,7 @@
 // 符号处理
 
 import { Utils } from "./utils";
+import * as fuzzysort from "fuzzysort";
 import { Setting, FileParseType } from "./setting";
 
 import {
@@ -1588,5 +1589,13 @@ export class Symbol {
         }
 
         return symList;
+    }
+
+    // 判断两个符号相似度
+    public static checkMatch(src: string, dst: string): number {
+        const res = fuzzysort.single(src, dst);
+
+        // exact match returns a score of 0. lower is worse
+        return res ? res.score : -1000000000;
     }
 }

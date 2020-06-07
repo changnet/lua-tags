@@ -32,6 +32,7 @@ local wrap = {
 }
 wrap.BC. -- this should list all field in BattleConf
 ```
+5. improve auto completion match
 
 ## [1.0.8] 2020-04-22
 1. fix chinese string parse error when using luaparse v0.3.0

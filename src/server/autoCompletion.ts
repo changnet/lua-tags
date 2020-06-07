@@ -30,11 +30,9 @@ import {
     LocalType
 } from "./symbol";
 
-import * as fuzzysort from "fuzzysort";
 import { Utils } from './utils';
 import { Server } from './server';
 import { Search, Filter } from './search';
-import { stringify } from 'querystring';
 
 export class AutoCompletion {
     private static ins: AutoCompletion;
@@ -137,7 +135,7 @@ export class AutoCompletion {
         }
 
         // 匹配文件名
-        if (!fuzzysort.single(beg, matchs[1])) {
+        if (Symbol.checkMatch(beg, matchs[1]) > -1000) {
             return null;
         }
 
@@ -228,7 +226,7 @@ export class AutoCompletion {
                 if (!local && duplicateSym.get(name)) {
                     return;
                 }
-                if (emptyName || fuzzysort.single(symName, name)) {
+                if (emptyName || Symbol.checkMatch(symName, name) > -100) {
                     let sym = symbol.toSym(
                         { name: name, base: base }, node, init, local);
                     if (sym) {
@@ -255,7 +253,7 @@ export class AutoCompletion {
 
         let newItems = items || [];
         Symbol.instance().eachModuleName(mdName => {
-            if (!fuzzysort.single(name, mdName)) {
+            if (Symbol.checkMatch(name, mdName) < -500) {
                 return;
             }
 
@@ -287,7 +285,7 @@ export class AutoCompletion {
             }
             return symList.filter(sym => {
                 return 0 === symName.length
-                    || fuzzysort.single(symName, sym.name);
+                    || Symbol.checkMatch(symName, sym.name) > -500;
             });
         };
         // 优先根据模块名匹配全局符号

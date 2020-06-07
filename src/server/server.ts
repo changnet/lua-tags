@@ -37,7 +37,6 @@ import {
 
 import Uri from 'vscode-uri';
 import { Utils, DirWalker } from "./utils";
-import * as fuzzysort from "fuzzysort";
 import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
@@ -325,7 +324,7 @@ export class Server {
         }
 
         return Symbol.instance().getGlobalSymbol(true, sym => {
-            return fuzzysort.single(query, sym.name) ? true : false;
+            return Symbol.checkMatch(query, sym.name) > -500;
         }, 128);
     }
 
