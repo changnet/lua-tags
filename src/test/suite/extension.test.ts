@@ -467,6 +467,18 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	// 当前文档符号递归搜索
+	test('test wrap completion', async () => {
+		await testCompletion(testUri, new vscode.Position(150, 11), {
+			items: [
+				{
+					label: 'class',
+					kind: vscode.CompletionItemKind.Function
+				},
+			]
+		});
+	});
+
 	test("test require path definition", async () => {
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
 		await testGoToDefinition(testUri, new vscode.Position(6, 33), [{
@@ -547,7 +559,7 @@ suite('Extension Test Suite', () => {
 		const docPath = path.join(samplePath, "battle.lua");
 
 		const uri = vscode.Uri.file(docPath);
-		await testGoToDefinition(uri, new vscode.Position(54, 13), []);
+		await testGoToDefinition(uri, new vscode.Position(54, 45), []);
 	});
 
 	test("test multi definition", async () => {

@@ -116,12 +116,12 @@ export interface SymInfoEx extends SymbolInformation {
     scope: number; // 第几层作用域, -1表示外部符号
     refType?: string[]; // local N = M时记录引用的类型M，local MAX = M.X.Y为多层引用
     refUri?: string; // local M = require "x"时记录引用的文件x
-    value?: string; // local V = 2这种静态数据时记录它的值
+    value?: string; // local V = 2这种常量数据时记录它的值
     parameters?: string[]; // 如果是函数，记录其参数
     subSymList?: SymInfoEx[]; // 子符号
     base?: string; // M.N时记录模块名M
     local?: LocalType; // 是否Local符号
-    indexer?: string; // M.N或者M:N中的[., :]
+    indexer?: string; // M.N或者M:N中的[.:]
     comment?: string; // 注释
     ctType?: CommentType; // 注释类型
     baseModule?: string; // 用于处理处理module()
@@ -637,13 +637,14 @@ export class Symbol {
             case "Identifier": {
                 // local N = M 会被视为把模块M本地化为N
                 // 在跟踪N的符号时会在M查找
-                if (0 === sym.scope && init) {
+                // 给scope限定一个范围，不然大量的配置会有常量，导致记录太多数据内在激增
+                if (sym.scope >= 0 && sym.scope <= 2 && init) {
                     sym.refType = [initNode.name];
                 }
                 break;
             }
             case "MemberExpression": {
-                if (0 === sym.scope && init) {
+                if (sym.scope >= 0 && sym.scope <= 2 && init) {
                     sym.refType = this.toRefVallue(initNode);
                 }
                 break;
@@ -801,8 +802,11 @@ export class Symbol {
         this.needUpdate = false;
     }
 
-    // 获取引用的符号
-    // @base: local N = M.X.Y中的M X Y
+    /**
+     * 获取引用的符号
+     * @param base local N = M.X.Y中的M X Y
+     * @param uri 当前需要搜索的文档
+     */
     public getRefSym(sym: SymInfoEx, uri: string): VSCodeSymbol {
         const refType = sym.refType;
         if (!refType || refType.length <= 0) {
@@ -853,10 +857,26 @@ export class Symbol {
     }
     // 获取某个符号的子符号
     public getSubSymbolFromList(
-        base: string[], index: number, symList?: SymInfoEx[]) {
+        base: string[], index: number, uri: string, symList?: SymInfoEx[]) {
         const sym = this.getSymbolFromList(base, index, symList);
+        if (!sym) {
+            return null;
+        }
 
-        return sym && sym.subSymList ? sym.subSymList : null;
+        // 本身包含子符号列表，直接返回列表
+        if (sym.subSymList) {
+            return sym.subSymList;
+        }
+
+        // 本身引用了另一个模块，则返回另一个模块的符号列表
+        if (sym.refType) {
+            const refSym = this.getRefSym(sym, uri);
+            if (refSym && refSym.subSymList) {
+                return refSym.subSymList;
+            }
+        }
+
+        return null;
     }
 
     // 获取全局模块本身

@@ -425,7 +425,8 @@ export class Search {
         let rawBases = symbol.getRawModule(query.uri, base);
         let symList = symbol.getGlobalModuleSubList(rawBases);
         if (symList && query.extBase) {
-            symList = symbol.getSubSymbolFromList(query.extBase, 0, symList);
+            symList = symbol.getSubSymbolFromList(
+                query.extBase, 0, query.uri, symList);
         }
 
         return filter(symList);
@@ -443,7 +444,8 @@ export class Search {
         // 先查找当前文档的local模块
         let symList = symbol.getDocumentModuleSubList(query.uri, [base]);
         if (symList && query.extBase) {
-            symList = symbol.getSubSymbolFromList(query.extBase, 0, symList);
+            symList = symbol.getSubSymbolFromList(
+                query.extBase, 0, query.uri, symList);
         }
         return filter(symList);
     }

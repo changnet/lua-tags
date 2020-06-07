@@ -25,6 +25,13 @@ tbl =
 -- sym will jump to tbl.sym if no other symbol name "sym" found
 local str = "try to find " .. sym
 ```
+4. improve auto completion ref symbol
+```lua
+local wrap = {
+    BC = BattleConf
+}
+wrap.BC. -- this should list all field in BattleConf
+```
 
 ## [1.0.8] 2020-04-22
 1. fix chinese string parse error when using luaparse v0.3.0

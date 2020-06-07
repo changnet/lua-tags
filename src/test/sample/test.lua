@@ -143,3 +143,9 @@ local BattleConfErr = require "attle_conf"
 
 -- max_player should jump to BattleConf.max_player
 local dummy_max_player = max_player
+
+local wrap = {
+    BC = BattleConf,
+    OO = oo
+}
+-- wrap.OO.
