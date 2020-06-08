@@ -18,18 +18,17 @@ Lua IntelliSense for Visual Studio Code.
 Download and installation are available at [Visual Studio Code Extension 
 Marketplace](https://marketplace.visualstudio.com/items?itemName=changnet.lua-tags). 
 
-Once installed, all configure options details are at extension
-Contributions page
+Once installed, all configure options details are at extension Contributions page
 
-ATTENTION: Hot configure reload NOT support, restart Visual Studio Code to 
-activate new configure after configure changed
+Hot configure reload NOT support, restart Visual Studio Code to activate new 
+configure after configure changed
 
-#### luacheck
+## luacheck
 lua-tags already integret with luacheck(win32 and linux)，if using MacOS or other
 platform, specify luaCheckPath at configure or add luacheck to os excuate PATH
 
-#### export global symbols
-ctrl + shift + p: lua-tags: export global symbols command can export all global
+## export global symbols
+ctrl + shift + p: "lua-tags: export global symbols" can export all global
 symbols to file(lua-tags-global-symbols) in workspace root directory. It may
 help to set .luacheckrc.
 
