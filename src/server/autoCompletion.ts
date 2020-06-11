@@ -59,47 +59,52 @@ export class AutoCompletion {
             case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
-        let file;
-        if (sym.location.uri !== uri) {
-            file = Symbol.getSymbolPath(sym);
-        }
-
         let item: CompletionItem = {
             label: sym.name,
             kind: kind
         };
 
-        let detail = file ? `${file}\n` : "";
+        if (sym.location.uri !== uri) {
+            let file = Symbol.getSymbolPath(sym);
+            if (file) {
+                item.detail = file;
+            }
+        }
+
+        let doc = "";
         // 显示上方的注释
         if (sym.comment && sym.ctType === CommentType.CT_ABOVE) {
-            detail += `${sym.comment}\n`;
+            doc += `${sym.comment}\n`;
         }
         // 如果是常量，显示常量值： test.lua: val = 999
         if (sym.value) {
-            detail += `${sym.name} = ${sym.value}`;
+            doc += `${sym.name} = ${sym.value}`;
         } else if (sym.kind === SymbolKind.Function) {
             // 如果是函数，显示参数: test.lua: function(a, b, c)
             let local = Symbol.getLocalTypePrefix(sym.local);
             let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
             let parameters = sym.parameters ? sym.parameters.join(", ") : "";
-            detail += `${local}function ${base}${sym.name}(${parameters})`;
+            doc += `${local}function ${base}${sym.name}(${parameters})`;
         } else {
             let local = Symbol.getLocalTypePrefix(sym.local);
             let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
-            detail += `${local}${base}${sym.name}`;
+            doc += `${local}${base}${sym.name}`;
         }
 
         // 显示引用的变量
         let ref = Symbol.instance().getRefValue(sym);
         if (ref) {
-            detail += ref;
+            doc += ref;
         }
         // 显示行尾的注释
         if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
-            detail += ` ${sym.comment}`;
+            doc += ` ${sym.comment}`;
         }
-        if (detail && detail.length > 0) {
-            item.detail = detail;
+        if (doc && doc.length > 0) {
+            item.documentation = {
+                kind: "markdown",
+                value: `\`\`\`lua\n${doc}\n\`\`\``
+            };
         }
 
         return item;

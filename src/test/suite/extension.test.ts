@@ -5,6 +5,7 @@ import { before } from 'mocha';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
+import { MarkupContent } from 'vscode-languageclient';
 
 
 // 使用npm来运行测试 npm run test
@@ -109,8 +110,11 @@ async function testCompletion(
 		const actualItem = actualList.items[i];
 		assert.equal(actualItem.label, expectedItem.label, "label check");
 		assert.equal(actualItem.kind, expectedItem.kind, "kind check");
-		if (expectedItem.detail) {
-			assert.equal(actualItem.detail, expectedItem.detail, "detail check");
+		if (expectedItem.documentation) {
+			// test库里的CompletionItem和vs code server那边不一样，暂时强转
+			let item = actualItem as any;
+			assert.equal(item.documentation.value,
+				expectedItem.documentation, "documentation check");
 		}
 	});
 }
@@ -411,7 +415,7 @@ suite('Extension Test Suite', () => {
 			items: [
 				{
 					label: 'scene',
-					detail: "-- test ref value\nlocal scene -> BattleConf.scene = 1000",
+					documentation: "```lua\n-- test ref value\nlocal scene -> BattleConf.scene = 1000\n```",
 					kind: vscode.CompletionItemKind.Variable
 				},
 				// 实际运行时，这里会有下面这个提示，但在测试时没有，暂时不知什么原因

@@ -6,6 +6,9 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 *. read type from comments like phpdoc
 *. add lua、ngx_lua、love2d std library support
 
+## [1.0.9] 2020-06-??
+1. improve auto completion(using markdown)
+
 ## [1.0.9] 2020-06-08
 1. fix table function field hover
 ```lua
