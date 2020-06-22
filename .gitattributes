@@ -10,3 +10,6 @@
 *.gif binary
 luacheck/* binary
 
+# fix github language stat
+# https://stackoverflow.com/questions/34713765/github-changes-repository-to-wrong-language
+stl/* linguist-vendored
