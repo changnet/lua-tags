@@ -1,6 +1,7 @@
 // 自动导出lua stand library
 
 import * as fs from "fs";
+import { assert } from "console";
 
 // chrome 打开 lua-5.3.5/doc/contents.html
 // 选择所有 Lua functions
@@ -89,7 +90,7 @@ Returns the absolute value of <code>x</code>. (integer/float)
  */
 function searchDesc(ctx: string, from: number) {
     const flag = "<p>\n";
-    let begPos = from; //ctx.indexOf(flag, from) + flag.length;
+    let begPos = from;
     if (ctx.charAt(begPos) === "\n") {
         begPos = ctx.indexOf(flag, from) + flag.length;
     }
@@ -101,7 +102,8 @@ function searchDesc(ctx: string, from: number) {
         let linePos = ctx.indexOf("\n", endPos);
         if (endPos === linePos) {
             emptyLine++;
-            if (emptyLine >= 3) {
+            if (emptyLine >= 2) {
+                endPos -= 2; // do't need 2 \n at line end
                 break;
             }
 
@@ -126,6 +128,7 @@ function searchDesc(ctx: string, from: number) {
  */
 function searchDecl(ctx: string, name: string): Symbol | null {
     const begStr = `<hr><h3><a name="pdf-${name}"><code>`;
+    const endStr = "</code></a></h3>\n";
 
     let basePos = ctx.indexOf(begStr);
     if (basePos < 0) {
@@ -133,13 +136,30 @@ function searchDecl(ctx: string, name: string): Symbol | null {
     }
 
     let begPos = basePos + begStr.length;
-    let endPos = ctx.indexOf("</code></a></h3>", begPos);
+    let endPos = ctx.indexOf(endStr, begPos);
 
     let decl = ctx.substring(begPos, endPos);
-    // 把html中的...替换成真正的...
-    decl = decl.replace(/&middot;&middot;&middot;/g, "...");
 
-    let desc = searchDesc(ctx, endPos);
+    let args;
+    let type = SymbolType.Function;
+    let matchs = decl.match(/^(.+?)\s*\((.*)\)$/);
+    if (matchs) {
+        assert(name === matchs[1]);
+
+        // 把html中的...替换成真正的...
+        let rawParam = matchs[2].replace(/&middot;&middot;&middot;/g, "...");
+
+        // 替换掉可选参数，不然singalhelp那里无法分解参数
+        let paramStr = rawParam.replace(/ \[,/g, ",");
+        paramStr = paramStr.replace(/]/g, "");
+        paramStr = paramStr.replace(/\[/g, "");
+
+        args = paramStr.split(", ");
+    } else {
+        type = SymbolType.Namespace;
+    }
+
+    let desc = searchDesc(ctx, endPos + endStr.length);
 
     /*
     // g globa search，即搜索文中所有匹配的字符而不仅仅是第一次
@@ -155,9 +175,10 @@ function searchDecl(ctx: string, name: string): Symbol | null {
     */
     return {
         url: "",
-        name: decl,
-        type: SymbolType.Function,
-        desc: desc
+        name: name,
+        type: type,
+        desc: desc,
+        args: args
     };
 }
 
