@@ -276,6 +276,7 @@ export class Server {
             }
         });
         symbol.setCacheOpen();
+        symbol.loadStl();
 
         let end = Date.now();
         Utils.instance().log(

@@ -29,14 +29,8 @@ import {
 import {
     Symbol,
     SymInfoEx,
-    SymbolQuery,
-    VSCodeSymbol,
     CommentType
 } from "./symbol";
-
-import {
-    Node
-} from 'luaparse';
 
 import {
     Search

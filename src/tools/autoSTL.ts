@@ -6,169 +6,16 @@ import * as fs from "fs";
 // 选择所有 Lua functions
 const stl = [
     {
-        m: 5, v: 3, f: "stl/doc_5_3/manual.html",
-        symbols: [
-            "_G",
-            "_VERSION",
-            "assert",
-            "collectgarbage",
-            "dofile",
-            "error",
-            "getmetatable",
-            "ipairs",
-            "load",
-            "loadfile",
-            "next",
-            "pairs",
-            "pcall",
-            "print",
-            "rawequal",
-            "rawget",
-            "rawlen",
-            "rawset",
-            "require",
-            "select",
-            "setmetatable",
-            "tonumber",
-            "tostring",
-            "type",
-            "xpcall",
-            "coroutine",
-            "coroutine.create",
-            "coroutine.isyieldable",
-            "coroutine.resume",
-            "coroutine.running",
-            "coroutine.status",
-            "coroutine.wrap",
-            "coroutine.yield",
-            "debug",
-            "debug.debug",
-            "debug.gethook",
-            "debug.getinfo",
-            "debug.getlocal",
-            "debug.getmetatable",
-            "debug.getregistry",
-            "debug.getupvalue",
-            "debug.getuservalue",
-            "debug.sethook",
-            "debug.setlocal",
-            "debug.setmetatable",
-            "debug.setupvalue",
-            "debug.setuservalue",
-            "debug.traceback",
-            "debug.upvalueid",
-            "debug.upvaluejoin",
-            "io",
-            "io.close",
-            "io.flush",
-            "io.input",
-            "io.lines",
-            "io.open",
-            "io.output",
-            "io.popen",
-            "io.read",
-            "io.stderr",
-            "io.stdin",
-            "io.stdout",
-            "io.tmpfile",
-            "io.type",
-            "io.write",
-            "file:close",
-            "file:flush",
-            "file:lines",
-            "file:read",
-            "file:seek",
-            "file:setvbuf",
-            "file:write",
-            "math",
-            "math.abs",
-            "math.acos",
-            "math.asin",
-            "math.atan",
-            "math.ceil",
-            "math.cos",
-            "math.deg",
-            "math.exp",
-            "math.floor",
-            "math.fmod",
-            "math.huge",
-            "math.log",
-            "math.max",
-            "math.maxinteger",
-            "math.min",
-            "math.mininteger",
-            "math.modf",
-            "math.pi",
-            "math.rad",
-            "math.random",
-            "math.randomseed",
-            "math.sin",
-            "math.sqrt",
-            "math.tan",
-            "math.tointeger",
-            "math.type",
-            "math.ult",
-            "os",
-            "os.clock",
-            "os.date",
-            "os.difftime",
-            "os.execute",
-            "os.exit",
-            "os.getenv",
-            "os.remove",
-            "os.rename",
-            "os.setlocale",
-            "os.time",
-            "os.tmpname",
-            "package",
-            "package.config",
-            "package.cpath",
-            "package.loaded",
-            "package.loadlib",
-            "package.path",
-            "package.preload",
-            "package.searchers",
-            "package.searchpath",
-            "string",
-            "string.byte",
-            "string.char",
-            "string.dump",
-            "string.find",
-            "string.format",
-            "string.gmatch",
-            "string.gsub",
-            "string.len",
-            "string.lower",
-            "string.match",
-            "string.pack",
-            "string.packsize",
-            "string.rep",
-            "string.reverse",
-            "string.sub",
-            "string.unpack",
-            "string.upper",
-            "table",
-            "table.concat",
-            "table.insert",
-            "table.move",
-            "table.pack",
-            "table.remove",
-            "table.sort",
-            "table.unpack",
-            "utf8",
-            "utf8.char",
-            "utf8.charpattern",
-            "utf8.codepoint",
-            "utf8.codes",
-            "utf8.len",
-            "utf8.offset",
-        ],
+        v: 5, vv: 3,
+        j: "stl/doc_5_3/stl.json",
+        c: "stl/doc_5_3/contents.html",
+        m: "stl/doc_5_3/manual.html",
     }
 ];
 
 // 符号类型，和vs code的SymbolKind对应
 enum SymbolType {
-    NameSpace = 3, // SymbolKind.Namespace
+    Namespace = 3, // SymbolKind.Namespace
     Function = 12 // SymbolKind.Function
 }
 
@@ -178,7 +25,51 @@ interface Symbol {
     type: SymbolType;
     name: string;
     args?: string[];
-    desc: string;
+    desc?: string;
+}
+
+function searchSymbol(ctx: string) {
+    const begStr = '<H3><A NAME="functions">Lua functions</A></H3>';
+    const endStr = '<H3><A NAME="env">environment<BR>variables</A></H3>';
+
+    let begPos = ctx.indexOf(begStr);
+    let endPos = ctx.indexOf(endStr);
+
+    ctx = ctx.substring(begPos, endPos);
+
+    let symbols: Symbol[] = [];
+    let lines = ctx.split(/\r?\n/g);
+    lines.forEach(line => {
+        if (!line.startsWith('<A HREF="manual.html#')) {
+            return;
+        }
+
+        // 模块 <A HREF="manual.html#6.6">table</A><BR>
+        let matchs = line.match(
+            /^\<A HREF=\"manual.html\#([.0-9]+)\"\>(.+?)\<\/A\>\<BR\>$/);
+        if (matchs && "basic" !== matchs[2]) {
+            symbols.push({
+                name: matchs[2],
+                url: matchs[1],
+                type: SymbolType.Namespace,
+            });
+            return;
+        }
+
+        // 函数 <A HREF="manual.html#pdf-table.concat">table.concat</A><BR>
+        matchs = line.match(
+            /^\<A HREF=\"manual.html\#pdf-(.+?)\"\>(.+?)\<\/A\>\<BR\>$/);
+        if (matchs && "basic" !== matchs[2]) {
+            symbols.push({
+                name: matchs[2],
+                url: matchs[1],
+                type: SymbolType.Function,
+            });
+            return;
+        }
+    });
+
+    return symbols;
 }
 
 // 需要解析的html函数声明、描述格式大概如下
@@ -198,7 +89,10 @@ Returns the absolute value of <code>x</code>. (integer/float)
  */
 function searchDesc(ctx: string, from: number) {
     const flag = "<p>\n";
-    let begPos = ctx.indexOf(flag, from) + flag.length;
+    let begPos = from; //ctx.indexOf(flag, from) + flag.length;
+    if (ctx.charAt(begPos) === "\n") {
+        begPos = ctx.indexOf(flag, from) + flag.length;
+    }
 
     let maxLoop = 32; // just avoid dead loop
     let emptyLine = 0;
@@ -230,7 +124,7 @@ function searchDesc(ctx: string, from: number) {
  * @param ctx contents.html的文本内容
  * @param name 需要解析的函数名
  */
-function search(ctx: string, name: string): Symbol | null {
+function searchDecl(ctx: string, name: string): Symbol | null {
     const begStr = `<hr><h3><a name="pdf-${name}"><code>`;
 
     let basePos = ctx.indexOf(begStr);
@@ -267,25 +161,66 @@ function search(ctx: string, name: string): Symbol | null {
     };
 }
 
+function searchNamespace(ctx: string, url: string, name: string) {
+    // <h2>6.8 &ndash; <a name="6.8">
+    const begStr = `<h2>${url} &ndash; <a name="${url}">`;
+
+    let basePos = ctx.indexOf(begStr);
+    if (basePos < 0) {
+        return null;
+    }
+
+    let endPos = ctx.indexOf("\n", basePos) + 1;
+    let desc = searchDesc(ctx, endPos);
+
+    return {
+        url: "",
+        name: name,
+        type: SymbolType.Namespace,
+        desc: desc
+    };
+}
+
+/**
+ * 从html中解析出函数的声明
+ * @param ctx contents.html的文本内容
+ * @param sym 需要解析的符号
+ */
+function search(ctx: string, sym: Symbol): Symbol | null {
+    if (SymbolType.Function === sym.type) {
+        return searchDecl(ctx, sym.name);
+    }
+
+    if (SymbolType.Namespace === sym.type) {
+        return searchNamespace(ctx, sym.url, sym.name);
+    }
+
+    return null;
+}
+
 function main() {
     console.log(`Current directory: ${process.cwd()}`);
 
     stl.forEach(v => {
-        console.log(`start search symbol for lua ${v.m}.${v.v}`);
-        const ctx = fs.readFileSync(v.f).toString();
+        console.log(`start search symbol for lua ${v.v}.${v.vv}`);
+
+        const cctx = fs.readFileSync(v.c).toString();
+        const mctx = fs.readFileSync(v.m).toString();
 
         // let s = search(ctx, "debug.debug");
         // console.log(JSON.stringify(s));
-        let symbols: Symbol[] = [];
-        v.symbols.forEach(s => {
-            let sym = search(ctx, s);
+        let symbols: Symbol[] = searchSymbol(cctx);
+
+        let finalSymbols: Symbol[] = [];
+        symbols.forEach(s => {
+            let sym = search(mctx, s);
             if (!sym) {
-                console.log(` symbol not found: ${s}`);
+                console.log(` symbol not found: ${s.name}`);
             } else {
-                symbols.push(sym);
+                finalSymbols.push(sym);
             }
         });
-        //console.log(JSON.stringify(symbols));
+        fs.writeFileSync(v.j, JSON.stringify(finalSymbols), 'utf8');
     });
 }
 

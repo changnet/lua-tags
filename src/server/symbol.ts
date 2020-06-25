@@ -1,5 +1,7 @@
 // 符号处理
 
+import * as fs from "fs";
+import * as path from "path";
 import { Utils } from "./utils";
 import * as fuzzysort from "fuzzysort";
 import { Setting, FileParseType } from "./setting";
@@ -125,7 +127,7 @@ export interface SymInfoEx extends SymbolInformation {
     indexer?: string; // M.N或者M:N中的[.:]
     comment?: string; // 注释
     ctType?: CommentType; // 注释类型
-    baseModule?: string; // 用于处理处理module()
+    baseModule?: string; // 用于处理module()
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
@@ -139,17 +141,26 @@ interface NodeCache {
 
 export class Symbol {
     private static ins: Symbol;
+    private static invalidLoc: Location = {
+        uri: "", range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 }
+        }
+    };
 
     private options: Options;
 
     // 是否需要更新全局符号
     private needUpdate: boolean = true;
 
-    // 全局符号缓存，CTRL + T用的
+    // 全局符号缓存，符号名为k，CTRL + T用的
     private globalSymbol = new Map<string, SymInfoEx[]>();
 
-    // 全局模块缓存，方便快速查询符号 identifier
+    // 全局模块缓存，符号名为k，方便快速查询符号 identifier
     private globalModule = new Map<string, SymInfoEx>();
+
+    // lua标准库符号，符号名为k
+    private stlSymbol = new Array<SymInfoEx>();
 
     // 各个文档的符号缓存，uri为key
     private documentSymbol = new Map<string, SymInfoEx[]>();
@@ -733,27 +744,34 @@ export class Symbol {
         return sym;
     }
 
+    private setGlobalModelSym(sym: SymInfoEx) {
+        // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
+        // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
+        // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
+        if (sym.scope > 0) {
+            return;
+        }
+        const name = sym.name;
+        let nameList = this.globalSymbol.get(name);
+        if (!nameList) {
+            nameList = new Array<SymInfoEx>();
+            this.globalSymbol.set(name, nameList);
+        }
+
+        nameList.push(sym);
+    }
     // 更新全局符号缓存
     private updateGlobal() {
         this.globalSymbol.clear();
         this.globalModule.clear();
 
+        this.stlSymbol.forEach(sym => {
+            this.setGlobalModelSym(sym);
+        });
+
         this.documentSymbol.forEach(symList => {
             symList.forEach(sym => {
-                // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
-                // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
-                // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
-                if (sym.scope > 0) {
-                    return;
-                }
-                const name = sym.name;
-                let nameList = this.globalSymbol.get(name);
-                if (!nameList) {
-                    nameList = new Array<SymInfoEx>();
-                    this.globalSymbol.set(name, nameList);
-                }
-
-                nameList.push(sym);
+                this.setGlobalModelSym(sym);
             });
         });
 
@@ -1597,5 +1615,46 @@ export class Symbol {
 
         // exact match returns a score of 0. lower is worse
         return res ? res.score : -1000000000;
+    }
+
+    private stlToSym(v: any) {
+        if (v.type === SymbolKind.Namespace) {
+            //Utils.instance().log(`json parse stl ${JSON.stringify(v)}`);
+            let sym: SymInfoEx = {
+                name: v.name,
+                kind: SymbolKind.Namespace,
+                location: Symbol.invalidLoc,
+                scope: 0,
+                comment: v.desc,
+                ctType: CommentType.CT_ABOVE
+            };
+
+            this.stlSymbol.push(sym);
+        }
+    }
+
+    /**
+     * 加载lua stand library
+     */
+    public loadStl() {
+        let ver = Setting.instance().getLuaVersion();
+        let uri = path.resolve(
+            __dirname, `../../stl/doc_${ver.replace(".", "_")}/stl.json`);
+
+        fs.readFile(uri, 'utf8', (err, data) => {
+            if (err) {
+                Utils.instance().log(`${JSON.stringify(err)}`);
+                return;
+            }
+            let symbols = JSON.parse(data.toString());
+            if (!symbols) {
+                Utils.instance().log(`json parse stl for lua ${ver} error`);
+                return;
+            }
+
+            for (let v of symbols) {
+                this.stlToSym(v);
+            }
+        });
     }
 }
