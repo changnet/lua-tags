@@ -58,18 +58,8 @@ export class HoverProvider {
         return HoverProvider.ins;
     }
 
-    private getPathPrefix(sym: SymInfoEx, uri?: string) {
-        // 不在当前文件的符号中显示文件名
-        if (uri && sym.location.uri === uri) {
-            return "";
-        }
-
-        let file = Symbol.getSymbolPath(sym);
-        return file ? `${file}\n` : "";
-    }
-
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
-        let path = this.getPathPrefix(sym, uri);
+        let path = Symbol.getPathPrefix(sym, uri, sym.ctType);
         let above = "";
         let lineEnd = "";
         let prefix = "";

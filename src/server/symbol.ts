@@ -1362,10 +1362,29 @@ export class Symbol {
         return true;
     }
 
-    // 获取符号所在的文件路径，展示用。目前只展示文件名
+    /**
+     * 获取符号所在的文件路径，展示用。目前只展示文件名
+     */
     public static getSymbolPath(sym: SymInfoEx): string | null {
         const match = sym.location.uri.match(/\/(\w+.\w+)$/);
         return match ? match[1] : null;
+    }
+
+    /**
+     * 获取符号所在的文件路径，展示用。目前只展示文件名
+     */
+    public static getPathPrefix(sym: SymInfoEx, uri?: string, ctType?: CommentType) {
+        // 不在当前文件的符号中显示文件名
+        if (uri && sym.location.uri === uri) {
+            return "";
+        }
+
+        let file = Symbol.getSymbolPath(sym);
+        if (!file) {
+            return "";
+        }
+
+        return ctType === CommentType.CT_HTML ? `${file}<BR>` : `${file}\n`;
     }
 
     // 获取符号的local类型，展示用

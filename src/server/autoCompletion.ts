@@ -303,14 +303,14 @@ export class AutoCompletion {
             });
         };
 
-        // 根据模块名匹配文档符号
-        let items = search.searchDocumentModule(query, filter);
+        // 优先根据模块名匹配全局符号
+        let items = search.searchGlobalModule(query, filter);
         if (items) {
             return items;
         }
 
-        // 优先根据模块名匹配全局符号
-        items = search.searchGlobalModule(query, filter);
+        // 根据模块名匹配文档符号
+        items = search.searchDocumentModule(query, filter);
         if (items) {
             return items;
         }

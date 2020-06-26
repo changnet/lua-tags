@@ -26,12 +26,13 @@ import {
     InitializeResult,
     SignatureHelp,
     SignatureInformation,
-    ParameterInformation
+    ParameterInformation,
+    MarkupContent
 } from 'vscode-languageserver';
 import { Server } from './server';
 import { Utils } from './utils';
 import { GoToDefinition } from './goToDefinition';
-import { Symbol, SymInfoEx, LocalType } from './symbol';
+import { Symbol, SymInfoEx, LocalType, CommentType } from './symbol';
 import { Search } from './search';
 
 /**
@@ -92,20 +93,33 @@ export class SignatureProvider {
             }
         }
 
-        let doc;
-        if (uri !== sym.location.uri) {
-            doc = Symbol.getSymbolPath(sym);
+        // 当前符号没有注释，就显示引用的符号的
+        let ctType = sym.ctType;
+        let comment = sym.comment;
+        if (!comment && refSym) {
+            ctType = refSym.ctType;
+            comment = refSym.comment;
         }
-        if (sym.comment) {
-            doc = doc ? `${doc}\n${sym.comment}` : sym.comment;
-        } else if (refSym && refSym.comment) {
-            doc = doc ? `${doc}\n${refSym.comment}` : refSym.comment;
+
+        let file = Symbol.getPathPrefix(sym, uri, ctType);
+
+        let doc;
+        if (comment || file) {
+            let value = file;
+            if (comment) {
+                value += ctType === CommentType.CT_HTML
+                    ? comment : `\`\`\`lua\n${comment}\n\`\`\``;
+            }
+            doc = {
+                kind: "markdown",
+                value: value
+            } as MarkupContent;
         }
 
         return {
             label: `${funcName}(${funcParam})`,
             parameters: parameters,
-            documentation: doc ? doc : undefined
+            documentation: doc
         };
     }
 
