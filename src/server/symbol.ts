@@ -112,6 +112,7 @@ export enum CommentType {
     CT_NONE = 0,
     CT_ABOVE = 1, // 在上方的注释
     CT_LINEEND = 2, // 在行尾的注释
+    CT_HTML = 3, // html格式的注释，只有autoSTL解析出来的标准库有
 }
 
 // 在vs code的符号基础上扩展一些字段，方便类型跟踪
@@ -153,7 +154,7 @@ export class Symbol {
     // 是否需要更新全局符号
     private needUpdate: boolean = true;
 
-    // 全局符号缓存，符号名为k，CTRL + T用的
+    // 全局符号缓存，符号名为k，v为数组(可能存在同名全局符号)，CTRL + T用的
     private globalSymbol = new Map<string, SymInfoEx[]>();
 
     // 全局模块缓存，符号名为k，方便快速查询符号 identifier
@@ -744,7 +745,7 @@ export class Symbol {
         return sym;
     }
 
-    private setGlobalModelSym(sym: SymInfoEx) {
+    private setGlobalSym(sym: SymInfoEx) {
         // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
         // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
         // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
@@ -760,18 +761,26 @@ export class Symbol {
 
         nameList.push(sym);
     }
+
     // 更新全局符号缓存
     private updateGlobal() {
         this.globalSymbol.clear();
         this.globalModule.clear();
 
-        this.stlSymbol.forEach(sym => {
-            this.setGlobalModelSym(sym);
-        });
+        for (let v of this.stlSymbol) {
+            this.setGlobalSym(v);
+            if (v.kind === SymbolKind.Namespace && v.scope === 0) {
+                if (this.globalModule.get(v.name)) {
+                    Utils.instance().error(
+                        `update global stl symbol module error: ${v.name}`);
+                }
+                this.globalModule.set(v.name, v);
+            }
+        }
 
         this.documentSymbol.forEach(symList => {
             symList.forEach(sym => {
-                this.setGlobalModelSym(sym);
+                this.setGlobalSym(sym);
             });
         });
 
@@ -1617,19 +1626,59 @@ export class Symbol {
         return res ? res.score : -1000000000;
     }
 
-    private stlToSym(v: any) {
-        if (v.type === SymbolKind.Namespace) {
+    private parseSTLSym(symbols: any) {
+        // 先把模块都找出来缓存
+        let stlModule = new Map<string, SymInfoEx>();
+        for (let v of symbols) {
+            if (v.kind !== SymbolKind.Namespace) {
+                continue;
+            }
+
             //Utils.instance().log(`json parse stl ${JSON.stringify(v)}`);
             let sym: SymInfoEx = {
                 name: v.name,
-                kind: SymbolKind.Namespace,
+                kind: v.kind,
                 location: Symbol.invalidLoc,
                 scope: 0,
-                comment: v.desc,
-                ctType: CommentType.CT_ABOVE
+                comment: v.comment,
+                ctType: CommentType.CT_HTML
+            };
+
+            stlModule.set(v.name, sym);
+            this.stlSymbol.push(sym);
+        }
+
+        for (let v of symbols) {
+            if (v.kind === SymbolKind.Namespace) {
+                continue;
+            }
+
+            let sym: SymInfoEx = {
+                name: v.name,
+                kind: v.kind,
+                base: v.base,
+                parameters: v.parameters,
+                location: Symbol.invalidLoc,
+                scope: v.base ? 1 : 0,
+                comment: v.comment,
+                ctType: CommentType.CT_HTML
             };
 
             this.stlSymbol.push(sym);
+
+            if (v.base) {
+                let baseSym = stlModule.get(v.base);
+                if (!baseSym) {
+                    Utils.instance().error(
+                        `load stl no module found: ${v.base}`);
+                    return;
+                }
+
+                if (!baseSym.subSymList) {
+                    baseSym.subSymList = new Array<SymInfoEx>();
+                }
+                baseSym.subSymList.push(sym);
+            }
         }
     }
 
@@ -1652,9 +1701,7 @@ export class Symbol {
                 return;
             }
 
-            for (let v of symbols) {
-                this.stlToSym(v);
-            }
+            this.parseSTLSym(symbols);
         });
     }
 }

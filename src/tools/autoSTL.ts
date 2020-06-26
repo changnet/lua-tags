@@ -14,19 +14,21 @@ const stl = [
     }
 ];
 
-// 符号类型，和vs code的SymbolKind对应
-enum SymbolType {
-    Namespace = 3, // SymbolKind.Namespace
-    Function = 12 // SymbolKind.Function
-}
+import {
+    Location,
+    SymbolKind,
+    SymbolInformation
+} from 'vscode-languageserver';
 
 // 记录单个符号的信息
+// TODO: 直接import symbol.ts中的SymInfoEx来处理？可能会有加载失败风险，比如版本不一致
 interface Symbol {
     url: string;
-    type: SymbolType;
+    kind: SymbolKind;
     name: string;
-    args?: string[];
-    desc?: string;
+    base?: string;
+    parameters?: string[];
+    comment?: string;
 }
 
 function searchSymbol(ctx: string) {
@@ -52,7 +54,7 @@ function searchSymbol(ctx: string) {
             symbols.push({
                 name: matchs[2],
                 url: matchs[1],
-                type: SymbolType.Namespace,
+                kind: SymbolKind.Namespace,
             });
             return;
         }
@@ -64,7 +66,7 @@ function searchSymbol(ctx: string) {
             symbols.push({
                 name: matchs[2],
                 url: matchs[1],
-                type: SymbolType.Function,
+                kind: SymbolKind.Function,
             });
             return;
         }
@@ -118,6 +120,7 @@ function searchDesc(ctx: string, from: number) {
         endPos = linePos + 1; // +1 mean "\n"
     }
 
+    assert(endPos > begPos);
     return ctx.substring(begPos, endPos);
 }
 
@@ -140,8 +143,8 @@ function searchDecl(ctx: string, name: string): Symbol | null {
 
     let decl = ctx.substring(begPos, endPos);
 
-    let args;
-    let type = SymbolType.Function;
+    let parameters;
+    let kind: SymbolKind = SymbolKind.Function;
     let matchs = decl.match(/^(.+?)\s*\((.*)\)$/);
     if (matchs) {
         assert(name === matchs[1]);
@@ -154,9 +157,19 @@ function searchDecl(ctx: string, name: string): Symbol | null {
         paramStr = paramStr.replace(/]/g, "");
         paramStr = paramStr.replace(/\[/g, "");
 
-        args = paramStr.split(", ");
+        parameters = paramStr.split(", ");
+    } else if ("_G" === name) {
+        kind = SymbolKind.Namespace;
     } else {
-        type = SymbolType.Namespace;
+        // _VERSION、math.pi、math.huge is variable
+        kind = SymbolKind.Variable;
+    }
+
+    let base;
+    let baseEndPos = name.indexOf(".");
+    if (baseEndPos > 0) {
+        base = name.substring(0, baseEndPos);
+        name = name.substring(baseEndPos + 1);
     }
 
     let desc = searchDesc(ctx, endPos + endStr.length);
@@ -176,13 +189,14 @@ function searchDecl(ctx: string, name: string): Symbol | null {
     return {
         url: "",
         name: name,
-        type: type,
-        desc: desc,
-        args: args
+        base: base,
+        kind: kind,
+        comment: desc,
+        parameters: parameters
     };
 }
 
-function searchNamespace(ctx: string, url: string, name: string) {
+function searchNamespace(ctx: string, url: string, name: string): Symbol | null {
     // <h2>6.8 &ndash; <a name="6.8">
     const begStr = `<h2>${url} &ndash; <a name="${url}">`;
 
@@ -197,8 +211,8 @@ function searchNamespace(ctx: string, url: string, name: string) {
     return {
         url: "",
         name: name,
-        type: SymbolType.Namespace,
-        desc: desc
+        kind: SymbolKind.Namespace,
+        comment: desc
     };
 }
 
@@ -208,11 +222,11 @@ function searchNamespace(ctx: string, url: string, name: string) {
  * @param sym 需要解析的符号
  */
 function search(ctx: string, sym: Symbol): Symbol | null {
-    if (SymbolType.Function === sym.type) {
+    if (SymbolKind.Function === sym.kind) {
         return searchDecl(ctx, sym.name);
     }
 
-    if (SymbolType.Namespace === sym.type) {
+    if (SymbolKind.Namespace === sym.kind) {
         return searchNamespace(ctx, sym.url, sym.name);
     }
 

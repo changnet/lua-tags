@@ -72,14 +72,17 @@ export class HoverProvider {
         let path = this.getPathPrefix(sym, uri);
         let above = "";
         let lineEnd = "";
-        if (sym.comment && sym.ctType === CommentType.CT_ABOVE) {
-            above = sym.comment + "\n";
+        let prefix = "";
+        if (sym.comment) {
+            switch (sym.ctType) {
+                case CommentType.CT_ABOVE: above = sym.comment + "\n"; break;
+                case CommentType.CT_LINEEND: lineEnd = " " + sym.comment; break;
+                case CommentType.CT_HTML: prefix = sym.comment + "\n"; break;
+            }
         }
-        if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
-            lineEnd = " " + sym.comment;
-        }
+
         let ref = Symbol.instance().getRefValue(sym);
-        return `${path}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
+        return `${path}${prefix}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {

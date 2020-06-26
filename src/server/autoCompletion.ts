@@ -72,39 +72,48 @@ export class AutoCompletion {
         }
 
         let doc = "";
+        if (sym.comment && sym.ctType === CommentType.CT_HTML) {
+            doc = sym.comment + "\n";
+        }
+
+        let mdDoc = ""; // markdown documentation
         // 显示上方的注释
         if (sym.comment && sym.ctType === CommentType.CT_ABOVE) {
-            doc += `${sym.comment}\n`;
+            mdDoc += `${sym.comment}\n`;
         }
         // 如果是常量，显示常量值： test.lua: val = 999
         if (sym.value) {
-            doc += `${sym.name} = ${sym.value}`;
+            mdDoc += `${sym.name} = ${sym.value}`;
         } else if (sym.kind === SymbolKind.Function) {
             // 如果是函数，显示参数: test.lua: function(a, b, c)
             let local = Symbol.getLocalTypePrefix(sym.local);
             let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
             let parameters = sym.parameters ? sym.parameters.join(", ") : "";
-            doc += `${local}function ${base}${sym.name}(${parameters})`;
+            mdDoc += `${local}function ${base}${sym.name}(${parameters})`;
         } else {
             let local = Symbol.getLocalTypePrefix(sym.local);
             let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
-            doc += `${local}${base}${sym.name}`;
+            mdDoc += `${local}${base}${sym.name}`;
         }
 
         // 显示引用的变量
         let ref = Symbol.instance().getRefValue(sym);
         if (ref) {
-            doc += ref;
+            mdDoc += ref;
         }
         // 显示行尾的注释
         if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
-            doc += ` ${sym.comment}`;
+            mdDoc += ` ${sym.comment}`;
         }
-        if (doc && doc.length > 0) {
+        if (doc.length > 0 || mdDoc.length > 0) {
             item.documentation = {
                 kind: "markdown",
-                value: `\`\`\`lua\n${doc}\n\`\`\``
+                value: doc
             };
+
+            if (mdDoc.length > 0) {
+                item.documentation.value += `\`\`\`lua\n${mdDoc}\n\`\`\``;
+            }
         }
 
         return item;
@@ -293,14 +302,15 @@ export class AutoCompletion {
                     || Symbol.checkMatch(symName, sym.name) > -500;
             });
         };
-        // 优先根据模块名匹配全局符号
-        let items = search.searchGlobalModule(query, filter);
+
+        // 根据模块名匹配文档符号
+        let items = search.searchDocumentModule(query, filter);
         if (items) {
             return items;
         }
 
-        // 根据模块名匹配文档符号
-        items = search.searchDocumentModule(query, filter);
+        // 优先根据模块名匹配全局符号
+        items = search.searchGlobalModule(query, filter);
         if (items) {
             return items;
         }
