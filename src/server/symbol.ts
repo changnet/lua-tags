@@ -1376,18 +1376,16 @@ export class Symbol {
     /**
      * 获取符号所在的文件路径，展示用。目前只展示文件名
      */
-    public static getPathPrefix(sym: SymInfoEx, uri?: string, ctType?: CommentType) {
+    public static getPathPrefix(sym: SymInfoEx, uri?: string) {
         // 不在当前文件的符号中显示文件名
         if (uri && sym.location.uri === uri) {
             return "";
         }
 
         let file = Symbol.getSymbolPath(sym);
-        if (!file) {
-            return "";
-        }
 
-        return ctType === CommentType.CT_HTML ? `${file}<BR>` : `${file}\n`;
+        // 加上markdown的换行，两个空格加\n
+        return file ? `${file}  \n` : "";
     }
 
     // 获取符号的local类型，展示用

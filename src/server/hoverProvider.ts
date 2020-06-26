@@ -59,7 +59,7 @@ export class HoverProvider {
     }
 
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
-        let path = Symbol.getPathPrefix(sym, uri, sym.ctType);
+        let path = Symbol.getPathPrefix(sym, uri);
         let above = "";
         let lineEnd = "";
         let prefix = "";

@@ -32,7 +32,7 @@ table.empty = function(tbl)
     return not next(tbl)
 end
 -- tabl
--- table.
+-- table.e
 
 function signature_help(a, b, c)
 end
@@ -149,3 +149,7 @@ local wrap = {
     OO = oo
 }
 -- wrap.OO.
+
+-- test lua standard
+local pl = table.p
+local ti = table.insert -- table.insert(a,)

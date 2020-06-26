@@ -102,7 +102,7 @@ export class SignatureProvider {
             comment = refSym.comment;
         }
 
-        let file = Symbol.getPathPrefix(sym, uri, ctType);
+        let file = Symbol.getPathPrefix(sym, uri);
 
         let doc;
         if (comment || file) {

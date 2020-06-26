@@ -42,11 +42,16 @@ async function testCompletion(
         const actualItem = actualList.items[i];
         assert.equal(actualItem.label, expectedItem.label, "label check");
         assert.equal(actualItem.kind, expectedItem.kind, "kind check");
+
+        if (expectedItem.detail) {
+            assert.equal(actualItem.detail, expectedItem.detail);
+        }
+
         if (expectedItem.documentation) {
-            // test库里的CompletionItem和vs code server那边不一样，暂时强转
-            let item = actualItem as any;
-            assert.equal(item.documentation.value,
-                expectedItem.documentation, "documentation check");
+            // test库里的CompletionItem和vs code server那边不一样
+            // server那边用的是markdown
+            let doc = actualItem.documentation as vscode.MarkdownString;
+            assert.equal(doc.value, expectedItem.documentation);
         }
     });
 }
@@ -105,7 +110,7 @@ suite('Extension Completion Test Suite', () => {
     });
 
     test('test external module function completion', async () => {
-        await testCompletion(testUri, new vscode.Position(34, 9), {
+        await testCompletion(testUri, new vscode.Position(34, 10), {
             items: [
                 { label: 'empty', kind: vscode.CompletionItemKind.Function },
             ]
@@ -254,6 +259,19 @@ suite('Extension Completion Test Suite', () => {
                 {
                     label: 'class',
                     kind: vscode.CompletionItemKind.Function
+                },
+            ]
+        });
+    });
+
+    test('test lua standard completion', async () => {
+        await testCompletion(testUri, new vscode.Position(153, 18), {
+            items: [
+                {
+                    label: 'pack',
+                    kind: vscode.CompletionItemKind.Function,
+                    detail: "Lua Standard Libraries",
+                    documentation: "Returns a new table with all arguments stored into keys 1, 2, etc.\nand with a field \"<code>n</code>\" with the total number of arguments.\nNote that the resulting table may not be a sequence.\n```lua\nfunction pack(...)\n```"
                 },
             ]
         });

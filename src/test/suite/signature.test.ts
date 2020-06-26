@@ -8,7 +8,6 @@ const samplePath = path.resolve(__dirname, "../../../src/test/sample");
 const testPath = path.join(samplePath, "test.lua");
 const testUri = vscode.Uri.file(testPath);
 
-
 // test signature help
 async function testSignatureHelp(uri: vscode.Uri,
     position: vscode.Position, expect: vscode.SignatureHelp) {
@@ -19,7 +18,7 @@ async function testSignatureHelp(uri: vscode.Uri,
         position
     )) as vscode.SignatureHelp;
 
-    // console.log(`${JSON.stringify(actualList)}`);
+    // console.log(`${JSON.stringify(actual)}`);
 
     assert.equal(
         actual.activeParameter, expect.activeParameter, "activeparameter");
@@ -31,8 +30,16 @@ async function testSignatureHelp(uri: vscode.Uri,
         assert.equal(actualItem.label, expectedItem.label, "label");
         assert.equal(actualItem.parameters.length,
             expectedItem.parameters.length, "parameters length");
-        assert.equal(actualItem.documentation,
-            expectedItem.documentation, "documentation");
+
+        if (expectedItem.documentation) {
+            let doc = actualItem.documentation as vscode.MarkdownString;
+            if (doc.value !== expectedItem.documentation) {
+                console.log("expect", expectedItem.documentation);
+                console.log("got", doc.value);
+            }
+            assert.equal(doc.value,
+                expectedItem.documentation, "documentation");
+        }
         expectedItem.parameters.forEach((param, paramIdx) => {
             const actualParam = actualItem.parameters[paramIdx];
             assert.equal(actualParam.label[0], param.label[0], "param label 0");
@@ -53,13 +60,13 @@ suite('Extension Signature Test Suite', () => {
                 parameters: [
                     { label: [17, 20] }, { label: [22, 25] }
                 ],
-                documentation: 'animal.lua\n-- called when the animal be killed'
+                documentation: "animal.lua  \n```lua\n-- called when the animal be killed\n```"
             }, {
                 label: 'function on_kill(who, ...)',
                 parameters: [
                     { label: [17, 20] }, { label: [22, 25] }
                 ],
-                documentation: 'monster.lua\n-- called when monster was killed'
+                documentation: "monster.lua  \n```lua\n-- called when monster was killed\n```"
             }
             ],
             activeSignature: 0,
@@ -102,11 +109,28 @@ suite('Extension Signature Test Suite', () => {
                 parameters: [
                     { label: [30, 33] },
                 ],
-                documentation: '-- test function assignment\n-- multiline comment1\n-- multiline comment2'
+                documentation: '```lua\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```'
             }
             ],
             activeSignature: 0,
             activeParameter: 0
+        });
+    });
+
+    test("test lua standrard signature help", async () => {
+        await testSignatureHelp(testUri, new vscode.Position(154, 42), {
+            signatures: [{
+                label: 'function insert(list, pos, value)',
+                parameters: [
+                    { label: [16, 20] },
+                    { label: [22, 25] },
+                    { label: [27, 32] },
+                ],
+                documentation: "Lua Standard Libraries  \nInserts element <code>value</code> at position <code>pos</code> in <code>list</code>,\nshifting up the elements\n<code>list[pos], list[pos+1], &middot;&middot;&middot;, list[#list]</code>.\nThe default value for <code>pos</code> is <code>#list+1</code>,\nso that a call <code>table.insert(t,x)</code> inserts <code>x</code> at the end\nof list <code>t</code>."
+            }
+            ],
+            activeSignature: 0,
+            activeParameter: 1
         });
     });
 });

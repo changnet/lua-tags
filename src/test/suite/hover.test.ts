@@ -70,7 +70,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test file path hove", async () => {
-        const val = 'battle_conf.lua\n```lua\nmax_player = 8\n```';
+        const val = 'battle_conf.lua  \n```lua\nmax_player = 8\n```';
         await testHover(testUri, new vscode.Position(42, 64), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -78,7 +78,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test module hove", async () => {
-        const val = "\`\`\`lua\n(module) table\n\`\`\`";
+        const val = "Lua Standard Libraries  \nThis library provides generic functions for table manipulation.\nIt provides all its functions inside the table <a name=\"pdf-table\"><code>table</code></a>.\n```lua\n(table) table\n```";
         await testHover(testUri, new vscode.Position(30, 1), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -89,7 +89,7 @@ suite('Extension Hover Test Suite', () => {
         const docPath = path.join(samplePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
-        const val = 'animal.lua\n```lua\n-- called when the animal be killed\nfunction Animal:on_kill(who, ...)\n```\n---\nmonster.lua\n```lua\n-- called when monster was killed\nfunction Monster:on_kill(who, ...)\n```';
+        const val = 'animal.lua  \n```lua\n-- called when the animal be killed\nfunction Animal:on_kill(who, ...)\n```\n---\nmonster.lua  \n```lua\n-- called when monster was killed\nfunction Monster:on_kill(who, ...)\n```';
         await testHover(uri, new vscode.Position(54, 20), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -153,7 +153,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test document recursive search hover", async () => {
-        const val = "skill_conf.lua\n```lua\nfactor = 0.01\n```";
+        const val = "skill_conf.lua  \n```lua\nfactor = 0.01\n```";
         await testHover(testUri, new vscode.Position(119, 33), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -171,6 +171,14 @@ suite('Extension Hover Test Suite', () => {
     test("test table function hover", async () => {
         const val = "```lua\nfunction ENUM.E_FUNCTION() -- enum function\n```";
         await testHover(testUri, new vscode.Position(22, 6), [{
+            contents: [{ value: val } as vscode.MarkdownString],
+        }
+        ]);
+    });
+
+    test("test lua standard hover", async () => {
+        const val = "Lua Standard Libraries  \nInserts element <code>value</code> at position <code>pos</code> in <code>list</code>,\nshifting up the elements\n<code>list[pos], list[pos+1], &middot;&middot;&middot;, list[#list]</code>.\nThe default value for <code>pos</code> is <code>#list+1</code>,\nso that a call <code>table.insert(t,x)</code> inserts <code>x</code> at the end\nof list <code>t</code>.\n```lua\nfunction table.insert(list, pos, value)\n```";
+        await testHover(testUri, new vscode.Position(154, 21), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
         ]);
