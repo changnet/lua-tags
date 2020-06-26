@@ -7,6 +7,12 @@ import { assert } from "console";
 // 选择所有 Lua functions
 const stl = [
     {
+        v: 5, vv: 1,
+        j: "stl/doc_5_1/stl.json",
+        c: "stl/doc_5_1/contents.html",
+        m: "stl/doc_5_1/manual.html",
+    },
+    {
         v: 5, vv: 3,
         j: "stl/doc_5_3/stl.json",
         c: "stl/doc_5_3/contents.html",

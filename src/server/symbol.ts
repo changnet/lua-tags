@@ -1366,6 +1366,9 @@ export class Symbol {
      * 获取符号所在的文件路径，展示用。目前只展示文件名
      */
     public static getSymbolPath(sym: SymInfoEx): string | null {
+        if ("" === sym.location.uri) {
+            return "Lua Standard Libraries";
+        }
         const match = sym.location.uri.match(/\/(\w+.\w+)$/);
         return match ? match[1] : null;
     }

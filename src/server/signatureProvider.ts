@@ -27,7 +27,8 @@ import {
     SignatureHelp,
     SignatureInformation,
     ParameterInformation,
-    MarkupContent
+    MarkupContent,
+    MarkupKind
 } from 'vscode-languageserver';
 import { Server } from './server';
 import { Utils } from './utils';
@@ -111,7 +112,7 @@ export class SignatureProvider {
                     ? comment : `\`\`\`lua\n${comment}\n\`\`\``;
             }
             doc = {
-                kind: "markdown",
+                kind: MarkupKind.Markdown,
                 value: value
             } as MarkupContent;
         }
