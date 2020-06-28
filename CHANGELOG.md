@@ -6,7 +6,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 *. read type from comments like phpdoc
 *. add lua、ngx_lua、love2d std library support
 
-## [1.0.9] 2020-06-??
+## [1.0.10] 2020-06-28
 1. improve autocompletion、signaturehelp message(using markdown)
 2. add lua5.1、lua5.3 standard library
 
