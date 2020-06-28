@@ -101,6 +101,10 @@ export class GoToDefinition {
 
         loc = [];
         for (let sym of list) {
+            // stl 使用了一个空串作为位置
+            if ("" === sym.location.uri) {
+                continue;
+            }
             loc.push(sym.location);
         }
 

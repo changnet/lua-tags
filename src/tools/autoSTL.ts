@@ -8,13 +8,13 @@ import { assert } from "console";
 const stl = [
     {
         v: 5, vv: 1,
-        j: "stl/doc_5_1/stl.json",
+        j: "stl/stl_5.1.json",
         c: "stl/doc_5_1/contents.html",
         m: "stl/doc_5_1/manual.html",
     },
     {
         v: 5, vv: 3,
-        j: "stl/doc_5_3/stl.json",
+        j: "stl/stl_5.3.json",
         c: "stl/doc_5_3/contents.html",
         m: "stl/doc_5_3/manual.html",
     }

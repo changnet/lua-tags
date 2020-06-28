@@ -10,3 +10,4 @@ vsc-extension-quickstart.md
 **/*.ts
 # vs code can NOT show local picture at markdown, no need to pack them
 *.gif
+stl/doc_*/**

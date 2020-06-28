@@ -193,4 +193,8 @@ suite('Extension Definition Test Suite', () => {
             range: new vscode.Range(2, 0, 17, 1)
         }]);
     });
+
+    test("test lua standard definition", async () => {
+        await testGoToDefinition(testUri, new vscode.Position(154, 19), []);
+    });
 });

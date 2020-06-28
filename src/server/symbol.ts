@@ -1708,7 +1708,7 @@ export class Symbol {
     public loadStl() {
         let ver = Setting.instance().getLuaVersion();
         let uri = path.resolve(
-            __dirname, `../../stl/doc_${ver.replace(".", "_")}/stl.json`);
+            __dirname, `../../stl/stl_${ver}.json`);
 
         fs.readFile(uri, 'utf8', (err, data) => {
             if (err) {
