@@ -119,7 +119,7 @@ function searchDesc(ctx: string, from: number) {
             continue;
         }
         let lineCtx = ctx.substring(endPos, linePos);
-        if (lineCtx.startsWith("<hr>")) {
+        if (lineCtx.startsWith("<hr>") || lineCtx.startsWith("<ul>")) {
             break;
         }
 
