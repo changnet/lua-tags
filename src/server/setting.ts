@@ -2,6 +2,7 @@
 
 import * as path from "path";
 import { Utils } from "./utils";
+import Uri from 'vscode-uri';
 
 // let ver:string = "5.1"
 // luaVersion = ver as Version
@@ -102,7 +103,8 @@ export class Setting {
         }
 
         if ("" !== this.rawRootUri) {
-            this.rootUri = this.getRoot(this.rawRootUri);
+            this.rootUri = this.getRoot(
+                Uri.parse(this.rawRootUri).fsPath, true);
         }
     }
 
@@ -122,12 +124,12 @@ export class Setting {
     }
 
     // 获取设置的根目录
-    public getRoot(oldPath: string) {
-        if ("" === this.rootDir) {
-            return oldPath;
+    public getRoot(oldPath: string, uriFmt: boolean = false) {
+        let newPath = path.join(oldPath, this.rootDir);
+        if (!uriFmt) {
+            return newPath;
         }
-
-        return path.join(oldPath, this.rootDir);
+        return Uri.file(newPath).toString();
     }
 
     private isUriExclude(uri: string, excludes: string[]): boolean {

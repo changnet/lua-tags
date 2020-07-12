@@ -9,7 +9,8 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 ## [1.0.11] 2020-07-??
 1. fix standard library comment render html error(especially in linux)
 2. add lua5.2、luajit standard library
-3. improve autocompletion match
+3. improve autocompletion accurate
+4. fix extension did NOT work when setting subdir as root
 
 ## [1.0.10] 2020-06-28
 1. improve autocompletion、signaturehelp message(using markdown)

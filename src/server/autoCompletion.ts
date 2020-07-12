@@ -35,6 +35,7 @@ import { Server } from './server';
 import { Search, Filter } from './search';
 
 export class AutoCompletion {
+    private static accurate = -500;
     private static ins: AutoCompletion;
 
     private constructor() {
@@ -267,7 +268,7 @@ export class AutoCompletion {
 
         let newItems = items || [];
         Symbol.instance().eachModuleName(mdName => {
-            if (Symbol.checkMatch(name, mdName) < -500) {
+            if (Symbol.checkMatch(name, mdName) < AutoCompletion.accurate) {
                 return;
             }
 
@@ -292,34 +293,51 @@ export class AutoCompletion {
     private doSearch(srv: Server, query: SymbolQuery) {
         let search = Search.instance();
 
+        let found = false;
         let symName = query.name;
         let filter: Filter = symList => {
             if (!symList) {
                 return null;
             }
             return symList.filter(sym => {
+                if (sym.name.startsWith(symName)) {
+                    found = true;
+                    return true;
+                }
                 return 0 === symName.length
-                    || Symbol.checkMatch(symName, sym.name) > -500;
+                    || Symbol.checkMatch(symName, sym.name)
+                    > AutoCompletion.accurate;
             });
         };
 
+        let items: SymInfoEx[] = [];
+
         // 优先根据模块名匹配全局符号
-        let items = search.searchGlobalModule(query, filter);
-        if (items) {
-            return items;
+        let tmps = search.searchGlobalModule(query, filter);
+        if (tmps) {
+            items.push(...tmps);
+            if (found) {
+                return items;
+            }
         }
 
         // 根据模块名匹配文档符号
-        items = search.searchDocumentModule(query, filter);
-        if (items) {
-            return items;
+        tmps = search.searchDocumentModule(query, filter);
+        if (tmps) {
+            items.push(...tmps);
+            if (found) {
+                return items;
+            }
         }
 
         // 查找局部变量
         const uri = query.uri;
         srv.ensureSymbolCache(uri);
-        items = this.getlocalCompletion(query);
-        if (items) {
+        tmps = this.getlocalCompletion(query);
+        if (tmps) {
+            items.push(...tmps);
+        }
+        if (items.length > 0) {
             return items;
         }
 
@@ -330,23 +348,23 @@ export class AutoCompletion {
 
         let symbol = Symbol.instance();
         // 忽略模块名，直接查找当前文档符号
-        items = filter(symbol.getDocumentSymbol(uri));
-        if (items) {
-            let symList = search.filterLocalSym(items, query);
+        tmps = filter(symbol.getDocumentSymbol(uri));
+        if (tmps) {
+            let symList = search.filterLocalSym(tmps, query);
             if (symList.length > 0) {
                 return symList;
             }
         }
 
         // 忽略模块名，直接查找全局符号
-        items = filter(symbol.getGlobalSymbol(
+        tmps = filter(symbol.getGlobalSymbol(
             false, sym => sym.location.uri !== uri));
-        if (items) {
-            let symList = search.filterLocalSym(items, query);
+        if (tmps) {
+            let symList = search.filterLocalSym(tmps, query);
             if (symList.length > 0) {
                 return symList;
             }
-            return items;
+            return tmps;
         }
 
         return null;

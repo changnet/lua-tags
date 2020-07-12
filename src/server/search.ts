@@ -413,6 +413,7 @@ export class Search {
     }
 
     // 根据模块名查找符号
+    // MMM.nnn中搜索模块名，如果只有MMM模块名，不是在这里处理的
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错，暂时不考虑这种情况
     public searchGlobalModule(query: SymbolQuery, filter: Filter) {
         let base = query.base;
