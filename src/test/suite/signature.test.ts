@@ -126,7 +126,7 @@ suite('Extension Signature Test Suite', () => {
                     { label: [22, 25] },
                     { label: [27, 32] },
                 ],
-                documentation: "Lua Standard Libraries  \nInserts element <code>value</code> at position <code>pos</code> in <code>list</code>,\nshifting up the elements\n<code>list[pos], list[pos+1], &middot;&middot;&middot;, list[#list]</code>.\nThe default value for <code>pos</code> is <code>#list+1</code>,\nso that a call <code>table.insert(t,x)</code> inserts <code>x</code> at the end\nof list <code>t</code>."
+                documentation: "Lua Standard Libraries  \nInserts element **value** at position **pos** in **list**, shifting up the elements **list[pos], list[pos+1], ..., list[#list]**. The default value for **pos** is **#list+1**, so that a call **table.insert(t,x)** inserts **x** at the end of list **t**."
             }
             ],
             activeSignature: 0,

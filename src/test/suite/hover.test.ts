@@ -78,7 +78,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test module hove", async () => {
-        const val = "Lua Standard Libraries  \nThis library provides generic functions for table manipulation.\nIt provides all its functions inside the table <a name=\"pdf-table\"><code>table</code></a>.\n```lua\n(table) table\n```";
+        const val = "Lua Standard Libraries  \nThis library provides generic functions for table manipulation. It provides all its functions inside the table ****table****.\n```lua\n(table) table\n```";
         await testHover(testUri, new vscode.Position(30, 1), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -177,7 +177,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test lua standard hover", async () => {
-        const val = "Lua Standard Libraries  \nInserts element <code>value</code> at position <code>pos</code> in <code>list</code>,\nshifting up the elements\n<code>list[pos], list[pos+1], &middot;&middot;&middot;, list[#list]</code>.\nThe default value for <code>pos</code> is <code>#list+1</code>,\nso that a call <code>table.insert(t,x)</code> inserts <code>x</code> at the end\nof list <code>t</code>.\n```lua\nfunction table.insert(list, pos, value)\n```";
+        const val = "Lua Standard Libraries  \nInserts element **value** at position **pos** in **list**, shifting up the elements **list[pos], list[pos+1], ..., list[#list]**. The default value for **pos** is **#list+1**, so that a call **table.insert(t,x)** inserts **x** at the end of list **t**.\n```lua\nfunction table.insert(list, pos, value)\n```";
         await testHover(testUri, new vscode.Position(154, 21), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }

@@ -271,7 +271,7 @@ suite('Extension Completion Test Suite', () => {
                     label: 'pack',
                     kind: vscode.CompletionItemKind.Function,
                     detail: "Lua Standard Libraries",
-                    documentation: "Returns a new table with all arguments stored into keys 1, 2, etc.\nand with a field \"<code>n</code>\" with the total number of arguments.\nNote that the resulting table may not be a sequence.\n```lua\nfunction pack(...)\n```"
+                    documentation: "Returns a new table with all arguments stored into keys 1, 2, etc. and with a field \"**n**\" with the total number of arguments. Note that the resulting table may not be a sequence.\n```lua\nfunction pack(...)\n```"
                 },
             ]
         });
