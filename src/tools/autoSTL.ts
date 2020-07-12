@@ -127,7 +127,55 @@ function searchDesc(ctx: string, from: number) {
     }
 
     assert(endPos > begPos);
-    return ctx.substring(begPos, endPos);
+    let desc = ctx.substring(begPos, endPos);
+
+    // 在win下，其实不替换下面的html符号，也能正常显示，但linux下完全不行
+
+    // 去掉换行(现在是按行解释，得到的换行并不是真的换行)
+    desc = desc.replace(/\r?\n/g, " ");
+
+    // g globa search，即搜索文中所有匹配的字符而不仅仅是第一次
+    // m multi line，多行匹配
+    // .+? 中的?表示非贪婪模式
+    desc = desc.replace(/\<code\>(.+?)\<\/code\>/gm, (match, p1) => {
+        return `**${p1}**`;
+    });
+    desc = desc.replace(/\<b\>(.+?)\<\/b\>/gm, (match, p1) => {
+        return `**${p1}**`;
+    });
+
+    // <em> ... </em>的内容都是在 <pre> ... </pre>中，并且以4个空格开头，表示这部分
+    // 内容为代码，因此不需要加粗
+    desc = desc.replace(/\<em\>(.+?)\<\/em\>/gm, (match, p1) => {
+        return p1;
+    });
+    // 次方符号，其实有些markdown是能解析的，比如markdown，但vscode不行
+    // 
+    desc = desc.replace(/\<sup\>(.+?)\<\/sup\>/gm, (match, p1) => {
+        return `^${p1}`;
+    });
+
+    desc = desc.replace(/\<a .+\>(.+?)\<\/a\>/gm, (match, p1) => {
+        return `**${p1}**`;
+    });
+    desc = desc.replace("<p>", "");
+    // html的横杠替换成真正的-
+    desc = desc.replace(/&ndash;/g, "-");
+    // html的&替换成真正的&
+    desc = desc.replace(/&sect;/g, "&");
+    // html的不换行空格替换成真正的空格
+    desc = desc.replace(/&nbsp;/g, " ");
+    // 把html中的...替换成真正的...
+    desc = desc.replace(/&middot;&middot;&middot;/g, "...");
+
+    // 替换<pre> ... </pre> 这部分内容里一般都是代码
+    // desc = desc.replace(/\<pre\>(.+?)\<\/pre\>/gm, (match, p1) => {
+    //     return `${p1}`;
+    // });
+    desc = desc.replace("<pre>", "\n\n");
+    desc = desc.replace("</pre>", "\n\n");
+
+    return desc;
 }
 
 /**
@@ -180,18 +228,6 @@ function searchDecl(ctx: string, name: string): Symbol | null {
 
     let desc = searchDesc(ctx, endPos + endStr.length);
 
-    /*
-    // g globa search，即搜索文中所有匹配的字符而不仅仅是第一次
-    // m multi line，多行匹配
-    // .+? 中的?表示非贪婪模式
-    desc = desc.replace(/\<code\>(.+?)\<\/code\>/gm, (match, p1) => {
-        return `**${p1}**`;
-    });
-    // 去掉换行
-    desc = desc.replace(/\r?\n/g, "");
-    // html的横杠替换成真正的-
-    desc = desc.replace(/&ndash;/g, "-");
-    */
     return {
         url: "",
         name: name,
@@ -252,6 +288,7 @@ function main() {
         // console.log(JSON.stringify(s));
         let symbols: Symbol[] = searchSymbol(cctx);
 
+        assert(symbols.length > 0, "no symbol found ...");
         let finalSymbols: Symbol[] = [];
         symbols.forEach(s => {
             let sym = search(mctx, s);
@@ -266,5 +303,3 @@ function main() {
 }
 
 main();
-
-// 添加一个链接，直接打开html，这样不用联网也可以用
