@@ -40,9 +40,13 @@ interface Symbol {
 function searchSymbol(ctx: string) {
     const begStr = '<H3><A NAME="functions">Lua functions</A></H3>';
     const endStr = '<H3><A NAME="env">environment<BR>variables</A></H3>';
+    const endStr51 = '<H3>C API</H3>';
 
     let begPos = ctx.indexOf(begStr);
     let endPos = ctx.indexOf(endStr);
+    if (endPos < 0) {
+        endPos = ctx.indexOf(endStr51);
+    }
 
     ctx = ctx.substring(begPos, endPos);
 
@@ -165,6 +169,8 @@ function searchDesc(ctx: string, from: number) {
     desc = desc.replace(/&sect;/g, "&");
     // html的不换行空格替换成真正的空格
     desc = desc.replace(/&nbsp;/g, " ");
+    // html的小于号替换成真正的<
+    desc = desc.replace(/&lt;/g, "<");
     // 把html中的...替换成真正的...
     desc = desc.replace(/&middot;&middot;&middot;/g, "...");
 
