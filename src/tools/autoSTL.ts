@@ -7,13 +7,26 @@ import { assert } from "console";
 // 选择所有 Lua functions
 const stl = [
     {
-        v: 5, vv: 1,
+        // jit using 5.1 manual now
+        v: "LuaJIT",
+        j: "stl/stl_LuaJIT.json",
+        c: "stl/doc_5_1/contents.html",
+        m: "stl/doc_5_1/manual.html",
+    },
+    {
+        v: "5.1",
         j: "stl/stl_5.1.json",
         c: "stl/doc_5_1/contents.html",
         m: "stl/doc_5_1/manual.html",
     },
     {
-        v: 5, vv: 3,
+        v: "5.2",
+        j: "stl/stl_5.2.json",
+        c: "stl/doc_5_2/contents.html",
+        m: "stl/doc_5_2/manual.html",
+    },
+    {
+        v: "5.3",
         j: "stl/stl_5.3.json",
         c: "stl/doc_5_3/contents.html",
         m: "stl/doc_5_3/manual.html",
@@ -285,7 +298,7 @@ function main() {
     console.log(`Current directory: ${process.cwd()}`);
 
     stl.forEach(v => {
-        console.log(`start search symbol for lua ${v.v}.${v.vv}`);
+        console.log(`start search symbol for lua ${v.v}`);
 
         const cctx = fs.readFileSync(v.c).toString();
         const mctx = fs.readFileSync(v.m).toString();
