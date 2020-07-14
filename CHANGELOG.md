@@ -6,7 +6,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 *. read type from comments like phpdoc
 *. add lua、ngx_lua、love2d std library support
 
-## [1.0.11] 2020-07-??
+## [1.0.11] 2020-07-14
 1. fix standard library comment render html error(especially in linux)
 2. add lua5.2、luajit standard library
 3. improve autocompletion accurate
