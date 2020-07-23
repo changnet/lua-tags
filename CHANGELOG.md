@@ -8,6 +8,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 
 ## [1.0.11] 2020-07-??
 1. fix local document symbol not found in completion and hovers
+2. fix some stl render incorrect(like string.format)
 
 ## [1.0.11] 2020-07-14
 1. fix standard library comment render html error(especially in linux)
