@@ -155,9 +155,16 @@ function searchDesc(ctx: string, from: number) {
     // m multi line，多行匹配
     // .+? 中的?表示非贪婪模式
     desc = desc.replace(/\<code\>(.+?)\<\/code\>/gm, (match, p1) => {
+        if (p1.startsWith("*")) {
+            return `__${p1}__`;
+        }
         return `**${p1}**`;
     });
     desc = desc.replace(/\<b\>(.+?)\<\/b\>/gm, (match, p1) => {
+        // 有些会同时被<a> <code>包括，已经替换的，不需要再替换
+        if (p1.startsWith("**") || p1.startsWith("__")) {
+            return p1;
+        }
         return `**${p1}**`;
     });
 
@@ -173,6 +180,10 @@ function searchDesc(ctx: string, from: number) {
     });
 
     desc = desc.replace(/\<a .+\>(.+?)\<\/a\>/gm, (match, p1) => {
+        // 有些会同时被<a> <code>包括，已经替换的，不需要再替换
+        if (p1.startsWith("**") || p1.startsWith("__")) {
+            return p1;
+        }
         return `**${p1}**`;
     });
     desc = desc.replace("<p>", "");

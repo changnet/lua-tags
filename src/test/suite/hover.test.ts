@@ -78,7 +78,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test module hove", async () => {
-        const val = "Lua Standard Libraries  \nThis library provides generic functions for table manipulation. It provides all its functions inside the table ****table****.\n```lua\n(table) table\n```";
+        const val = "Lua Standard Libraries  \nThis library provides generic functions for table manipulation. It provides all its functions inside the table **table**.\n```lua\n(table) table\n```";
         await testHover(testUri, new vscode.Position(30, 1), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
