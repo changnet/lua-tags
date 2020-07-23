@@ -286,6 +286,8 @@ export class Symbol {
                 symList = this.parseFunctionExpr(node);
                 break;
             case "LocalStatement": // local变量
+                symList = this.parseVariableStatement(node, LocalType.LT_LOCAL);
+                break;
             case "AssignmentStatement": // 全局变量
                 symList = this.parseVariableStatement(node);
                 break;
@@ -429,7 +431,11 @@ export class Symbol {
             return [];
         }
 
-        let sym = this.toSym(nameInfo, expr);
+        let local;
+        if (expr.isLocal) {
+            local = LocalType.LT_LOCAL;
+        }
+        let sym = this.toSym(nameInfo, expr, undefined, local);
         if (!sym) {
             return [];
         }
@@ -484,7 +490,8 @@ export class Symbol {
     }
 
     // 解析变量声明
-    private parseVariableStatement(stat: LocalStatement | AssignmentStatement) {
+    private parseVariableStatement(
+        stat: LocalStatement | AssignmentStatement, local?: LocalType) {
         let symList: SymInfoEx[] = [];
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
@@ -498,7 +505,7 @@ export class Symbol {
 
             const init = stat.init[index];
 
-            let sym = this.toSym(nameInfo, varNode, init);
+            let sym = this.toSym(nameInfo, varNode, init, local);
             if (!sym) {
                 continue;
             }
@@ -733,13 +740,9 @@ export class Symbol {
             }
         }
 
-        // 用json打印整个node，发现有isLocal这个字段，但这里只有函数识别出这个字段
         if (!sym.local) {
-            let anyNode = node as any;
             if (local) {
                 sym.local = local;
-            } else if (anyNode.isLocal) {
-                sym.local = LocalType.LT_LOCAL;
             }
         }
         return sym;
@@ -1332,8 +1335,8 @@ export class Symbol {
             }
         } while (token.type !== LTT.EOF);
 
-        let node: LocalStatement = {
-            "type": "LocalStatement",
+        let node: AssignmentStatement = {
+            "type": "AssignmentStatement",
             "variables": [
                 {
                     type: "Identifier",
