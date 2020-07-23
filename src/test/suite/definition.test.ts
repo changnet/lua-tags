@@ -197,4 +197,11 @@ suite('Extension Definition Test Suite', () => {
     test("test lua standard definition", async () => {
         await testGoToDefinition(testUri, new vscode.Position(154, 19), []);
     });
+
+    test("test local document definition", async () => {
+        await testGoToDefinition(testUri, new vscode.Position(157, 5), [{
+            uri: testUri,
+            range: new vscode.Range(153, 6, 153, 8)
+        }]);
+    });
 });

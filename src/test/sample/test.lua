@@ -153,3 +153,7 @@ local wrap = {
 -- test lua standard
 local pl = table.p
 local ti = table.insert -- table.insert(a,)
+
+function test_local_document_sym()
+    pl = pl + 1
+end

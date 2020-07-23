@@ -543,7 +543,7 @@ export class Search {
     }
 
     // searchLocal只查找非顶层的局部符号，因此顶层的local符号在这里处理
-    private checkDocTopLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
+    private checkHasLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
         // 带base肯定不是局部符号
         if (query.base) {
             return null;
@@ -589,13 +589,13 @@ export class Search {
         }
 
         // 查找局部变量(不包含顶层局部变量)
-        let possibleSym;
+        let possibleSym: SymInfoEx[] = [];
         const uri = query.uri;
         srv.ensureSymbolCache(uri);
         items = this.searchlocal(query);
         if (items) {
             let symList = this.localizationFilter(query, items);
-            if (symList) {
+            if (symList && this.checkHasLocalSym(symList, query)) {
                 return symList;
             } else {
                 /*
@@ -604,7 +604,7 @@ export class Search {
                  * allow the first foo() call to jump to the later definition if
                  * no other fefinition found
                  */
-                possibleSym = items;
+                possibleSym.push(...items);
             }
         }
 
@@ -612,7 +612,7 @@ export class Search {
         items = filter(symbol.getDocumentSymbol(uri));
         if (items) {
             // 优先查找顶层的local变量
-            const topSym = this.checkDocTopLocalSym(items, query);
+            const topSym = this.checkHasLocalSym(items, query);
             if (topSym) {
                 return topSym;
             }
@@ -620,7 +620,7 @@ export class Search {
             if (symList.length > 0) {
                 return symList;
             } else {
-                possibleSym = items;
+                possibleSym.push(...items);
             }
         }
 
