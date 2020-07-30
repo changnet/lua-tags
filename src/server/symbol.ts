@@ -1457,11 +1457,14 @@ export class Symbol {
 
     // 获取注释字符串
     private getCommentValue(comment: Comment) {
-        if (comment.loc!.start.line === comment.loc!.end.line) {
-            return "-- " + comment.value.trim();
-        }
+        return comment.raw;
+        // 之前是想统一格式化显示的内容，例如--后面必须有一个空格
+        // 但是不同写法差异很大，比如有些 ---@param 就变成了 -- -@param
+        // if (comment.loc!.start.line === comment.loc!.end.line) {
+        //     return "-- " + comment.value.trim();
+        // }
 
-        return `--[[\n${comment.value}]]`;
+        // return `--[[\n${comment.value}]]`;
     }
 
     private AppendOneComment(

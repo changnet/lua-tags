@@ -30,6 +30,15 @@
 				]
 			}
 		],
+		"grammars": [
+			{
+				"path": "./syntaxes/lua-tags.tmLanguage.json",
+				"scopeName": "lua-tags-doc",
+				"injectTo": [
+					"source.lua"
+				]
+			}
+		],
 		"commands": [
 			{
 				"command": "lua-tags.exportglobal",

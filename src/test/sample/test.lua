@@ -157,3 +157,12 @@ local ti = table.insert -- table.insert(a,)
 function test_local_document_sym()
     pl = pl + 1
 end
+
+-- test grammar inject
+-- @param g grammarrrrrrrrrrrr
+--@param i injectttttttttttttt
+---@param h hightlightttttttttttttttt
+--[[@return return something]]
+function grammar_inject_hightlight(g, i, h)
+    return
+end

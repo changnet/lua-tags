@@ -1,0 +1,29 @@
+{
+    "scopeName": "lua-tags-doc",
+    "injectionSelector": "L:comment",
+    "patterns": [
+        {
+            "include": "#doc-param-keyword"
+        },
+        {
+            "include": "#doc-return-keyword"
+        }
+    ],
+    "repository": {
+        "doc-param-keyword": {
+            "captures": {
+                "1": {
+                    "name": "keyword.doc-param.begin"
+                },
+                "2": {
+                    "name": "variable.parameter.doc-param.end"
+                }
+            },
+            "match": "(@param)\\s+([a-zA-z0-9_]*)"
+        },
+        "doc-return-keyword": {
+            "match": "@return",
+            "name": "keyword.doc-return"
+        }
+    }
+}
