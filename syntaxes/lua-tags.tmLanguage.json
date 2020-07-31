@@ -13,7 +13,7 @@
         "doc-param-keyword": {
             "captures": {
                 "1": {
-                    "name": "keyword.doc-param.begin"
+                    "name": "support.type.doc-param.begin"
                 },
                 "2": {
                     "name": "variable.parameter.doc-param.end"
@@ -23,7 +23,7 @@
         },
         "doc-return-keyword": {
             "match": "@return",
-            "name": "keyword.doc-return"
+            "name": "support.type.doc-return"
         }
     }
 }

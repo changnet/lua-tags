@@ -33,9 +33,14 @@ symbols to file(lua-tags-global-symbols) in workspace root directory. It may
 help to set .luacheckrc.
 
 ## multi-root workspaces
-This extension does NOT support [multi-root workspaces](
-code.visualstudio.com/docs/editor/multi-root-workspaces).
+This extension does NOT support [multi-root workspaces](code.visualstudio.com/docs/editor/multi-root-workspaces).
 If it is activated at multi-root workspaces, only the first folder works.
+
+## @param @return hightlight
+Just like other language, @param、@return in comment will be hightlight by 
+[grammars injection](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide#injection-grammars)
+
+![grammars injection highlight](grammars_injection_highlight.png)
 
 ## Thanks
 * https://github.com/fstirlitz/luaparse

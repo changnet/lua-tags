@@ -6,7 +6,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 *. read type from comments like phpdoc
 *. add lua、ngx_lua、love2d std library support
 
-## [1.0.11] 2020-07-??
+## [1.0.12] 2020-07-31
 1. fix local document symbol not found in completion and hovers
 2. fix some stl render incorrect(like string.format)
 3. @param、@return hightlight
