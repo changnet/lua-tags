@@ -2,11 +2,12 @@
 	"name": "lua-tags",
 	"displayName": "lua_tags",
 	"description": "Lua IntelliSense for Visual Studio Code",
-	"version": "1.0.12",
+	"version": "1.0.13",
 	"engines": {
 		"vscode": ">=1.38.0"
 	},
 	"categories": [
+		"Linters",
 		"Programming Languages"
 	],
 	"keywords": [
