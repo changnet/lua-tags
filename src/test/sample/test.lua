@@ -166,3 +166,7 @@ end
 function grammar_inject_hightlight(g, i, h)
     return
 end
+
+
+-- test _G sub variable
+local gs = test_v

@@ -18,3 +18,7 @@ function NewObject.new()
     }
 end
 -- NewObject.
+
+
+_G.T_GLOBAL = {}
+T_GLOBAL.test_v = 100

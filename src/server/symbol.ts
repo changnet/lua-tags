@@ -652,6 +652,12 @@ export class Symbol {
             location: Symbol.toLocation(this.parseUri, loc),
         };
 
+        // T.t = 99 这种写法，t属于T，故t的作用域不应该为0，但解析时parseScope是为0
+        // 只有 T = { t = 99 } 这种写法parseScore才不为0
+        if (0 === sym.scope && sym.base) {
+            sym.scope = 1;
+        }
+
         let initNode = init || node;
         switch (initNode.type) {
             case "Identifier": {
@@ -748,11 +754,19 @@ export class Symbol {
         return sym;
     }
 
-    private setGlobalSym(sym: SymInfoEx) {
+    private isGlobalSym(sym: SymInfoEx) {
         // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
         // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
         // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
-        if (sym.scope > 0) {
+        if (sym.local || sym.scope > 0) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private setGlobalSym(sym: SymInfoEx) {
+        if (!this.isGlobalSym(sym)) {
             return;
         }
         const name = sym.name;
@@ -790,7 +804,7 @@ export class Symbol {
         for (const [uri, docModules] of this.documentModule) {
             for (const [name, sym] of docModules) {
                 // local模块不放到全局
-                if (sym.local) {
+                if (!this.isGlobalSym(sym)) {
                     continue;
                 }
                 let moduleSym = this.globalModule.get(name);
