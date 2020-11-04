@@ -6,6 +6,17 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 * read type from comments like phpdoc
 * add lua、ngx_lua、love2d std library support
 
+## [1.0.14] 2020-11-??
+1. fix symbol hover duplicate
+```lua
+-- file_a.lua
+_G.T = {}
+T.t = 1
+
+-- file_b.lua
+local a = t -- hover on t show two same t definition
+```
+
 ## [1.0.13] 2020-08-17
 1. fix grammars injection
 

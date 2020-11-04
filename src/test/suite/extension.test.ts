@@ -42,7 +42,7 @@ async function activateExtension() {
 }
 
 // test work space symbol
-async function testWorkspaceSymbol(query: string, expect: string[]) {
+async function testWorkspaceSymbol(query: string, expect: vscode.SymbolInformation[]) {
 	const actualList = (await vscode.commands.executeCommand(
 		"vscode.executeWorkspaceSymbolProvider", query)
 	) as vscode.SymbolInformation[];
@@ -51,14 +51,17 @@ async function testWorkspaceSymbol(query: string, expect: string[]) {
 
 	actualList.sort((src, dst) => {
 		if (src.name === dst.name) {
-			return 0;
+			return src.location.uri.toString() > dst.location.uri.toString()
+				? 1 : 0;
 		}
 		return src.name > dst.name ? 1 : 0;
 	});
 
 	//console.log(`check ${JSON.stringify(actualList)}`);
-	expect.forEach((name, index) => {
-		assert.equal(actualList[index].name, name, "sym name");
+	expect.forEach((exp, index) => {
+		const act = actualList[index];
+		assert.equal(act.name, exp.name, "sym name");
+		assert.strictEqual(act.location.uri.toString(), exp.location.uri.toString(), "location");
 	});
 }
 
@@ -72,7 +75,7 @@ async function testDocumentSymbol(
 	const list = rawList as vscode.SymbolInformation[];
 	assert.equal(list.length, items.length, "document symbol count");
 	items.forEach((sym, index) => {
-		assert.equal(sym.name, list[index].name);
+		assert.strictEqual(sym.name, list[index].name);
 	});
 }
 
@@ -111,8 +114,18 @@ suite('Extension Test Suite', () => {
 
 	// 工作区所有符号模糊搜索
 	test('test fuzz workspace symbol', async () => {
+		const range = new vscode.Range(0, 0, 0, 0);
+		const uri0 = vscode.Uri.file(path.join(samplePath, "conf", "battle_conf.lua"));
+		const uri1 = vscode.Uri.file(path.join(samplePath, "conf", "monster_conf.lua"));
+		const uri2 = vscode.Uri.file(path.join(samplePath, "conf", "skill_conf.lua"));
+		const uri3 = vscode.Uri.file(path.join(samplePath, "test.lua"));
+		const uri4 = vscode.Uri.file(path.join(samplePath, "monster.lua"));
 		await testWorkspaceSymbol("mon", [
-			"monster", "MonsterConf", "Monster", "Monster"
+			{ name: "monster", kind: 0, containerName: "", location: { uri: uri0, range: range } },
+			{ name: "MonsterConf", kind: 0, containerName: "", location: { uri: uri1, range: range } },
+			{ name: "monster", kind: 0, containerName: "", location: { uri: uri2, range: range } },
+			{ name: "Monster", kind: 0, containerName: "", location: { uri: uri4, range: range } },
+			{ name: "Monster", kind: 0, containerName: "", location: { uri: uri3, range: range } },
 		]);
 	});
 

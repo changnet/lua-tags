@@ -324,7 +324,7 @@ export class Server {
             return null;
         }
 
-        return Symbol.instance().getGlobalSymbol(true, sym => {
+        return Symbol.instance().getAnySymbol(true, sym => {
             return Symbol.checkMatch(query, sym.name) > -500;
         }, 128);
     }

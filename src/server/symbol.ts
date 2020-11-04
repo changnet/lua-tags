@@ -154,7 +154,7 @@ export class Symbol {
     // 是否需要更新全局符号
     private needUpdate: boolean = true;
 
-    // 全局符号缓存，符号名为k，v为数组(可能存在同名全局符号)，CTRL + T用的
+    // 全局符号缓存（即_G中的符号），符号名为k，v为数组(可能存在同名全局符号)
     private globalSymbol = new Map<string, SymInfoEx[]>();
 
     // 全局模块缓存，符号名为k，方便快速查询符号 identifier
@@ -163,10 +163,17 @@ export class Symbol {
     // lua标准库符号，符号名为k
     private stlSymbol = new Array<SymInfoEx>();
 
-    // 各个文档的符号缓存，uri为key
+    /**
+     * 各个文档的符号缓存，uri为key
+     * 注意每个文档的符号是全部存到一个数组里，不是以树形结构存的
+     * 必要时根据scope判断是否为自己所需要符号
+     */
     private documentSymbol = new Map<string, SymInfoEx[]>();
 
     // 各个文档的符号缓存，第一层uri为key，第二层模块名为key
+    // 下面这种写法，M就会被认为是一个documentModule
+    // local M = MM
+    // M.a = ...
     private documentModule = new Map<string, Map<string, SymInfoEx>>();
 
     // 下面是一些解析当前文档的辅助变量
@@ -643,20 +650,20 @@ export class Symbol {
             return null;
         }
 
+        // T.t = 99 这种写法，t属于T，故t的作用域不应该为0，但解析时parseScope是为0
+        // 只有 T = { t = 99 } 这种写法parseScore才不为0
+        let scope = this.parseScopeDeepth;
+        if (0 === scope && nameInfo.base) {
+            scope = 1;
+        }
         let sym: SymInfoEx = {
             name: nameInfo.name,
             base: nameInfo.base,
             indexer: nameInfo.indexer,
-            scope: this.parseScopeDeepth,
+            scope: scope,
             kind: SymbolKind.Variable,
             location: Symbol.toLocation(this.parseUri, loc),
         };
-
-        // T.t = 99 这种写法，t属于T，故t的作用域不应该为0，但解析时parseScope是为0
-        // 只有 T = { t = 99 } 这种写法parseScore才不为0
-        if (0 === sym.scope && sym.base) {
-            sym.scope = 1;
-        }
 
         let initNode = init || node;
         switch (initNode.type) {
@@ -758,7 +765,7 @@ export class Symbol {
         // 不在顶层作用域的不放到全局符号，因为太多了，多数是配置
         // 一般都是宏定义或者配置字段，如 M = { a = 1 }这种
         // M:func = funciton() ... end 这种算是顶层的，这些在解析符号处理
-        if (sym.local || sym.scope > 0) {
+        if (sym.local || sym.scope > 0 || sym.base || sym.baseModule) {
             return false;
         }
 
@@ -795,12 +802,13 @@ export class Symbol {
             }
         }
 
-        this.documentSymbol.forEach(symList => {
-            symList.forEach(sym => {
+        for (const [name, symList] of this.documentSymbol) {
+            for (const sym of symList) {
                 this.setGlobalSym(sym);
-            });
-        });
+            }
+        }
 
+        // 处理globalModule
         for (const [uri, docModules] of this.documentModule) {
             for (const [name, sym] of docModules) {
                 // local模块不放到全局
@@ -1195,6 +1203,13 @@ export class Symbol {
         return sym && sym.subSymList ? sym.subSymList : null;
     }
 
+    /**
+     * 把newSymList符号列表合并到另一个列表 symList
+     * @param isSub 是否合并子符号
+     * @param symList 最终的列表
+     * @param newSymList 需要合并的列表
+     * @param filter 过滤器，哪些符号需要合并
+     */
     private appendSymList(isSub: boolean, symList: SymInfoEx[],
         newSymList: SymInfoEx[], filter?: (sym: SymInfoEx) => boolean) {
         for (let sym of newSymList) {
@@ -1208,9 +1223,11 @@ export class Symbol {
         }
     }
 
-    // 获取全局符号
-    // @isSub: 是否查找子符号。跳转和自动补全无法精准定位时，会全局查找。这时并不
-    // 希望查找子符号，因为这些符号都是必须通过模块名精准访问的
+    /**
+     *  获取全局符号
+     * @param isSub 是否查找子符号。跳转和自动补全无法精准定位时，会全局查找。这时并不
+     * 希望查找子符号，因为这些符号都是必须通过模块名精准访问的
+     */
     public getGlobalSymbol(isSub: boolean,
         filter?: (sym: SymInfoEx) => boolean, maxSize?: number): SymInfoEx[] {
         if (this.needUpdate) {
@@ -1220,6 +1237,35 @@ export class Symbol {
         let symList: SymInfoEx[] = [];
         for (let [name, newSymList] of this.globalSymbol) {
             this.appendSymList(isSub, symList, newSymList, filter);
+            if (maxSize && symList.length >= maxSize) {
+                break;
+            }
+        }
+
+        return symList;
+    }
+
+    /**
+     * 获取所有符号，包括本地和全局的
+     */
+    public getAnySymbol(isSub: boolean,
+        filter?: (sym: SymInfoEx) => boolean, maxSize?: number): SymInfoEx[] {
+
+        // 先搜索全局的
+        let symList = this.getGlobalSymbol(isSub, filter, maxSize);
+
+        // 再搜索非全局的
+        let newFilter = (sym: SymInfoEx) => {
+            if (this.isGlobalSym(sym)) {
+                return false;
+            }
+
+            return !filter || filter(sym);
+        };
+
+        // documentSymbol中不是以树形结构存符号，所以不需要搜索子符号
+        for (const [name, newSymList] of this.documentSymbol) {
+            this.appendSymList(false, symList, newSymList, newFilter);
             if (maxSize && symList.length >= maxSize) {
                 break;
             }
@@ -1643,13 +1689,14 @@ export class Symbol {
         return ` -> ${prefix}${sym.refType.join(".")}${val}`;
     }
 
-    // 获取全局符号
+    /**
+     * 获取全局符号(不包含STL中的符号)
+     */
     public getGlobalSymbolList() {
         let symList: SymInfoEx[] = [];
         for (const [uri, docSymList] of this.documentSymbol) {
             for (const sym of docSymList) {
-                if (0 === sym.scope && !sym.local
-                    && !sym.base && !sym.baseModule) {
+                if (!this.isGlobalSym(sym)) {
                     symList.push(sym);
                 }
             }

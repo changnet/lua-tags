@@ -473,8 +473,13 @@ export class Search {
         return symList;
     }
 
-    // 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
-    // 避免前面调用的全局符号，跳转到后面的同名local变量
+    /**
+     * 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
+     * 避免前面调用的全局符号，跳转到后面的同名local变量
+     * local a = test()
+     * local test = function() end
+     * 第一个调用的test，不要跳转到第一个test
+     */
     public filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
         return symList.filter(sym => {
             if (!sym.local) {
