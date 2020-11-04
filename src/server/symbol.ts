@@ -360,9 +360,34 @@ export class Symbol {
         };
     }
 
+    /**
+     * 解析文件时，查找模块符号
+     * local C = init_class()
+     * function C:test() end
+     * 这种写法C无法识别为table，但很多情况下它就是一个table
+     * 当然这个可能不太准确，但也只能猜了
+     * @param name 模块名字
+     */
+    private findParseModuleSym(name: string) {
+        for (const sym of this.parseSymList) {
+            if (sym.name === name && sym.scope === this.parseScopeDeepth
+                && sym.kind === SymbolKind.Variable) {
+                return sym;
+            }
+        }
+
+        return undefined;
+    }
+
     private pushModuleSymbol(
         name: string, sym: SymInfoEx) {
         let moduleSym = this.parseModule.get(name);
+        if (!moduleSym) {
+            moduleSym = this.findParseModuleSym(name);
+            if (moduleSym) {
+                moduleSym.kind = SymbolKind.Namespace;
+            }
+        }
         // 不存在则可能是外部模块
         // 比如 table.empty = function() end 这种找不到table模块声明的模块
         // 可能是扩展标准库或者C++中定义，又或者是同一个模块，分成多个文件
@@ -1255,17 +1280,22 @@ export class Symbol {
         let symList = this.getGlobalSymbol(isSub, filter, maxSize);
 
         // 再搜索非全局的
-        let newFilter = (sym: SymInfoEx) => {
-            if (this.isGlobalSym(sym)) {
-                return false;
-            }
-
-            return !filter || filter(sym);
-        };
-
-        // documentSymbol中不是以树形结构存符号，所以不需要搜索子符号
+        // documentSymbol中不是以树形结构存符号，子符号也是在同一个数组里的
         for (const [name, newSymList] of this.documentSymbol) {
-            this.appendSymList(false, symList, newSymList, newFilter);
+            for (let sym of newSymList) {
+                // return { a = 2 } 这种匿名table里的符号scope > 0，但无base
+                if (this.isGlobalSym(sym) || (sym.scope > 0 && sym.base)) {
+                    continue;
+                }
+
+                if (!filter || filter(sym)) {
+                    symList.push(sym);
+                }
+
+                if (isSub && sym.subSymList) {
+                    this.appendSymList(isSub, symList, sym.subSymList, filter);
+                }
+            }
             if (maxSize && symList.length >= maxSize) {
                 break;
             }

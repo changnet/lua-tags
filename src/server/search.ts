@@ -60,7 +60,9 @@ export class Search {
         return Search.ins;
     }
 
-    // node < pos: -1;node = pos: 0;node > pos: 1; node包含pos: 2
+    /**
+     * 对比两个位置 start < end: -1;start = end: 0;start > end: 1; start包含end: 2
+     */
     private compPos(startLine: number, startCol: number,
         endLine: number, endCol: number, pos: QueryPos) {
 
@@ -478,7 +480,7 @@ export class Search {
      * 避免前面调用的全局符号，跳转到后面的同名local变量
      * local a = test()
      * local test = function() end
-     * 第一个调用的test，不要跳转到第一个test
+     * 第一个调用的test，不要跳转到后面才声明的第二个test
      */
     public filterLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
         return symList.filter(sym => {

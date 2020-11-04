@@ -179,14 +179,14 @@ suite('Extension Completion Test Suite', () => {
         });
     });
 
-    // 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
+    // filterLocalSym
     test('test filter local completion', async () => {
         const docPath = path.join(samplePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
-        await testCompletion(uri, new vscode.Position(68, 6), {
+        await testCompletion(uri, new vscode.Position(64, 54), {
             items: [
-                { label: 'new', kind: vscode.CompletionItemKind.Function },
+                { label: 'BattleConf', kind: vscode.CompletionItemKind.Module },
             ]
         });
     });

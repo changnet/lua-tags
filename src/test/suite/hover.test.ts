@@ -183,4 +183,12 @@ suite('Extension Hover Test Suite', () => {
         }
         ]);
     });
+
+    test("test global module sub variable duplicate hover", async () => {
+        const val = "new_object.lua  \n```lua\ntest_v = 100\n```";
+        await testHover(testUri, new vscode.Position(172, 14), [{
+            contents: [{ value: val } as vscode.MarkdownString],
+        }
+        ]);
+    });
 });

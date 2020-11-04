@@ -62,8 +62,7 @@ end
 
 -- stop a battle
 function stop()
-    local scene = BattleConf.scene
+    local num = BattleConf.timeout + 1000 -- BattleCon
+    local BattleConf = 2000
 end
 
--- should only show local new，not oo.lua new
--- new

@@ -147,7 +147,8 @@ suite('Extension Definition Test Suite', () => {
         ]);
     });
 
-    // 符号被同名本地化时，要能区分本地和全局
+    // localizationFilter
+    // local M = M这种符号被同名本地化时，要能区分本地和全局
     test("test localize filter definition", async () => {
         await testGoToDefinition(testUri, new vscode.Position(49, 14), [{
             uri: testUri,
@@ -182,7 +183,11 @@ suite('Extension Definition Test Suite', () => {
         await testGoToDefinition(testUri, new vscode.Position(73, 21), []);
     });
 
+    // filterLocalSym
     // 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
+    // 在文件A有 M = 9
+    // 文件B有 local M = M
+    // 文件C中的 local x + M 中的M不要跳转到B中的M
     test("test filter local definition", async () => {
         const docPath = path.join(samplePath, "battle.lua");
 
