@@ -358,7 +358,7 @@ export class AutoCompletion {
         }
 
         // 忽略模块名，直接查找全局符号
-        tmps = filter(symbol.getGlobalSymbol(
+        tmps = filter(symbol.getAnySymbol(
             false, sym => sym.location.uri !== uri));
         if (tmps) {
             let symList = search.filterLocalSym(tmps, query);

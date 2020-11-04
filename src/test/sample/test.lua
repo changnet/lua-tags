@@ -162,8 +162,9 @@ end
 -- @param g grammarrrrrrrrrrrr
 --@param i injectttttttttttttt
 ---@param h hightlightttttttttttttttt
+-- @param ... 其他参数
 --[[@return return something]]
-function grammar_inject_hightlight(g, i, h)
+function grammar_inject_hightlight(g, i, h, ...)
     return
 end
 

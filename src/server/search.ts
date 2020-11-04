@@ -629,8 +629,8 @@ export class Search {
             }
         }
 
-        // 忽略模块名，直接查找全局符号
-        items = filter(symbol.getGlobalSymbol(
+        // 忽略模块名，直接查找所有可能匹配的符号
+        items = filter(symbol.getAnySymbol(
             true, sym => sym.location.uri !== uri));
         if (items) {
             let symList = this.filterLocalSym(items, query);
