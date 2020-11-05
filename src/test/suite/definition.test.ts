@@ -209,4 +209,19 @@ suite('Extension Definition Test Suite', () => {
             range: new vscode.Range(153, 6, 153, 8)
         }]);
     });
+
+    // 当没有搜索到的符号定义时，应该会列出其他可能的定义，包括在其他文件为local的
+    test("test possible definition", async () => {
+        const uri = vscode.Uri.file(path.join(samplePath, "battle.lua"));
+        const uri2 = vscode.Uri.file(path.join(samplePath, "monster.lua"));
+        await testGoToDefinition(uri, new vscode.Position(26, 32), [
+            {
+                uri: uri2,
+                range: new vscode.Range(4, 6, 4, 13)
+            },
+            {
+                uri: testUri,
+                range: new vscode.Range(0, 6, 0, 13)
+            }]);
+    });
 });

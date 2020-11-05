@@ -148,7 +148,6 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(31, 47), {
             items: [
-                { label: 'Monster', kind: vscode.CompletionItemKind.Module },
                 { label: 'monster', kind: vscode.CompletionItemKind.Variable },
                 { label: 'monster_attack', kind: vscode.CompletionItemKind.Module },
                 { label: 'MonsterConf', kind: vscode.CompletionItemKind.Module },

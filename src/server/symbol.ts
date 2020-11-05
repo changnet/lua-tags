@@ -385,6 +385,7 @@ export class Symbol {
         if (!moduleSym) {
             moduleSym = this.findParseModuleSym(name);
             if (moduleSym) {
+                this.parseModule.set(name, moduleSym);
                 moduleSym.kind = SymbolKind.Namespace;
             }
         }

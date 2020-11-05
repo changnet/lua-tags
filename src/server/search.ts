@@ -453,7 +453,9 @@ export class Search {
         return filter(symList);
     }
 
-    // 如果找到了位置一致的符号，则认为是需要查找的符号，过滤掉其他同名符号
+    /**
+     * 如果找到了位置一致的符号，则认为是需要查找的符号，过滤掉其他同名符号
+     */
     public filterPosition(query: SymbolQuery, symList: SymInfoEx[] | null) {
         if (!symList) {
             return null;
@@ -476,7 +478,8 @@ export class Search {
     }
 
     /**
-     * 在当前文档符号中查找时，如果是local符号，则需要判断一下位置
+     * 
+     * 在当前文档符号中查找时，如果是local符号，则需要是否在同一文件以及判断一下位置
      * 避免前面调用的全局符号，跳转到后面的同名local变量
      * local a = test()
      * local test = function() end
@@ -633,7 +636,7 @@ export class Search {
 
         // 忽略模块名，直接查找所有可能匹配的符号
         items = filter(symbol.getAnySymbol(
-            true, sym => sym.location.uri !== uri));
+            true, sym => sym.location.uri !== uri && query.name === sym.name));
         if (items) {
             let symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
@@ -641,7 +644,7 @@ export class Search {
             }
             // 如果过滤后找不到任何符号，则使用未过滤后的
             // 因为lua中的local函数等可以赋值传递
-            return possibleSym || items;
+            return possibleSym.length > 0 ? possibleSym : items;
         }
 
         return possibleSym;
