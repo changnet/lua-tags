@@ -110,21 +110,33 @@ export class Utils {
 
     // 导出全局符号，不常用，直接用同步写入就可以了
     public writeGlobalSymbols(symList: SymInfoEx[]) {
-        const fileName = "lua-tags-global-symbols";
+        const fileName = Setting.instance().getExportPath();
         const option = { encoding: "utf8", flag: "a" };
 
+        // 按名字排序，防止git等版本工具提示变更太多
+        symList.sort((a: SymInfoEx, b: SymInfoEx) => {
+            if (a.name < b.name) {
+                return -1;
+            } else if (a.name > b.name) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+
         syncfs.writeFileSync(fileName,
-            `-- auto export by lua-tags ${symList.length} symbols\n\n`,
+            `-- auto export by lua-tags ${symList.length} symbols\n\nreturn {\n`,
             { encoding: "utf8", flag: "w" });
 
-        let lastUri: string | null = null;
+        // let lastUri: string | null = null;
         for (const sym of symList) {
-            if (lastUri !== sym.location.uri) {
-                lastUri = sym.location.uri;
-                syncfs.writeFileSync(fileName, `\n-- ${lastUri}\n`, option);
-            }
-            syncfs.writeFileSync(fileName, `"${sym.name}"\n`, option);
+            // if (lastUri !== sym.location.uri) {
+            //     lastUri = sym.location.uri;
+            //     syncfs.writeFileSync(fileName, `\n-- ${lastUri}\n`, option);
+            // }
+            syncfs.writeFileSync(fileName, `"${sym.name}",\n`, option);
         }
+        syncfs.writeFileSync(fileName, `}\n`, option);
     }
 
     public static pad(num: number, size: number) {

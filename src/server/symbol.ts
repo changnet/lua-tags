@@ -153,6 +153,7 @@ export class Symbol {
 
     // 是否需要更新全局符号
     private needUpdate: boolean = true;
+    private updateVer: number = 0;
 
     // 全局符号缓存（即_G中的符号），符号名为k，v为数组(可能存在同名全局符号)
     private globalSymbol = new Map<string, SymInfoEx[]>();
@@ -1052,12 +1053,20 @@ export class Symbol {
         this.globalModule.clear();
         this.globalSymbol.clear();
         this.needUpdate = true;
+        this.updateVer++;
+        if (this.updateVer > 0xFFFFFFFF) {
+            this.updateVer = 1;
+        }
 
         return this.parseSymList;
     }
 
     public setCacheOpen() {
         this.openCache = true;
+    }
+
+    public getUpdateVersion() {
+        return this.updateVer;
     }
 
     public getCache(uri: string): NodeCache | null {
@@ -1727,7 +1736,7 @@ export class Symbol {
         let symList: SymInfoEx[] = [];
         for (const [uri, docSymList] of this.documentSymbol) {
             for (const sym of docSymList) {
-                if (!this.isGlobalSym(sym)) {
+                if (this.isGlobalSym(sym)) {
                     symList.push(sym);
                 }
             }

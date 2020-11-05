@@ -18,6 +18,7 @@ local a = t -- hover on t show two same t definition
 ```
 
 2. fix `...` param grammars injection invalid
+3. add auto export global symbol timer
 
 
 ## [1.0.13] 2020-08-17

@@ -41,6 +41,11 @@ export class Setting {
     private checkExclude: string[] = []; // luacheck exclude dir
     private checkOnFileOpen = false; // run luacheck when open a lua file
 
+    // export global symbol
+    private static readonly defPath = "lua-tags-global-symbols";
+    private exportInterval = 0;
+    private exportPath = Setting.defPath;
+
     private constructor() {
     }
 
@@ -100,6 +105,17 @@ export class Setting {
 
         if (conf.checkExclude) {
             this.checkExclude = <string[]>(conf.checkExclude) || [];
+        }
+
+        if (conf.exportInterval) {
+            this.exportInterval = <number>(conf.exportInterval) || 0;
+        }
+
+        if (conf.exportPath) {
+            this.exportPath = <string>(conf.exportPath);
+            if (!this.exportPath || this.exportPath.length === 0) {
+                this.exportPath = Setting.defPath;
+            }
         }
 
         if ("" !== this.rawRootUri) {
@@ -200,5 +216,15 @@ export class Setting {
     // 是否在打开文件时运行luacheck，仅打开工程不运行luacheck时有效
     public isCheckOnFileOpen() {
         return this.luaCheck && this.checkOnFileOpen && !this.checkOnInit;
+    }
+
+    /** 获取定时保存全局符号间隔(秒) */
+    public getExportInterval() {
+        return this.exportInterval;
+    }
+
+    /** 获取保存全局符号路径 */
+    public getExportPath() {
+        return this.exportPath;
     }
 }

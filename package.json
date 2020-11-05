@@ -138,6 +138,18 @@
 					"default": [],
 					"description": "regex to exclude luacheck dir and files, like: config/*.luacheckrc can exclude files too"
 				},
+				"lua-tags.exportInterval": {
+					"scope": "resource",
+					"type": "number",
+					"default": 0,
+					"description": "Interval(second) to auto export global symbol to file(lua format), <= 0 means close"
+				},
+				"lua-tags.exportPath": {
+					"scope": "resource",
+					"type": "string",
+					"default": "",
+					"description": "File path to auto export global symbol, default is lua-tags-global-symbols"
+				},
 				"lua-tags.trace.server": {
 					"scope": "window",
 					"type": "string",

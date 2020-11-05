@@ -58,6 +58,9 @@ export class Server {
 
     private isPreInit = false;
 
+    private exportVer: number = 0;
+    private exportSym = new Map<string, number>();
+
     public constructor() {
         let conn = this.connection;
 
@@ -281,6 +284,49 @@ export class Server {
         let end = Date.now();
         Utils.instance().log(
             `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
+
+        const interval = Setting.instance().getExportInterval();
+        if (interval > 0) {
+            setInterval(() => {
+                this.exportGlobalTimeout();
+            }, interval * 1000);
+        }
+    }
+
+    // 定时导出全局符号
+    private exportGlobalTimeout() {
+        let symbol = Symbol.instance();
+
+        // no change
+        if (this.exportVer === symbol.getUpdateVersion()) {
+            return;
+        }
+
+        this.exportVer = symbol.getUpdateVersion();
+        const symList = symbol.getGlobalSymbolList();
+
+        let change = false;
+        if (symList.length === this.exportSym.size) {
+            for (const sym of symList) {
+                if (!this.exportSym.get(sym.name)) {
+                    change = true;
+                    break;
+                }
+            }
+        } else {
+            change = true;
+        }
+
+        if (!change) {
+            return;
+        }
+
+        this.exportSym.clear();
+        for (const sym of symList) {
+            this.exportSym.set(sym.name, 1);
+        }
+
+        Utils.instance().writeGlobalSymbols(symList);
     }
 
     // 返回当前文档的符号

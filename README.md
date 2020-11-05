@@ -29,8 +29,11 @@ platform, specify luaCheckPath at configure or add luacheck to os excuate PATH
 
 ## export global symbols
 ctrl + shift + p: "lua-tags: export global symbols" can export all global
-symbols to file(lua-tags-global-symbols) in workspace root directory. It may
-help to set .luacheckrc.
+symbols to file(lua-tags-global-symbols) in workspace root directory.
+
+This can be done automatic by timer at Configure option `exportInterval` too.
+
+It may help to set .luacheckrc.
 
 ## multi-root workspaces
 This extension does NOT support [multi-root workspaces](code.visualstudio.com/docs/editor/multi-root-workspaces).
