@@ -24,18 +24,18 @@ async function testGoToDefinition(uri: vscode.Uri,
     if (actualList.length !== expectList.length) {
         console.log(`${JSON.stringify(expectList)}`);
         console.log(`${JSON.stringify(actualList)}`);
-        assert.equal(actualList.length, expectList.length);
+        assert.strictEqual(actualList.length, expectList.length);
     }
     expectList.forEach((expectedItem, index) => {
         const actualItem = actualList[index];
-        assert.equal(actualItem.uri.path, expectedItem.uri.path);
+        assert.strictEqual(actualItem.uri.path, expectedItem.uri.path);
 
         const actualRange = actualItem.range;
         const expectRange = expectedItem.range;
-        assert.equal(actualRange.start.line, expectRange.start.line);
-        assert.equal(actualRange.start.character, expectRange.start.character);
-        assert.equal(actualRange.end.line, expectRange.end.line);
-        assert.equal(actualRange.end.character, expectRange.end.character);
+        assert.strictEqual(actualRange.start.line, expectRange.start.line);
+        assert.strictEqual(actualRange.start.character, expectRange.start.character);
+        assert.strictEqual(actualRange.end.line, expectRange.end.line);
+        assert.strictEqual(actualRange.end.character, expectRange.end.character);
     });
 }
 

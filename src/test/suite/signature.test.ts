@@ -20,15 +20,15 @@ async function testSignatureHelp(uri: vscode.Uri,
 
     // console.log(`${JSON.stringify(actual)}`);
 
-    assert.equal(
+    assert.strictEqual(
         actual.activeParameter, expect.activeParameter, "activeparameter");
-    assert.equal(
+    assert.strictEqual(
         actual.activeSignature, expect.activeSignature, "active signature");
 
     expect.signatures.forEach((expectedItem, index) => {
         const actualItem = actual.signatures[index];
-        assert.equal(actualItem.label, expectedItem.label, "label");
-        assert.equal(actualItem.parameters.length,
+        assert.strictEqual(actualItem.label, expectedItem.label, "label");
+        assert.strictEqual(actualItem.parameters.length,
             expectedItem.parameters.length, "parameters length");
 
         if (expectedItem.documentation) {
@@ -37,13 +37,13 @@ async function testSignatureHelp(uri: vscode.Uri,
                 console.log("expect", expectedItem.documentation);
                 console.log("got", doc.value);
             }
-            assert.equal(doc.value,
+            assert.strictEqual(doc.value,
                 expectedItem.documentation, "documentation");
         }
         expectedItem.parameters.forEach((param, paramIdx) => {
             const actualParam = actualItem.parameters[paramIdx];
-            assert.equal(actualParam.label[0], param.label[0], "param label 0");
-            assert.equal(actualParam.label[1], param.label[1], "param label 1");
+            assert.strictEqual(actualParam.label[0], param.label[0], "param label 0");
+            assert.strictEqual(actualParam.label[1], param.label[1], "param label 1");
         });
     });
 }

@@ -28,7 +28,7 @@ async function testCompletion(
     if (actualList.items.length !== expectList.items.length) {
         console.log(`testCompletion ${JSON.stringify(expectList)}`);
         console.log(`testCompletion ${JSON.stringify(actualList)}`);
-        assert.equal(actualList.items.length, expectList.items.length);
+        assert.strictEqual(actualList.items.length, expectList.items.length);
     }
     // vs code返回的数组是不规则的，内容是同一样的
     // 但位置不一定，导致多次测试结果不一致，暂时不知道原因
@@ -40,18 +40,18 @@ async function testCompletion(
     });
     expectList.items.forEach((expectedItem, i) => {
         const actualItem = actualList.items[i];
-        assert.equal(actualItem.label, expectedItem.label, "label check");
-        assert.equal(actualItem.kind, expectedItem.kind, "kind check");
+        assert.strictEqual(actualItem.label, expectedItem.label, "label check");
+        assert.strictEqual(actualItem.kind, expectedItem.kind, "kind check");
 
         if (expectedItem.detail) {
-            assert.equal(actualItem.detail, expectedItem.detail);
+            assert.strictEqual(actualItem.detail, expectedItem.detail);
         }
 
         if (expectedItem.documentation) {
             // test库里的CompletionItem和vs code server那边不一样
             // server那边用的是markdown
             let doc = actualItem.documentation as vscode.MarkdownString;
-            assert.equal(doc.value, expectedItem.documentation);
+            assert.strictEqual(doc.value, expectedItem.documentation);
         }
     });
 }

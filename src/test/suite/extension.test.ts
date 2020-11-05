@@ -47,7 +47,7 @@ async function testWorkspaceSymbol(query: string, expect: vscode.SymbolInformati
 		"vscode.executeWorkspaceSymbolProvider", query)
 	) as vscode.SymbolInformation[];
 
-	assert.equal(actualList.length, expect.length, "workspace symbol count");
+	assert.strictEqual(actualList.length, expect.length, "workspace symbol count");
 
 	actualList.sort((src, dst) => {
 		if (src.name === dst.name) {
@@ -60,7 +60,7 @@ async function testWorkspaceSymbol(query: string, expect: vscode.SymbolInformati
 	//console.log(`check ${JSON.stringify(actualList)}`);
 	expect.forEach((exp, index) => {
 		const act = actualList[index];
-		assert.equal(act.name, exp.name, "sym name");
+		assert.strictEqual(act.name, exp.name, "sym name");
 		assert.strictEqual(act.location.uri.toString(), exp.location.uri.toString(), "location");
 	});
 }
@@ -73,7 +73,7 @@ async function testDocumentSymbol(
 
 	// console.log(`check ${JSON.stringify(rawList)}`);
 	const list = rawList as vscode.SymbolInformation[];
-	assert.equal(list.length, items.length, "document symbol count");
+	assert.strictEqual(list.length, items.length, "document symbol count");
 	items.forEach((sym, index) => {
 		assert.strictEqual(sym.name, list[index].name);
 	});
@@ -87,11 +87,11 @@ async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic[]) {
 
 	// console.log(`${JSON.stringify(actualList)}`);
 
-	assert.equal(actualList.length, expectList.length);
+	assert.strictEqual(actualList.length, expectList.length);
 	expectList.forEach((expectedItem, index) => {
 		const actualItem = actualList[index];
-		assert.equal(actualItem.severity, expectedItem.severity, "serverity");
-		assert.equal(actualItem.message, expectedItem.message, "message");
+		assert.strictEqual(actualItem.severity, expectedItem.severity, "serverity");
+		assert.strictEqual(actualItem.message, expectedItem.message, "message");
 	});
 }
 

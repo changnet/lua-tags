@@ -21,13 +21,13 @@ async function testHover(uri: vscode.Uri,
 
     // console.log(`${JSON.stringify(actualList)}`);
 
-    assert.equal(actualList.length, expectList.length);
+    assert.strictEqual(actualList.length, expectList.length);
     expectList.forEach((expectedItem, index) => {
         const actualItem = actualList[index];
         expectedItem.contents.forEach((ctx, ctxIdx) => {
             const expectCtx = ctx as vscode.MarkdownString;
             const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
-            assert.equal(actualCtx.value, expectCtx.value);
+            assert.strictEqual(actualCtx.value, expectCtx.value);
         });
     });
 }
