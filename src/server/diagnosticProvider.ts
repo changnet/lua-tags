@@ -334,7 +334,7 @@ export class DiagnosticProvider {
         }, delay);
     }
 
-    // delete checking mark,make sure do send diagnostic to vs code
+    // delete checking mark,make sure send empty diagnostic to vs code
     public deleteChecking(uri: string) {
         this.pendingCtx.delete(uri);
         this.checking.delete(uri);

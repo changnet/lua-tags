@@ -19,7 +19,7 @@ local a = t -- hover on t show two same t definition
 
 2. fix `...` param grammars injection invalid
 3. add auto export global symbol timer
-
+4. clear it's diagnostic message when file close if it is not in workspace
 
 ## [1.0.13] 2020-08-17
 1. fix grammars injection

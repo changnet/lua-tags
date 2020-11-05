@@ -42,7 +42,7 @@ import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
 import { SignatureProvider } from "./signatureProvider";
 import { DiagnosticProvider, CheckHow } from "./DiagnosticProvider";
-import { Setting } from './setting';
+import { Setting, FileParseType } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 export class Server {
@@ -112,7 +112,13 @@ export class Server {
                 return null;
             }
         });
+
+        // TODO 这个貌似没有用了，没有触发
+        // 使用下面doc.onDidOpen之类的事件
         conn.onDidChangeWatchedFiles(handler => {
+            for (let event of handler.changes) {
+                Utils.instance().log(`FILE change ${event.uri}`);
+            }
             try {
                 return this.onFilesChange(handler);
             } catch (e) {
@@ -167,6 +173,22 @@ export class Server {
             try {
                 await this.waitForPreInit();
                 return this.onDocumentChange(handler);
+            } catch (e) {
+                Utils.instance().anyError(e);
+                return null;
+            }
+        });
+
+        // doc触发的文件类型在 documentSelector 中设置，比如只有lua类型才会触发
+        doc.onDidClose(async handler => {
+            // if a file is not in workspace, make sure clear it's diagnostic
+            // message after it close
+            try {
+                const uri = handler.document.uri;
+                let ft = Setting.instance().getFileType(uri, 1);
+                if (ft & FileParseType.FPT_SINGLE) {
+                    DiagnosticProvider.instance().deleteChecking(uri);
+                }
             } catch (e) {
                 Utils.instance().anyError(e);
                 return null;
