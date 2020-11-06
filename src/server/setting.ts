@@ -119,7 +119,7 @@ export class Setting {
         }
 
         if ("" !== this.rawRootUri) {
-            this.rootUri = this.getRoot(
+            this.rootUri = this.parseRootPath(
                 Uri.parse(this.rawRootUri).fsPath, true);
         }
     }
@@ -139,13 +139,24 @@ export class Setting {
         return dirName.startsWith(".");
     }
 
-    // 获取设置的根目录
-    public getRoot(oldPath: string, uriFmt: boolean = false) {
-        let newPath = path.join(oldPath, this.rootDir);
+    /**
+     * 解析某个目录在根目录的位置，得到一个完整的路径
+     * @param dir 子目录名
+     * @param uriFmt 是否格式化为通用的字符串 
+     */
+    public parseRootPath(dir: string, uriFmt: boolean = false) {
+        let newPath = path.join(dir, this.rootDir);
         if (!uriFmt) {
             return newPath;
         }
         return Uri.file(newPath).toString();
+    }
+
+    /**
+     * 获取主目录
+     */
+    public getRoot() {
+        return this.rootUri;
     }
 
     private isUriExclude(uri: string, excludes: string[]): boolean {

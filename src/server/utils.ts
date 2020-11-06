@@ -72,7 +72,7 @@ export class DirWalker {
 
     public async walk(dirPath: string, callBack: WalkerCallBack) {
         this.files = 0;
-        let rootPath = Setting.instance().getRoot(dirPath);
+        let rootPath = Setting.instance().parseRootPath(dirPath);
 
         try {
             await this.walkDir(rootPath, callBack);
@@ -113,6 +113,8 @@ export class Utils {
         const fileName = Setting.instance().getExportPath();
         const option = { encoding: "utf8", flag: "a" };
 
+        const rootUri = Setting.instance().getRoot();
+
         // 按名字排序，防止git等版本工具提示变更太多
         symList.sort((a: SymInfoEx, b: SymInfoEx) => {
             if (a.name < b.name) {
@@ -134,7 +136,10 @@ export class Utils {
             //     lastUri = sym.location.uri;
             //     syncfs.writeFileSync(fileName, `\n-- ${lastUri}\n`, option);
             // }
-            syncfs.writeFileSync(fileName, `"${sym.name}",\n`, option);
+
+            const file = sym.location.uri.substring(rootUri.length + 1);
+            syncfs.writeFileSync(fileName,
+                `"${sym.name}", -- ${file}\n`, option);
         }
         syncfs.writeFileSync(fileName, `}\n`, option);
     }
