@@ -1,7 +1,7 @@
 // lint 代码检查
 
 import * as path from "path";
-import Uri from 'vscode-uri';
+import { URI } from 'vscode-uri';
 import { Utils } from './utils';
 
 import { execFile } from "child_process";
@@ -147,7 +147,7 @@ export class DiagnosticProvider {
                  * it's pid. if child exec fail(e.g. permission denied),don't
                  * write to stdin.just return, it will throw a error later.
                  */
-                if (!child.pid) {
+                if (!child.pid || !child.stdin) {
                     return;
                 }
                 if (ctx.length <= ChunkSize) {
@@ -227,7 +227,7 @@ export class DiagnosticProvider {
     // https://nodejs.org/api/child_process.html
     private async rawCheck(rawUri: string, ctx: string, how?: CheckHow) {
         // 判断一下文件是否还存在，可能被删除了
-        const uri = Uri.parse(rawUri);
+        const uri = URI.parse(rawUri);
         this.args[5] = uri.fsPath;
 
         this.checking.set(rawUri, 1);

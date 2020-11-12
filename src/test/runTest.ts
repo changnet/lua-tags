@@ -17,6 +17,9 @@ async function main() {
 			extensionDevelopmentPath,
 			extensionTestsPath,
 
+			// test older version
+			// version: "1.42.1",
+
 			/**
 			 * A list of launch arguments passed to VS Code executable, in addition to `--extensionDevelopmentPath`
 			 * and `--extensionTestsPath` which are provided by `extensionDevelopmentPath` and `extensionTestsPath`

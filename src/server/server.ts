@@ -4,15 +4,10 @@ import {
     Definition,
     createConnection,
     TextDocuments,
-    TextDocument,
-    Diagnostic,
-    DiagnosticSeverity,
     ProposedFeatures,
     InitializeParams,
-    DidChangeConfigurationNotification,
     CompletionItem,
     SymbolInformation,
-    CompletionItemKind,
     DocumentSymbolParams,
     WorkspaceSymbolParams,
     TextDocumentPositionParams,
@@ -24,8 +19,12 @@ import {
     InitializeResult,
     SignatureHelp,
     DidChangeConfigurationParams,
-    DidSaveTextDocumentParams
+    TextDocumentSyncKind
 } from 'vscode-languageserver';
+
+import {
+    TextDocument
+} from 'vscode-languageserver-textdocument';
 
 import {
     Symbol,
@@ -35,7 +34,7 @@ import {
 // can only be default-imported using the 'esModuleInterop' flag
 // import assert from "assert";
 
-import Uri from 'vscode-uri';
+import { URI } from 'vscode-uri';
 import { Utils, DirWalker } from "./utils";
 import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
@@ -52,7 +51,7 @@ export class Server {
 
     // Create a simple text document manager. The text document manager
     // supports full document sync only
-    private documents: TextDocuments = new TextDocuments();
+    private documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
     private rootUri: string | null = null;
 
@@ -116,9 +115,6 @@ export class Server {
         // TODO 这个貌似没有用了，没有触发
         // 使用下面doc.onDidOpen之类的事件
         conn.onDidChangeWatchedFiles(handler => {
-            for (let event of handler.changes) {
-                Utils.instance().log(`FILE change ${event.uri}`);
-            }
             try {
                 return this.onFilesChange(handler);
             } catch (e) {
@@ -233,13 +229,17 @@ export class Server {
     }
 
     private onInitialize(params: InitializeParams): InitializeResult {
-        this.rootUri = params.rootUri;
+        // TODO no multi dir support for now
+        const folders = params.workspaceFolders;
+        if (folders && folders.length > 0) {
+            this.rootUri = folders[0].uri;
+        }
 
         return {
             capabilities: {
                 // Use full sync mode for now.
                 // TODO: Add support for Incremental changes. Full syncs will not scale very well.
-                textDocumentSync: this.documents.syncKind,
+                textDocumentSync: TextDocumentSyncKind.Incremental,
                 // 单个文档符号，左边的大纲(Outliine) CTRL + SHIFT + O
                 documentSymbolProvider: true,
                 workspaceSymbolProvider: true, // 整个工程符号 CTRL + T
@@ -286,7 +286,7 @@ export class Server {
             return;
         }
 
-        const uri = Uri.parse(this.rootUri);
+        const uri = URI.parse(this.rootUri);
 
         let symbol = Symbol.instance();
         let diagnostic = DiagnosticProvider.instance();
@@ -516,7 +516,7 @@ export class Server {
 
     // 已打开的文档内容变化，注意是已打开的
     // 在编辑器上修改文档内容没保存，或者其他软件直接修改文件都会触发
-    private onDocumentChange(handler: TextDocumentChangeEvent) {
+    private onDocumentChange(handler: TextDocumentChangeEvent<TextDocument>) {
         const uri = handler.document.uri;
         const text = handler.document.getText();
         Symbol.instance().parse(uri, text);
@@ -528,7 +528,7 @@ export class Server {
 
     // 这里处理因第三方软件直接修改文件造成的文件变化
     private doFileChange(uri: string, doSym: boolean) {
-        let path = Uri.parse(uri);
+        let path = URI.parse(uri);
         DirWalker.instance().walkFile(path.fsPath, (fileUri, ctx) => {
             if (doSym) {
                 Symbol.instance().parse(fileUri, ctx);
@@ -611,7 +611,7 @@ export class Server {
     }
 
     // 保存文件
-    private onSaveDocument(handler: TextDocumentChangeEvent) {
+    private onSaveDocument(handler: TextDocumentChangeEvent<TextDocument>) {
         if (!Setting.instance().isCheckOnSave()) {
             return;
         }

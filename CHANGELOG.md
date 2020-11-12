@@ -6,6 +6,9 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 * read type from comments like phpdoc
 * add lua、ngx_lua、love2d std library support
 
+## [1.0.14] 2020-??-??
+1. update npm packages
+
 ## [1.0.14] 2020-11-11
 1. fix symbol hover duplicate
 ```lua

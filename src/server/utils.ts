@@ -1,12 +1,11 @@
 import {
     Connection,
-    Diagnostic
+    Diagnostic,
 } from 'vscode-languageserver';
 
+import * as fs from "fs";
 import * as path from "path";
-import Uri from 'vscode-uri';
-import * as syncfs from "fs";
-import { promises as fs } from "fs";
+import { URI } from 'vscode-uri';
 import { Setting } from './setting';
 import { SymInfoEx } from './symbol';
 
@@ -35,7 +34,7 @@ export class DirWalker {
 
         // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
         // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
-        let files = await fs.readdir(dirPath, { withFileTypes: true });
+        let files = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
         for (let file of files) {
             let subPath = path.join(dirPath, file.name);
@@ -59,12 +58,12 @@ export class DirWalker {
 
         // uri总是用/来编码，在win下，路径是用\的
         // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
-        const uri = rawUri || Uri.from({
+        const uri = rawUri || URI.from({
             scheme: "file",
             path: filePath.replace(/\\/g, "/")
         }).toString();
 
-        let data = await fs.readFile(filePath);
+        let data = await fs.promises.readFile(filePath);
 
         this.files++;
         callBack(uri, data.toString());
@@ -111,7 +110,7 @@ export class Utils {
     // 导出全局符号，不常用，直接用同步写入就可以了
     public writeGlobalSymbols(symList: SymInfoEx[]) {
         const fileName = Setting.instance().getExportPath();
-        const option = { encoding: "utf8", flag: "a" };
+        const option: fs.WriteFileOptions = { encoding: "utf8", flag: "a" };
 
         const rootUri = Setting.instance().getRoot();
 
@@ -126,7 +125,7 @@ export class Utils {
             }
         });
 
-        syncfs.writeFileSync(fileName,
+        fs.writeFileSync(fileName,
             `-- auto export by lua-tags ${symList.length} symbols\n\nreturn {\n`,
             { encoding: "utf8", flag: "w" });
 
@@ -138,10 +137,10 @@ export class Utils {
             // }
 
             const file = sym.location.uri.substring(rootUri.length + 1);
-            syncfs.writeFileSync(fileName,
+            fs.writeFileSync(fileName,
                 `"${sym.name}", -- ${file}\n`, option);
         }
-        syncfs.writeFileSync(fileName, `}\n`, option);
+        fs.writeFileSync(fileName, `}\n`, option);
     }
 
     public static pad(num: number, size: number) {
@@ -162,9 +161,9 @@ export class Utils {
         const sec = Utils.pad(date.getSeconds(), 2);
 
         const now = `${date.getFullYear()}-${month}-${day} ${hour}:${min}:${sec} `;
-        syncfs.writeFileSync("lua-tags.log", now, { encoding: "utf8", flag: "a" });
-        syncfs.writeFileSync("lua-tags.log", ctx, { encoding: "utf8", flag: "a" });
-        syncfs.writeFileSync("lua-tags.log", "\n", { encoding: "utf8", flag: "a" });
+        fs.writeFileSync("lua-tags.log", now, { encoding: "utf8", flag: "a" });
+        fs.writeFileSync("lua-tags.log", ctx, { encoding: "utf8", flag: "a" });
+        fs.writeFileSync("lua-tags.log", "\n", { encoding: "utf8", flag: "a" });
     }
 
     public anyError(e: any) {
@@ -191,11 +190,11 @@ export class Utils {
     // set file executable, use sync make sure luacheck executable before run
     // luacheck
     public setExec(exePath: string) {
-        const stat = syncfs.statSync(exePath);
-        if (stat.mode & syncfs.constants.S_IXUSR) {
+        const stat = fs.statSync(exePath);
+        if (stat.mode & fs.constants.S_IXUSR) {
             return; // already have permission
         }
-        syncfs.chmodSync(exePath, stat.mode | syncfs.constants.S_IXUSR);
+        fs.chmodSync(exePath, stat.mode | fs.constants.S_IXUSR);
     }
 }
 

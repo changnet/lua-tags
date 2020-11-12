@@ -2,7 +2,7 @@
 
 import * as path from "path";
 import { Utils } from "./utils";
-import Uri from 'vscode-uri';
+import { URI } from 'vscode-uri';
 
 // let ver:string = "5.1"
 // luaVersion = ver as Version
@@ -120,7 +120,7 @@ export class Setting {
 
         if ("" !== this.rawRootUri) {
             this.rootUri = this.parseRootPath(
-                Uri.parse(this.rawRootUri).fsPath, true);
+                URI.parse(this.rawRootUri).fsPath, true);
         }
     }
 
@@ -149,7 +149,7 @@ export class Setting {
         if (!uriFmt) {
             return newPath;
         }
-        return Uri.file(newPath).toString();
+        return URI.file(newPath).toString();
     }
 
     /**
