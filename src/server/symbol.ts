@@ -27,7 +27,6 @@ import {
     UnaryExpression,
     BinaryExpression,
     StringLiteral,
-    NumericLiteral
 } from 'luaparse';
 
 import {
@@ -318,7 +317,8 @@ export class Symbol {
 
     // 解析成员变量赋值
     private parseBaseName(
-        ider: Identifier | MemberExpression | IndexExpression | null): NameInfo {
+        ider: Identifier | MemberExpression
+            | IndexExpression | null): NameInfo {
         let nameInfo: NameInfo = { name: "" };
         if (!ider) {
             return nameInfo;
@@ -479,7 +479,8 @@ export class Symbol {
 
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
-    public parseTableConstructorExpr(expr: TableConstructorExpression, base?: string) {
+    public parseTableConstructorExpr(
+        expr: TableConstructorExpression, base?: string) {
         let symList: SymInfoEx[] = [];
 
         this.parseScopeDeepth++;
@@ -829,7 +830,7 @@ export class Symbol {
             }
         }
 
-        for (const [name, symList] of this.documentSymbol) {
+        for (const [_name, symList] of this.documentSymbol) {
             for (const sym of symList) {
                 this.setGlobalSym(sym);
             }
@@ -1139,7 +1140,7 @@ export class Symbol {
 
     // 遍历所有文档的uri
     public eachUri(callBack: (uri: string) => void) {
-        for (let [uri, value] of this.documentSymbol) {
+        for (let [uri] of this.documentSymbol) {
             callBack(uri);
         }
     }
@@ -1150,7 +1151,7 @@ export class Symbol {
             this.updateGlobal();
         }
 
-        for (let [name, value] of this.globalModule) {
+        for (let [name] of this.globalModule) {
             callBack(name);
         }
     }

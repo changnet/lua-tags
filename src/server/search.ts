@@ -3,16 +3,11 @@
 import {
     Node,
     Statement,
-    Identifier,
     FunctionDeclaration,
     LocalStatement,
-    MemberExpression,
     AssignmentStatement,
-    Token,
     Expression,
-    IndexExpression,
     ReturnStatement,
-    CallExpression,
     TableConstructorExpression,
     IfStatement,
     ForGenericStatement,
@@ -27,7 +22,7 @@ import {
     LocalType
 } from "./symbol";
 import { Server } from './server';
-import { SymbolKind, Location } from 'vscode-languageserver';
+import { Location } from 'vscode-languageserver';
 
 export interface SearchResult {
     // name: string; // 名字，暂时不记，在SymbolQuery中有
@@ -109,8 +104,6 @@ export class Search {
                 return this.searchLocalStatement(node);
             case "AssignmentStatement":
                 return this.searchAssignmentStatement(node);
-            case "FunctionDeclaration":
-                return this.searchFunctionDeclaration(node);
             case "ReturnStatement":
                 return this.searchReturnStatement(node);
             case "IfStatement":
@@ -140,7 +133,7 @@ export class Search {
     private searchTableExpression(
         expr: TableConstructorExpression, base?: string) {
         // table中的值可以访问，因为-1时是需要继续查找table值的
-        let comp = this.compNodePos(expr, this.pos!);
+        const comp = this.compNodePos(expr, this.pos!);
         if (1 === comp || 0 === comp) {
             return false;
         }
@@ -213,13 +206,13 @@ export class Search {
 
     // 解析变量声明 local x,y = ...
     private searchLocalStatement(stat: LocalStatement) {
-        let comp = this.compNodePos(stat, this.pos!);
+        const comp = this.compNodePos(stat, this.pos!);
         if (1 === comp) {
             return false;
         }
         // lua支持同时初始化多个变量 local x,y = 1,2
         let nextSearch = stat.variables.every((sub, index) => {
-            let init = stat.init[index];
+            const init = stat.init[index];
             return this.searchOne(sub,
                 LocalType.LT_LOCAL, sub.name, undefined, init);
         });
@@ -229,7 +222,7 @@ export class Search {
 
         // 先搜索变量名，再搜索初始化。因为是按位置判断是否继续搜索的
         nextSearch = stat.init.every((expr, index) => {
-            let sub = stat.variables[index];
+            const sub = stat.variables[index];
             // like local a = 1, 2, you dont get the sub for 2nd init value
             if (!sub) {
                 return true;
@@ -245,7 +238,7 @@ export class Search {
 
     // x = ... list[1] = ... m.n = ...
     private searchAssignmentStatement(stat: AssignmentStatement) {
-        let comp = this.compNodePos(stat, this.pos!);
+        const comp = this.compNodePos(stat, this.pos!);
         if (1 === comp) {
             return false;
         }
@@ -254,7 +247,7 @@ export class Search {
             if (sub.type !== "Identifier") {
                 return true;
             }
-            let init = stat.init[index];
+            const init = stat.init[index];
             return this.searchOne(sub,
                 LocalType.LT_NONE, sub.name, undefined, init);
         });
@@ -264,7 +257,7 @@ export class Search {
 
         nextSearch = stat.init.every((expr, index) => {
             let base;
-            let sub = stat.variables[index];
+            const sub = stat.variables[index];
             if (sub && sub.type === "Identifier") {
                 base = sub.name;
             }
@@ -301,7 +294,7 @@ export class Search {
         // 局部函数声明
         const ider = expr.identifier;
         if (ider && ider.type === "Identifier") {
-            let local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
+            const local = expr.isLocal ? LocalType.LT_LOCAL : LocalType.LT_NONE;
             if (!this.searchOne(expr, local, ider.name)) {
                 return false;
             }
@@ -341,7 +334,7 @@ export class Search {
     // 搜索局部符号
     // @callBack: 过滤函数，主要用于回调
     public rawSearchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
 
         const cache = symbol.getCache(uri);
         if (!cache) {
@@ -372,7 +365,8 @@ export class Search {
                  * 因此这里base相等或者位置相同，都判断为同一符号
                  */
                 if (name === query.name && (base === query.base
-                    || (base && 0 === this.compNodePos(node, query.position)))) {
+                    || (base && 0 === this.compNodePos(
+                        node, query.position)))) {
                     if (local !== LocalType.LT_NONE) {
                         foundLocal = {
                             node: node, local: local, base: base, init: init
@@ -390,16 +384,16 @@ export class Search {
         // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
         // https://github.com/Microsoft/TypeScript/issues/15631
 
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
         let found: SymInfoEx | null = null;
-        let re = foundLocal || foundGlobal;
+        const re = foundLocal || foundGlobal;
         if (re) {
             const r: SearchResult = re!;
             found = symbol.toSym(
                 { name: query.name, base: r.base }, r.node, r.init, r.local);
         }
 
-        let symList = found ? [found] : null;
+        const symList = found ? [found] : null;
         if (!symList) {
             return null;
         }
@@ -418,14 +412,14 @@ export class Search {
     // MMM.nnn中搜索模块名，如果只有MMM模块名，不是在这里处理的
     // 在Lua中，可能会出现局部变量名和全局一致，这样就会出错，暂时不考虑这种情况
     public searchGlobalModule(query: SymbolQuery, filter: Filter) {
-        let base = query.base;
+        const base = query.base;
         if (!base) {
             return null;
         }
 
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
 
-        let rawBases = symbol.getRawModule(query.uri, base);
+        const rawBases = symbol.getRawModule(query.uri, base);
         let symList = symbol.getGlobalModuleSubList(rawBases);
         if (symList && query.extBase) {
             symList = symbol.getSubSymbolFromList(
@@ -437,12 +431,12 @@ export class Search {
 
     // 根据模块名查找某个文档的符号
     public searchDocumentModule(query: SymbolQuery, filter: Filter) {
-        let base = query.base;
+        const base = query.base;
         if (!base || "self" === base || "_G" === base) {
             return null;
         }
 
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
 
         // 先查找当前文档的local模块
         let symList = symbol.getDocumentModuleSubList(query.uri, [base]);
@@ -497,7 +491,7 @@ export class Search {
             }
 
             const loc = sym.location.range;
-            let comp = this.compPos(
+            const comp = this.compPos(
                 loc.start.line, loc.start.character,
                 loc.end.line, loc.end.character, query.position);
 
@@ -513,33 +507,34 @@ export class Search {
         if (query.position.line !== loc.range.start.line) { return false; }
 
         // 找出 M = M
-        let re = new RegExp(query.name + "\\s*=\\s*" + query.name, "g");
-        let match = query.text.match(re);
+        const re = new RegExp(query.name + "\\s*=\\s*" + query.name, "g");
+        const match = query.text.match(re);
 
         if (!match) { return false; }
 
-        let startIdx = query.text.indexOf(match[0]);
-        let eqIdx = query.text.indexOf("=", startIdx);
+        const startIdx = query.text.indexOf(match[0]);
+        const eqIdx = query.text.indexOf("=", startIdx);
 
         // 在等号右边就是本地化的符号，要查找原符号才行
         return query.position.end > eqIdx ? true : false;
     }
 
     // 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M
-    private localizationFilter(query: SymbolQuery, symList: SymInfoEx[] | null) {
+    private localizationFilter(
+        query: SymbolQuery, symList: SymInfoEx[] | null) {
         if (!symList) { return null; }
 
-        let newList = symList.filter(sym => !this.isLocalization(query, sym));
+        const newList = symList.filter(sym => !this.isLocalization(query, sym));
 
         return newList.length > 0 ? newList : null;
     }
 
     private checkSymList(
-        symList: SymInfoEx[] | null, name: string, kind: SymbolKind) {
+        symList: SymInfoEx[] | null, name: string) {
         if (!symList) { return null; }
 
-        let foundList: SymInfoEx[] = [];
-        for (let sym of symList) {
+        const foundList: SymInfoEx[] = [];
+        for (const sym of symList) {
             if (sym.name === name) {
                 foundList.push(sym);
             }
@@ -560,7 +555,7 @@ export class Search {
         }
 
         // 不需要对比名字了，在checkSymList中对比过了
-        for (let sym of symList) {
+        for (const sym of symList) {
             if (sym.local) {
                 // 暂不考虑出现多个同名local变量的情况
                 return [sym];
@@ -572,12 +567,12 @@ export class Search {
 
     // 搜索符号
     public search(srv: Server, query: SymbolQuery) {
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
 
-        let filter: Filter = symList => {
+        const filter: Filter = symList => {
             return this.filterPosition(query,
                 this.localizationFilter(query!,
-                    this.checkSymList(symList, query!.name, query!.kind)
+                    this.checkSymList(symList, query!.name)
                 ));
         };
 
@@ -599,12 +594,12 @@ export class Search {
         }
 
         // 查找局部变量(不包含顶层局部变量)
-        let possibleSym: SymInfoEx[] = [];
+        const possibleSym: SymInfoEx[] = [];
         const uri = query.uri;
         srv.ensureSymbolCache(uri);
         items = this.searchlocal(query);
         if (items) {
-            let symList = this.localizationFilter(query, items);
+            const symList = this.localizationFilter(query, items);
             if (symList && this.checkHasLocalSym(symList, query)) {
                 return symList;
             } else {
@@ -626,7 +621,7 @@ export class Search {
             if (topSym) {
                 return topSym;
             }
-            let symList = this.filterLocalSym(items, query);
+            const symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
                 return symList;
             } else {
@@ -638,7 +633,7 @@ export class Search {
         items = filter(symbol.getAnySymbol(
             true, sym => sym.location.uri !== uri && query.name === sym.name));
         if (items) {
-            let symList = this.filterLocalSym(items, query);
+            const symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
                 return symList;
             }

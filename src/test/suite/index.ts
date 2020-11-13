@@ -20,7 +20,7 @@ export function run(): Promise<void> {
 			// extension activate is in extension.test.ts, so this file MUST
 			// be added to mocha first, so it can lanunch extension before other
 			// test
-			let paths: string[] = [];
+			const paths: string[] = [];
 			// Add files to the test suite
 			files.forEach(f => {
 				if ("extension.test.js" === path.parse(f).base) {

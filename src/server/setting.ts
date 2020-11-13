@@ -1,7 +1,6 @@
 // 插件配置
 
 import * as path from "path";
-import { Utils } from "./utils";
 import { URI } from 'vscode-uri';
 
 // let ver:string = "5.1"
@@ -62,7 +61,7 @@ export class Setting {
         this.rawRootUri = root;
     }
 
-    public setConfiguration(conf: any, isUpdate: boolean = false) {
+    public setConfiguration(conf: any) {
         if (conf.luaVersion) {
             this.luaVersion = <Version>(conf.luaVersion) || "5.3";
         }
@@ -145,7 +144,7 @@ export class Setting {
      * @param uriFmt 是否格式化为通用的字符串 
      */
     public parseRootPath(dir: string, uriFmt: boolean = false) {
-        let newPath = path.join(dir, this.rootDir);
+        const newPath = path.join(dir, this.rootDir);
         if (!uriFmt) {
             return newPath;
         }
@@ -160,8 +159,8 @@ export class Setting {
     }
 
     private isUriExclude(uri: string, excludes: string[]): boolean {
-        for (let dir of excludes) {
-            let re = new RegExp(`${this.rootDir}/${dir}`, "g");
+        for (const dir of excludes) {
+            const re = new RegExp(`${this.rootDir}/${dir}`, "g");
             if (uri.match(re)) {
                 return true;
             }
@@ -183,7 +182,7 @@ export class Setting {
         }
 
         // 是否被排除
-        let isExclude = this.isUriExclude(uri, this.excludeDir);
+        const isExclude = this.isUriExclude(uri, this.excludeDir);
 
         if (!isInRoot || isExclude) {
             ft = ft | FileParseType.FPT_SINGLE;

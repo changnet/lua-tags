@@ -1,0 +1,45 @@
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "rules": {
+        "semi": [
+            1,
+            "always"
+        ],
+        "no-extra-semi": 1,
+        "no-empty": "warn",
+        "no-empty-function": "off",
+        "max-len": [
+            2,
+            {
+                "code": 80,
+                "tabWidth": 4,
+                "ignoreUrls": true,
+                "ignoreComments": true
+            }
+        ],
+        "no-unused-vars": [
+            0,
+            {
+                "vars": "local",
+                "args": "after-used",
+                "ignoreRestSiblings": true,
+                "argsIgnorePattern": "^_"
+            }
+        ],
+        "@typescript-eslint/no-inferrable-types": 0,
+        "@typescript-eslint/no-empty-function": 0,
+        "@typescript-eslint/explicit-module-boundary-types": 0,
+        "@typescript-eslint/no-non-null-assertion": 0,
+        "@typescript-eslint/no-explicit-any": 0,
+        "@typescript-eslint/no-unused-vars": 0
+    }
+}

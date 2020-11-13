@@ -51,7 +51,7 @@ export class Server {
 
     // Create a simple text document manager. The text document manager
     // supports full document sync only
-    private documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+    private documents = new TextDocuments(TextDocument);
 
     private rootUri: string | null = null;
 
@@ -61,7 +61,7 @@ export class Server {
     private exportSym = new Map<string, number>();
 
     public constructor() {
-        let conn = this.connection;
+        const conn = this.connection;
 
         Utils.instance().initialize(conn);
 
@@ -146,7 +146,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onNotification("__export", handler => {
+        conn.onNotification("__export", () => {
             try {
                 const symList = Symbol.instance().getGlobalSymbolList();
                 Utils.instance().writeGlobalSymbols(symList);
@@ -156,7 +156,7 @@ export class Server {
             }
         });
 
-        let doc = this.documents;
+        const doc = this.documents;
         doc.onDidSave(handler => {
             try {
                 return this.onSaveDocument(handler);
@@ -181,7 +181,7 @@ export class Server {
             // message after it close
             try {
                 const uri = handler.document.uri;
-                let ft = Setting.instance().getFileType(uri, 1);
+                const ft = Setting.instance().getFileType(uri, 1);
                 if (ft & FileParseType.FPT_SINGLE) {
                     DiagnosticProvider.instance().deleteChecking(uri);
                 }
@@ -216,7 +216,7 @@ export class Server {
 
         // could not find a better way to wait...
         for (let ts = 0; ts < 32; ts++) {
-            let ok = await new Promise((resolve) => setTimeout(() => {
+            const ok = await new Promise((resolve) => setTimeout(() => {
                 resolve(this.isPreInit);
             }, 100));
 
@@ -269,13 +269,14 @@ export class Server {
             return;
         }
 
-        let setting = Setting.instance();
+        const setting = Setting.instance();
         setting.setRawRootUri(this.rootUri);
 
-        let conf = await this.connection.workspace.getConfiguration("lua-tags");
+        const conf =
+            await this.connection.workspace.getConfiguration("lua-tags");
         setting.setConfiguration(conf);
 
-        let diagnostic = DiagnosticProvider.instance();
+        const diagnostic = DiagnosticProvider.instance();
         diagnostic.updateCmdArgs();
 
         this.isPreInit = true;
@@ -288,24 +289,26 @@ export class Server {
 
         const uri = URI.parse(this.rootUri);
 
-        let symbol = Symbol.instance();
-        let diagnostic = DiagnosticProvider.instance();
+        const symbol = Symbol.instance();
+        const diagnostic = DiagnosticProvider.instance();
 
-        let beg = Date.now();
+        const beg = Date.now();
 
         const checkOnInit = Setting.instance().isCheckOnInit();
-        const files = await DirWalker.instance().walk(uri.fsPath, (uri, ctx) => {
-            symbol.parse(uri, ctx);
-            if (checkOnInit) {
-                diagnostic.check(uri, ctx, CheckHow.INITIALIZE);
-            }
-        });
+        const files = await DirWalker.instance().walk(
+            uri.fsPath, (uri, ctx) => {
+                symbol.parse(uri, ctx);
+                if (checkOnInit) {
+                    diagnostic.check(uri, ctx, CheckHow.INITIALIZE);
+                }
+            });
         symbol.setCacheOpen();
         symbol.loadStl();
 
-        let end = Date.now();
+        const end = Date.now();
         Utils.instance().log(
-            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
+            `Lua-tags LSP initialized done:${this.rootUri}, \
+            msec:${end - beg}, files:${files}`);
 
         const interval = Setting.instance().getExportInterval();
         if (interval > 0) {
@@ -317,7 +320,7 @@ export class Server {
 
     // 定时导出全局符号
     private exportGlobalTimeout() {
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
 
         // no change
         if (this.exportVer === symbol.getUpdateVersion()) {
@@ -368,7 +371,7 @@ export class Server {
         // 刚启动的时候，还没来得及解析文件
         // 如果就已经打开文件了，优先解析这一个，多次解析同一个文件不影响
         // 或者这个文件不是工程目录里的文件，不做缓存
-        let symbol = Symbol.instance();
+        const symbol = Symbol.instance();
         let symList = symbol.getDocumentSymbol(uri);
 
         if (!symList) {
@@ -447,7 +450,7 @@ export class Server {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             if (leftWords[1]) {
                 // A:B.C.D.E:F ==> Array ["A", "B", "C", "D", "E", "F"]
-                let allBase = leftWords[0].split(/[.|:]/g);
+                const allBase = leftWords[0].split(/[.|:]/g);
                 base = allBase[0];
                 if (allBase.length > 2) {
                     extBase = allBase.slice(1, allBase.length - 1);
@@ -528,7 +531,7 @@ export class Server {
 
     // 这里处理因第三方软件直接修改文件造成的文件变化
     private doFileChange(uri: string, doSym: boolean) {
-        let path = URI.parse(uri);
+        const path = URI.parse(uri);
         DirWalker.instance().walkFile(path.fsPath, (fileUri, ctx) => {
             if (doSym) {
                 Symbol.instance().parse(fileUri, ctx);
@@ -542,17 +545,17 @@ export class Server {
 
     // 文件增删
     private onFilesChange(handler: DidChangeWatchedFilesParams) {
-        for (let event of handler.changes) {
+        for (const event of handler.changes) {
 
-            let uri = event.uri;
-            let type = event.type;
+            const uri = event.uri;
+            const type = event.type;
             switch (type) {
                 case FileChangeType.Created: {
                     this.doFileChange(uri, true);
                     break;
                 }
                 case FileChangeType.Changed: {
-                    let doc = this.documents.get(uri);
+                    const doc = this.documents.get(uri);
                     // 取得到文档，说明是已打开的文件，在 onDocumentChange 处理
                     // 这里只处理没打开的文件
                     if (doc) {
@@ -606,7 +609,7 @@ export class Server {
 
     // 配置变化，现在并没有做热更处理，需要重启vs code
     private onConfiguration(handler: DidChangeConfigurationParams) {
-        Setting.instance().setConfiguration(handler.settings, true);
+        Setting.instance().setConfiguration(handler.settings);
         DiagnosticProvider.instance().updateCmdArgs();
     }
 
@@ -620,6 +623,6 @@ export class Server {
     }
 }
 
-let srv = new Server();
+const srv = new Server();
 srv.init();
 

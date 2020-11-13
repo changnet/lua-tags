@@ -14,7 +14,7 @@ type WalkerCallBack = (uri: string, ctx: string) => void;
 export class DirWalker {
     private static ins: DirWalker;
 
-    private files: number = 0;
+    private files: number = 0
     private constructor() {
     }
 
@@ -34,10 +34,11 @@ export class DirWalker {
 
         // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
         // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
-        let files = await fs.promises.readdir(dirPath, { withFileTypes: true });
+        const files = await fs.promises.readdir(
+            dirPath, { withFileTypes: true });
 
-        for (let file of files) {
-            let subPath = path.join(dirPath, file.name);
+        for (const file of files) {
+            const subPath = path.join(dirPath, file.name);
 
             if (file.isDirectory()) {
                 await this.walkDir(subPath, callBack);
@@ -63,7 +64,7 @@ export class DirWalker {
             path: filePath.replace(/\\/g, "/")
         }).toString();
 
-        let data = await fs.promises.readFile(filePath);
+        const data = await fs.promises.readFile(filePath);
 
         this.files++;
         callBack(uri, data.toString());
@@ -71,7 +72,7 @@ export class DirWalker {
 
     public async walk(dirPath: string, callBack: WalkerCallBack) {
         this.files = 0;
-        let rootPath = Setting.instance().parseRootPath(dirPath);
+        const rootPath = Setting.instance().parseRootPath(dirPath);
 
         try {
             await this.walkDir(rootPath, callBack);
@@ -126,7 +127,8 @@ export class Utils {
         });
 
         fs.writeFileSync(fileName,
-            `-- auto export by lua-tags ${symList.length} symbols\n\nreturn {\n`,
+            `-- auto export by lua-tags \
+            ${symList.length} symbols\n\nreturn {\n`,
             { encoding: "utf8", flag: "w" });
 
         // let lastUri: string | null = null;
@@ -144,7 +146,7 @@ export class Utils {
     }
 
     public static pad(num: number, size: number) {
-        var s = String(num);
+        let s = String(num);
         while (s.length < (size || 2)) { s = "0" + s; }
         return s;
     }
@@ -160,7 +162,8 @@ export class Utils {
         const min = Utils.pad(date.getMinutes(), 2);
         const sec = Utils.pad(date.getSeconds(), 2);
 
-        const now = `${date.getFullYear()}-${month}-${day} ${hour}:${min}:${sec} `;
+        const now =
+            `${date.getFullYear()}-${month}-${day} ${hour}:${min}:${sec} `;
         fs.writeFileSync("lua-tags.log", now, { encoding: "utf8", flag: "a" });
         fs.writeFileSync("lua-tags.log", ctx, { encoding: "utf8", flag: "a" });
         fs.writeFileSync("lua-tags.log", "\n", { encoding: "utf8", flag: "a" });
@@ -169,9 +172,9 @@ export class Utils {
     public anyError(e: any) {
         let msg = "unknow";
         if (e) {
-            let name: string = e.name || "unknow";
-            let message: string = e.message || "unknow";
-            let stack: string = e.stack || "";
+            const name: string = e.name || "unknow";
+            const message: string = e.message || "unknow";
+            const stack: string = e.stack || "";
             msg = `name: ${name}\nmessage: ${message}\nstack: ${stack}`;
         }
 

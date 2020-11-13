@@ -2,28 +2,8 @@
 
 
 import {
-    Hover,
-    Definition,
-    createConnection,
-    TextDocuments,
-    TextDocument,
-    Diagnostic,
-    DiagnosticSeverity,
-    ProposedFeatures,
-    InitializeParams,
-    DidChangeConfigurationNotification,
-    CompletionItem,
-    SymbolInformation,
-    CompletionItemKind,
-    DocumentSymbolParams,
-    WorkspaceSymbolParams,
-    TextDocumentPositionParams,
     SymbolKind,
     Position,
-    DidChangeWatchedFilesParams,
-    TextDocumentChangeEvent,
-    FileChangeType,
-    InitializeResult,
     SignatureHelp,
     SignatureInformation,
     ParameterInformation,
@@ -31,9 +11,7 @@ import {
     MarkupKind
 } from 'vscode-languageserver';
 import { Server } from './server';
-import { Utils } from './utils';
-import { GoToDefinition } from './goToDefinition';
-import { Symbol, SymInfoEx, LocalType, CommentType } from './symbol';
+import { Symbol, SymInfoEx, CommentType } from './symbol';
 import { Search } from './search';
 
 /**
@@ -75,7 +53,7 @@ export class SignatureProvider {
             symParam = refSym.parameters;
             funcName = `${funcName} -> ${sym.refType.join(".")}`;
         }
-        let parameters: ParameterInformation[] = [];
+        const parameters: ParameterInformation[] = [];
         if (symParam) {
             funcParam = symParam.join(", ");
 
@@ -84,7 +62,7 @@ export class SignatureProvider {
             if (index < symParam.length) {
                 // +1是因为函数名和参数之间有个左括号
                 let offset = funcName.length + 1;
-                for (let param of symParam) {
+                for (const param of symParam) {
                     parameters.push({
                         label: [offset, offset + param.length]
                     });
@@ -102,7 +80,7 @@ export class SignatureProvider {
             comment = refSym.comment;
         }
 
-        let file = Symbol.getPathPrefix(sym, uri);
+        const file = Symbol.getPathPrefix(sym, uri);
 
         let doc;
         if (comment || file) {
@@ -170,7 +148,7 @@ export class SignatureProvider {
             }
             character++;
         }
-        let lineText = -1 === symOffset ?
+        const lineText = -1 === symOffset ?
             "" : text.substring(symOffset - character, symOffset);
 
         return {
@@ -184,13 +162,13 @@ export class SignatureProvider {
 
     public doSignature(srv: Server, uri: string,
         pos: Position, text: string, offset: number): SignatureHelp | null {
-        let info = this.scanSym(text, offset);
+        const info = this.scanSym(text, offset);
         if (-1 === info.offset) {
             return null;
         }
 
         const line = pos.line - info.line;
-        let query = srv.getQuerySymbol(uri, info.lineText, {
+        const query = srv.getQuerySymbol(uri, info.lineText, {
             line: line, character: info.character
         });
         if (!query) {
@@ -204,14 +182,14 @@ export class SignatureProvider {
 
         let activeIndex: number | null = null;
         let activeParam: number | null = null; // 为null则vs code不选中参数
-        let signatureList: SignatureInformation[] = [];
+        const signatureList: SignatureInformation[] = [];
         symList.forEach((sym, index) => {
             // when define a function, do signature itself
             if (uri === sym.location.uri
                 && line === sym.location.range.start.line) {
                 return;
             }
-            let sig = this.toSignature(sym, uri, info.index);
+            const sig = this.toSignature(sym, uri, info.index);
             if (sig) {
                 signatureList.push(sig);
                 // 如果有多个函数，输入的参数超过了第一个，尝试下一个
