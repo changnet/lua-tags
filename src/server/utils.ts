@@ -127,8 +127,8 @@ export class Utils {
         });
 
         fs.writeFileSync(fileName,
-            `-- auto export by lua-tags \
-            ${symList.length} symbols\n\nreturn {\n`,
+            // eslint-disable-next-line max-len
+            `-- auto export by lua-tags ${symList.length} symbols\n\nreturn {\n`,
             { encoding: "utf8", flag: "w" });
 
         // let lastUri: string | null = null;

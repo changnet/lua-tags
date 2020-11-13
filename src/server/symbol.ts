@@ -837,7 +837,7 @@ export class SymbolEx {
         }
 
         // 处理globalModule
-        for (const [uri, docModules] of this.documentModule) {
+        for (const [_uri, docModules] of this.documentModule) {
             for (const [name, sym] of docModules) {
                 // local模块不放到全局
                 if (!this.isGlobalSym(sym)) {
@@ -1271,7 +1271,7 @@ export class SymbolEx {
         }
 
         const symList: SymInfoEx[] = [];
-        for (const [name, newSymList] of this.globalSymbol) {
+        for (const [_name, newSymList] of this.globalSymbol) {
             this.appendSymList(isSub, symList, newSymList, filter);
             if (maxSize && symList.length >= maxSize) {
                 break;
@@ -1292,7 +1292,7 @@ export class SymbolEx {
 
         // 再搜索非全局的
         // documentSymbol中不是以树形结构存符号，子符号也是在同一个数组里的
-        for (const [name, newSymList] of this.documentSymbol) {
+        for (const [_name, newSymList] of this.documentSymbol) {
             for (const sym of newSymList) {
                 // return { a = 2 } 这种匿名table里的符号scope > 0，但无base
                 if (this.isGlobalSym(sym) || (sym.scope > 0 && sym.base)) {
@@ -1390,7 +1390,7 @@ export class SymbolEx {
         // 在所有uri里查询匹配的uri
         // 由于不知道项目中的path设置，因此这个路径其实可长可短
         // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
-        for (const [uri, val] of this.documentModule) {
+        for (const [uri, _val] of this.documentModule) {
             if (uri.endsWith(endUri)) {
                 // make sure bbb do not match conf/aaabbb
                 const offset = uri.length - endUri.length;
@@ -1670,7 +1670,6 @@ export class SymbolEx {
             }
 
             // 记录连续多行的注释
-            const nextLine = continueLine + 1;
             if (-1 !== continueIndex
                 && continueLine + 1 === comment.loc.start.line) {
                 continueLine = comment.loc.end.line;
@@ -1735,7 +1734,7 @@ export class SymbolEx {
      */
     public getGlobalSymbolList() {
         const symList: SymInfoEx[] = [];
-        for (const [uri, docSymList] of this.documentSymbol) {
+        for (const [_uri, docSymList] of this.documentSymbol) {
             for (const sym of docSymList) {
                 if (this.isGlobalSym(sym)) {
                     symList.push(sym);

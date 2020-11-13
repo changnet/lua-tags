@@ -307,8 +307,8 @@ export class Server {
 
         const end = Date.now();
         Utils.instance().log(
-            `Lua-tags LSP initialized done:${this.rootUri}, \
-            msec:${end - beg}, files:${files}`);
+            // eslint-disable-next-line max-len
+            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
 
         const interval = Setting.instance().getExportInterval();
         if (interval > 0) {

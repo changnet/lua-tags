@@ -3,27 +3,9 @@
 
 import {
     Hover,
-    Range,
     Position,
-    Location,
     MarkupKind,
-    MarkupContent,
-    createConnection,
-    TextDocuments,
-    TextDocument,
-    Diagnostic,
-    DiagnosticSeverity,
-    ProposedFeatures,
-    InitializeParams,
-    DidChangeConfigurationNotification,
-    CompletionItem,
-    SymbolInformation,
-    CompletionItemKind,
-    DocumentSymbolParams,
-    WorkspaceSymbolParams,
-    TextDocumentPositionParams,
     SymbolKind,
-    Definition
 } from 'vscode-languageserver';
 
 import {
@@ -40,10 +22,6 @@ import {
     Server
 } from "./server";
 
-import {
-    GoToDefinition
-} from "./goToDefinition";
-
 export class HoverProvider {
     private static ins: HoverProvider;
 
@@ -59,7 +37,7 @@ export class HoverProvider {
     }
 
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
-        let path = SymbolEx.getPathPrefix(sym, uri);
+        const path = SymbolEx.getPathPrefix(sym, uri);
         let above = "";
         let lineEnd = "";
         let prefix = "";
@@ -71,20 +49,21 @@ export class HoverProvider {
             }
         }
 
-        let ref = SymbolEx.instance().getRefValue(sym);
+        const ref = SymbolEx.instance().getRefValue(sym);
+        // eslint-disable-next-line max-len
         return `${path}${prefix}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
         if (sym.value) {
-            let prefix = SymbolEx.getLocalTypePrefix(sym.local);
+            const prefix = SymbolEx.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(sym,
                 `${prefix}${sym.name} = ${sym.value}`, uri);
         }
 
         if (sym.local || sym.refType) {
-            let local = SymbolEx.getLocalTypePrefix(sym.local);
-            let base = SymbolEx.getBasePrefix(sym);
+            const local = SymbolEx.getLocalTypePrefix(sym.local);
+            const base = SymbolEx.getBasePrefix(sym);
             return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri);
         }
 
@@ -99,19 +78,19 @@ export class HoverProvider {
         let tips: string | null = null;
         switch (sym.kind) {
             case SymbolKind.Function: {
-                let local = sym.local ? "local " : "";
+                const local = sym.local ? "local " : "";
                 let parameters = "";
                 if (sym.parameters) {
                     parameters = sym.parameters.join(", ");
                 }
-                let base = SymbolEx.getBasePrefix(sym);
+                const base = SymbolEx.getBasePrefix(sym);
 
                 tips = this.toLuaMarkdown(sym,
                     `${local}function ${base}${sym.name}(${parameters})`, uri);
                 break;
             }
             case SymbolKind.Namespace: {
-                let local = sym.local ? "local " : "";
+                const local = sym.local ? "local " : "";
                 tips = this.toLuaMarkdown(sym,
                     `(table) ${local}${sym.name}`, uri);
                 break;
@@ -129,8 +108,8 @@ export class HoverProvider {
     }
 
     private toMarkdown(symList: SymInfoEx[], uri: string): string {
-        let list: string[] = [];
-        for (let sym of symList) {
+        const list: string[] = [];
+        for (const sym of symList) {
             const markdown = this.toOneMarkdown(sym, uri);
             if (markdown) {
                 list.push(markdown);
@@ -154,15 +133,15 @@ export class HoverProvider {
     }
 
     public doHover(srv: Server, uri: string, pos: Position): Hover | null {
-        let line = srv.getQueryText(uri, pos);
+        const line = srv.getQueryText(uri, pos);
         if (!line) { return null; }
 
-        let query = srv.getQuerySymbol(uri, line, pos);
+        const query = srv.getQuerySymbol(uri, line, pos);
         if (!query || query.name === "") { return null; }
 
-        let list = Search.instance().search(srv, query);
+        const list = Search.instance().search(srv, query);
 
-        let value = list ?
+        const value = list ?
             this.toMarkdown(list, uri) : this.searchModuleName(query.name);
 
         if (!value || value === "") {
