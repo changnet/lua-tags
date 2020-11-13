@@ -79,7 +79,7 @@ export class DiagnosticProvider {
             return [];
         }
 
-        let diags: Diagnostic[] = [];
+        const diags: Diagnostic[] = [];
         const lines = msg.split(/\r?\n/g);
         for (const line of lines) {
             // empty line at end of stdout
@@ -127,7 +127,7 @@ export class DiagnosticProvider {
     private runCheck(cmd: string, args: string[], ctx: string): Thenable<any> {
         return new Promise((resolve, reject) => {
             try {
-                let child = execFile(
+                const child = execFile(
                     cmd, args, this.option, (error, stdout) => {
                         if (!error) {
                             resolve("");
@@ -200,7 +200,7 @@ export class DiagnosticProvider {
     }
 
     private getLuaCheckArgs() {
-        let args = [
+        const args = [
             '--codes', // 日志里显示是错误还是警告(例如：W211)
             '--ranges', // 日志里显示有问题的范围
 
@@ -264,13 +264,13 @@ export class DiagnosticProvider {
 
     private async timeoutCheck() {
         let index = 0;
-        let now = Date.now();
+        const now = Date.now();
 
         for (const task of this.pendingTask) {
             if (task.timeout <= now) {
                 index++;
                 const uri = task.uri;
-                let curCtx = this.pendingCtx.get(uri);
+                const curCtx = this.pendingCtx.get(uri);
                 this.pendingCtx.delete(uri);
                 if (!curCtx || this.abort) {
                     continue;
@@ -296,7 +296,7 @@ export class DiagnosticProvider {
             return;
         }
 
-        let setting = Setting.instance();
+        const setting = Setting.instance();
         if (setting.isCheckExclude(uri)) {
             return;
         }

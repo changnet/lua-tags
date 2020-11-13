@@ -19,7 +19,8 @@ export function activate(context: vscode.ExtensionContext) {
     // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 
     // 指定服务器入口文件路径
-    let serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
+    const serverModule = context.asAbsolutePath(
+        path.join('out', 'server', 'server.js'));
 
     // debug选项
     // 必须用F5调试模式打开插件，才有效
@@ -29,13 +30,13 @@ export function activate(context: vscode.ExtensionContext) {
     // 在Debug选项里选择Attach，即可连接到服务器，这时就可以断点调试server了
     // 如果断点显示Unverified breakpoint，应该是当前调试session不对，在debug界面应该
     // 能看到两个session，一个Run Extension，一个Attack，选中Attack即可
-    let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
+    const debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
     console.log(`LSP server path:${serverModule}`);
 
-    // If the extension is launched in debug mode then the debug server options are used
-    // Otherwise the run options are used
-    let serverOptions: ServerOptions = {
+    // If the extension is launched in debug mode then the debug server options
+    // are used Otherwise the run options are used
+    const serverOptions: ServerOptions = {
         run: { module: serverModule, transport: TransportKind.ipc },
         debug: {
             module: serverModule,
@@ -45,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     // Options to control the language client
-    let clientOptions: LanguageClientOptions = {
+    const clientOptions: LanguageClientOptions = {
         // 设置触发插件功能的rui
         // lua为后缀的文件或者语言为Lua的untitled文件(新建一个文件，还没保存)
         documentSelector: [
@@ -61,7 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     // Create the language client and start the client.
-    let client = new LanguageClient(
+    const client = new LanguageClient(
         'lua-tags',
         'lua-tags',
         serverOptions,
@@ -84,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
     const disposable_clt = client.start();
 
     // 命令先要在package.json中定义
-    let disposable = vscode.commands.registerCommand(
+    const disposable = vscode.commands.registerCommand(
         "lua-tags.exportglobal", () => {
             client.sendNotification("__export"); // 后面可以发送一个any参数
         });

@@ -1,36 +1,20 @@
 // 处理自动补全
 
 import {
-    Range,
     Position,
-    Location,
-    createConnection,
-    TextDocuments,
-    TextDocument,
-    Diagnostic,
-    DiagnosticSeverity,
-    ProposedFeatures,
-    InitializeParams,
-    DidChangeConfigurationNotification,
     CompletionItem,
-    SymbolInformation,
     CompletionItemKind,
-    DocumentSymbolParams,
-    WorkspaceSymbolParams,
-    TextDocumentPositionParams,
     SymbolKind,
-    Definition
 } from 'vscode-languageserver';
 
 import {
-    Symbol,
+    SymbolEx,
     SymInfoEx,
     SymbolQuery,
     CommentType,
     LocalType
 } from "./symbol";
 
-import { Utils } from './utils';
 import { Server } from './server';
 import { Search, Filter } from './search';
 
@@ -60,13 +44,13 @@ export class AutoCompletion {
             case SymbolKind.Module: kind = CompletionItemKind.Module; break;
         }
 
-        let item: CompletionItem = {
+        const item: CompletionItem = {
             label: sym.name,
             kind: kind
         };
 
         if (sym.location.uri !== uri) {
-            let file = Symbol.getSymbolPath(sym);
+            const file = SymbolEx.getSymbolPath(sym);
             if (file) {
                 item.detail = file;
             }
@@ -87,18 +71,18 @@ export class AutoCompletion {
             mdDoc += `${sym.name} = ${sym.value}`;
         } else if (sym.kind === SymbolKind.Function) {
             // 如果是函数，显示参数: test.lua: function(a, b, c)
-            let local = Symbol.getLocalTypePrefix(sym.local);
-            let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
-            let parameters = sym.parameters ? sym.parameters.join(", ") : "";
+            const local = SymbolEx.getLocalTypePrefix(sym.local);
+            const base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            const parameters = sym.parameters ? sym.parameters.join(", ") : "";
             mdDoc += `${local}function ${base}${sym.name}(${parameters})`;
         } else {
-            let local = Symbol.getLocalTypePrefix(sym.local);
-            let base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            const local = SymbolEx.getLocalTypePrefix(sym.local);
+            const base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
             mdDoc += `${local}${base}${sym.name}`;
         }
 
         // 显示引用的变量
-        let ref = Symbol.instance().getRefValue(sym);
+        const ref = SymbolEx.instance().getRefValue(sym);
         if (ref) {
             mdDoc += ref;
         }
@@ -125,7 +109,7 @@ export class AutoCompletion {
     // @end: 结束的路径，比如sample.conf.monster_conf.lua中的conf.monster_conf.lua
     private checkPathMatch(beg: string | null, end: string) {
         // 得到左边的路径名conf.monster中的conf
-        let matchs = end.match(/^\w+/g);
+        const matchs = end.match(/^\w+/g);
         if (!matchs) {
             return null;
         }
@@ -144,18 +128,18 @@ export class AutoCompletion {
 
         // 自动补全多级路径直到文件名
         // sample.mon 补全为 sample.conf.monster
-        let matchs = end.match(/(\w+)\.lua$/);
+        const matchs = end.match(/(\w+)\.lua$/);
         if (!matchs) {
             return null;
         }
 
         // 匹配文件名
-        if (Symbol.checkMatch(beg, matchs[1]) > -1000) {
+        if (SymbolEx.checkMatch(beg, matchs[1]) > -1000) {
             return null;
         }
 
         // 得到没有后缘的文件路径
-        let endPath = end.substring(0, end.length - ".lua".length);
+        const endPath = end.substring(0, end.length - ".lua".length);
         // 把uri中的/替换为.
         return endPath.replace(/\//g, ".");
     }
@@ -165,29 +149,29 @@ export class AutoCompletion {
         const text = line.substring(0, pos);
 
         // 匹配require "a.b.c"或者 require（"a.b.c"）
-        let found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)/);
+        const found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)/);
         if (!found || !found[1]) {
             return null;
         }
 
         // 得到path = a.b.c
-        let symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
         let path = symbol.toUriFormat(found[1]);
 
         // 匹配写了一半的路径，比如 sample.conf只写了sqmple.co中的co
         let leftWord: string | null = null;
-        let lMathList = path.match(/\w+$/g);
+        const lMathList = path.match(/\w+$/g);
         if (lMathList) {
             leftWord = lMathList[0];
             path = path.substring(0, path.length - leftWord.length);
         }
 
         // 同一个路径下可能有多个文件，过滤掉同名文件
-        let itemFilter = new Map<string, boolean>();
-        let items: CompletionItem[] = [];
+        const itemFilter = new Map<string, boolean>();
+        const items: CompletionItem[] = [];
 
         symbol.eachUri(uri => {
-            let index = uri.indexOf(path);
+            const index = uri.indexOf(path);
             if (index < 0) {
                 return;
             }
@@ -216,14 +200,14 @@ export class AutoCompletion {
 
     // 搜索局部变量
     private getlocalCompletion(query: SymbolQuery) {
-        let symList: SymInfoEx[] = [];
+        const symList: SymInfoEx[] = [];
 
-        let duplicateSym = new Map<string, boolean>();
+        const duplicateSym = new Map<string, boolean>();
 
         const baseName = query.base;
         const symName = query.name;
         const emptyName = 0 === symName.length;
-        let symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
         Search.instance().rawSearchLocal(query.uri, query.position,
             (node, local, name, base, init) => {
                 // 搜索局部变量时，如果存在模块名则模块名必须准确匹配
@@ -241,8 +225,8 @@ export class AutoCompletion {
                 if (!local && duplicateSym.get(name)) {
                     return;
                 }
-                if (emptyName || Symbol.checkMatch(symName, name) > -100) {
-                    let sym = symbol.toSym(
+                if (emptyName || SymbolEx.checkMatch(symName, name) > -100) {
+                    const sym = symbol.toSym(
                         { name: name, base: base }, node, init, local);
                     if (sym) {
                         duplicateSym.set(name, true);
@@ -267,15 +251,15 @@ export class AutoCompletion {
             return items;
         }
 
-        let newItems = items || [];
-        Symbol.instance().eachModuleName(mdName => {
-            if (Symbol.checkMatch(name, mdName) < AutoCompletion.accurate) {
+        const newItems = items || [];
+        SymbolEx.instance().eachModuleName(mdName => {
+            if (SymbolEx.checkMatch(name, mdName) < AutoCompletion.accurate) {
                 return;
             }
 
             // 目前无法知道某个模块的声明在不在lua中，只能循环排除
             if (items) {
-                for (let item of items) {
+                for (const item of items) {
                     if (mdName === item.label) {
                         return;
                     }
@@ -292,11 +276,11 @@ export class AutoCompletion {
     }
 
     private doSearch(srv: Server, query: SymbolQuery) {
-        let search = Search.instance();
+        const search = Search.instance();
 
         let found = false;
-        let symName = query.name;
-        let filter: Filter = symList => {
+        const symName = query.name;
+        const filter: Filter = symList => {
             if (!symList) {
                 return null;
             }
@@ -306,12 +290,12 @@ export class AutoCompletion {
                     return true;
                 }
                 return 0 === symName.length
-                    || Symbol.checkMatch(symName, sym.name)
+                    || SymbolEx.checkMatch(symName, sym.name)
                     > AutoCompletion.accurate;
             });
         };
 
-        let items: SymInfoEx[] = [];
+        const items: SymInfoEx[] = [];
 
         // 优先根据模块名匹配全局符号
         let tmps = search.searchGlobalModule(query, filter);
@@ -347,11 +331,11 @@ export class AutoCompletion {
             return null;
         }
 
-        let symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
         // 忽略模块名，直接查找当前文档符号
         tmps = filter(symbol.getDocumentSymbol(uri));
         if (tmps) {
-            let symList = search.filterLocalSym(tmps, query);
+            const symList = search.filterLocalSym(tmps, query);
             if (symList.length > 0) {
                 return symList;
             }
@@ -361,7 +345,7 @@ export class AutoCompletion {
         tmps = filter(symbol.getAnySymbol(
             false, sym => sym.location.uri !== uri));
         if (tmps) {
-            let symList = search.filterLocalSym(tmps, query);
+            const symList = search.filterLocalSym(tmps, query);
             if (symList.length > 0) {
                 return symList;
             }
@@ -372,7 +356,7 @@ export class AutoCompletion {
     }
 
     public doCompletion(srv: Server, uri: string, pos: Position) {
-        let line = srv.getQueryText(uri, pos);
+        const line = srv.getQueryText(uri, pos);
         if (!line) { return []; }
 
         // require("a.b.c") 跳转到对应的文件
@@ -380,16 +364,16 @@ export class AutoCompletion {
             this.getRequireCompletion(line, pos.character);
         if (items) { return items; }
 
-        let query = srv.getQuerySymbol(uri, line, pos);
+        const query = srv.getQuerySymbol(uri, line, pos);
         if (!query) { return []; }
 
-        let list = this.doSearch(srv, query);
+        const list = this.doSearch(srv, query);
         if (!list) {
             return [];
         }
 
         items = [];
-        for (let sym of list) {
+        for (const sym of list) {
             items.push(this.toCompletion(sym, uri));
         }
 

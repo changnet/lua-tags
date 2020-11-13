@@ -27,7 +27,7 @@ import {
 } from 'vscode-languageserver-textdocument';
 
 import {
-    Symbol,
+    SymbolEx,
     SymbolQuery
 } from "./symbol";
 
@@ -148,7 +148,7 @@ export class Server {
         });
         conn.onNotification("__export", () => {
             try {
-                const symList = Symbol.instance().getGlobalSymbolList();
+                const symList = SymbolEx.instance().getGlobalSymbolList();
                 Utils.instance().writeGlobalSymbols(symList);
             } catch (e) {
                 Utils.instance().anyError(e);
@@ -289,7 +289,7 @@ export class Server {
 
         const uri = URI.parse(this.rootUri);
 
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
         const diagnostic = DiagnosticProvider.instance();
 
         const beg = Date.now();
@@ -320,7 +320,7 @@ export class Server {
 
     // 定时导出全局符号
     private exportGlobalTimeout() {
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
 
         // no change
         if (this.exportVer === symbol.getUpdateVersion()) {
@@ -371,7 +371,7 @@ export class Server {
         // 刚启动的时候，还没来得及解析文件
         // 如果就已经打开文件了，优先解析这一个，多次解析同一个文件不影响
         // 或者这个文件不是工程目录里的文件，不做缓存
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
         let symList = symbol.getDocumentSymbol(uri);
 
         if (!symList) {
@@ -395,8 +395,8 @@ export class Server {
             return null;
         }
 
-        return Symbol.instance().getAnySymbol(true, sym => {
-            return Symbol.checkMatch(query, sym.name) > -500;
+        return SymbolEx.instance().getAnySymbol(true, sym => {
+            return SymbolEx.checkMatch(query, sym.name) > -500;
         }, 128);
     }
 
@@ -491,7 +491,7 @@ export class Server {
 
     // 确定有当前符号的缓存，没有则解析
     public ensureSymbolCache(uri: string) {
-        if (Symbol.instance().getCache(uri)) {
+        if (SymbolEx.instance().getCache(uri)) {
             return;
         }
         const document = this.documents.get(uri);
@@ -499,7 +499,7 @@ export class Server {
             return;
         }
 
-        Symbol.instance().rawParse(uri, document.getText());
+        SymbolEx.instance().rawParse(uri, document.getText());
     }
 
     // go to definetion
@@ -522,7 +522,7 @@ export class Server {
     private onDocumentChange(handler: TextDocumentChangeEvent<TextDocument>) {
         const uri = handler.document.uri;
         const text = handler.document.getText();
-        Symbol.instance().parse(uri, text);
+        SymbolEx.instance().parse(uri, text);
 
         if (Setting.instance().isCheckOnTyping()) {
             DiagnosticProvider.instance().check(uri, text);
@@ -534,7 +534,7 @@ export class Server {
         const path = URI.parse(uri);
         DirWalker.instance().walkFile(path.fsPath, (fileUri, ctx) => {
             if (doSym) {
-                Symbol.instance().parse(fileUri, ctx);
+                SymbolEx.instance().parse(fileUri, ctx);
             }
             if (Setting.instance().isLuaCheckOpen()) {
                 DiagnosticProvider.instance().check(fileUri, ctx);
@@ -567,7 +567,7 @@ export class Server {
                     break;
                 }
                 case FileChangeType.Deleted: {
-                    Symbol.instance().delDocumentSymbol(uri);
+                    SymbolEx.instance().delDocumentSymbol(uri);
                     DiagnosticProvider.instance().deleteChecking(uri);
                     break;
                 }

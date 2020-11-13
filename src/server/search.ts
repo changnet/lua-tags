@@ -15,7 +15,7 @@ import {
 } from 'luaparse';
 
 import {
-    Symbol,
+    SymbolEx,
     QueryPos,
     SymbolQuery,
     SymInfoEx,
@@ -334,7 +334,7 @@ export class Search {
     // 搜索局部符号
     // @callBack: 过滤函数，主要用于回调
     public rawSearchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
 
         const cache = symbol.getCache(uri);
         if (!cache) {
@@ -384,7 +384,7 @@ export class Search {
         // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
         // https://github.com/Microsoft/TypeScript/issues/15631
 
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
         let found: SymInfoEx | null = null;
         const re = foundLocal || foundGlobal;
         if (re) {
@@ -417,7 +417,7 @@ export class Search {
             return null;
         }
 
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
 
         const rawBases = symbol.getRawModule(query.uri, base);
         let symList = symbol.getGlobalModuleSubList(rawBases);
@@ -436,7 +436,7 @@ export class Search {
             return null;
         }
 
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
 
         // 先查找当前文档的local模块
         let symList = symbol.getDocumentModuleSubList(query.uri, [base]);
@@ -567,7 +567,7 @@ export class Search {
 
     // 搜索符号
     public search(srv: Server, query: SymbolQuery) {
-        const symbol = Symbol.instance();
+        const symbol = SymbolEx.instance();
 
         const filter: Filter = symList => {
             return this.filterPosition(query,

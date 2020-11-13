@@ -27,7 +27,7 @@ import {
 } from 'vscode-languageserver';
 
 import {
-    Symbol,
+    SymbolEx,
     SymInfoEx,
     CommentType
 } from "./symbol";
@@ -59,7 +59,7 @@ export class HoverProvider {
     }
 
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
-        let path = Symbol.getPathPrefix(sym, uri);
+        let path = SymbolEx.getPathPrefix(sym, uri);
         let above = "";
         let lineEnd = "";
         let prefix = "";
@@ -71,20 +71,20 @@ export class HoverProvider {
             }
         }
 
-        let ref = Symbol.instance().getRefValue(sym);
+        let ref = SymbolEx.instance().getRefValue(sym);
         return `${path}${prefix}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
         if (sym.value) {
-            let prefix = Symbol.getLocalTypePrefix(sym.local);
+            let prefix = SymbolEx.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(sym,
                 `${prefix}${sym.name} = ${sym.value}`, uri);
         }
 
         if (sym.local || sym.refType) {
-            let local = Symbol.getLocalTypePrefix(sym.local);
-            let base = Symbol.getBasePrefix(sym);
+            let local = SymbolEx.getLocalTypePrefix(sym.local);
+            let base = SymbolEx.getBasePrefix(sym);
             return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri);
         }
 
@@ -104,7 +104,7 @@ export class HoverProvider {
                 if (sym.parameters) {
                     parameters = sym.parameters.join(", ");
                 }
-                let base = Symbol.getBasePrefix(sym);
+                let base = SymbolEx.getBasePrefix(sym);
 
                 tips = this.toLuaMarkdown(sym,
                     `${local}function ${base}${sym.name}(${parameters})`, uri);
@@ -146,7 +146,7 @@ export class HoverProvider {
      * 所以这里特殊处理
      */
     private searchModuleName(name: string) {
-        if (!Symbol.instance().getGlobalModuleSubList([name])) {
+        if (!SymbolEx.instance().getGlobalModuleSubList([name])) {
             return null;
         }
 

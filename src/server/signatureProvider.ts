@@ -11,7 +11,7 @@ import {
     MarkupKind
 } from 'vscode-languageserver';
 import { Server } from './server';
-import { Symbol, SymInfoEx, CommentType } from './symbol';
+import { SymbolEx, SymInfoEx, CommentType } from './symbol';
 import { Search } from './search';
 
 /**
@@ -37,7 +37,7 @@ export class SignatureProvider {
          * local comp = string_comp
          * 当string_comp是函数时，需要显示string_comp的参数
          */
-        const refSym = Symbol.instance().getRefSym(sym, sym.location.uri);
+        const refSym = SymbolEx.instance().getRefSym(sym, sym.location.uri);
         if (sym.kind !== SymbolKind.Function
             && (!refSym || refSym.kind !== SymbolKind.Function)) {
             return null;
@@ -80,7 +80,7 @@ export class SignatureProvider {
             comment = refSym.comment;
         }
 
-        const file = Symbol.getPathPrefix(sym, uri);
+        const file = SymbolEx.getPathPrefix(sym, uri);
 
         let doc;
         if (comment || file) {

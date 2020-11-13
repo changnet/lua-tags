@@ -139,8 +139,8 @@ interface NodeCache {
     comments: Comment[];
 }
 
-export class Symbol {
-    private static ins: Symbol;
+export class SymbolEx {
+    private static ins: SymbolEx;
     private static invalidLoc: Location = {
         uri: "", range: {
             start: { line: 0, character: 0 },
@@ -210,11 +210,11 @@ export class Symbol {
     }
 
     public static instance() {
-        if (!Symbol.ins) {
-            Symbol.ins = new Symbol();
+        if (!SymbolEx.ins) {
+            SymbolEx.ins = new SymbolEx();
         }
 
-        return Symbol.ins;
+        return SymbolEx.ins;
     }
 
     // 作用域，和lua中的作用域一致，注意一开始会有一个global作用域
@@ -232,7 +232,7 @@ export class Symbol {
         const loc = node.loc;
         if (loc && node.type !== "Comment") {
             const line = loc.end.line;
-            let codeLine = this.parseCodeLine;
+            const codeLine = this.parseCodeLine;
             if (codeLine.length < line + 1) {
                 codeLine.length = line + 1;
             }
@@ -319,7 +319,7 @@ export class Symbol {
     private parseBaseName(
         ider: Identifier | MemberExpression
             | IndexExpression | null): NameInfo {
-        let nameInfo: NameInfo = { name: "" };
+        const nameInfo: NameInfo = { name: "" };
         if (!ider) {
             return nameInfo;
         }
@@ -447,11 +447,11 @@ export class Symbol {
         this.parseModuleName = name;
 
         // 给模块名生成一个符号
-        let sym: SymInfoEx = {
+        const sym: SymInfoEx = {
             name: name,
             scope: this.parseScopeDeepth,
             kind: SymbolKind.Module,
-            location: Symbol.toLocation(this.parseUri, stat.loc),
+            location: SymbolEx.toLocation(this.parseUri, stat.loc),
         };
 
         return [sym];
@@ -460,7 +460,7 @@ export class Symbol {
     // 解析函数声明
     private parseFunctionExpr(expr: FunctionDeclaration): SymInfoEx[] {
         // return function() ... end 这种匿名函数没有identifier
-        let nameInfo = this.parseBaseName(expr.identifier);
+        const nameInfo = this.parseBaseName(expr.identifier);
         if ("" === nameInfo.name) {
             return [];
         }
@@ -469,7 +469,7 @@ export class Symbol {
         if (expr.isLocal) {
             local = LocalType.LT_LOCAL;
         }
-        let sym = this.toSym(nameInfo, expr, undefined, local);
+        const sym = this.toSym(nameInfo, expr, undefined, local);
         if (!sym) {
             return [];
         }
@@ -481,10 +481,10 @@ export class Symbol {
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
     public parseTableConstructorExpr(
         expr: TableConstructorExpression, base?: string) {
-        let symList: SymInfoEx[] = [];
+        const symList: SymInfoEx[] = [];
 
         this.parseScopeDeepth++;
-        for (let field of expr.fields) {
+        for (const field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
             // local M = { a = 1, [2] = 2}这种就只能处理有Key的那部分了
             if (("TableKey" !== field.type && "TableKeyString" !== field.type)
@@ -492,7 +492,7 @@ export class Symbol {
                 continue;
             }
 
-            let sym = this.toSym({
+            const sym = this.toSym({
                 name: field.key.name, base: base
             }, field.key, field.value);
 
@@ -514,7 +514,7 @@ export class Symbol {
 
     // 解析 return 仅特殊处理 return { a = 1, b = c } 这种返回
     private parseReturnStatement(node: ReturnStatement) {
-        for (let argument of node.arguments) {
+        for (const argument of node.arguments) {
             // 如果是用来显示文档符号的，只处理 return {}
             if ("TableConstructorExpression" === argument.type) {
                 return this.parseTableConstructorExpr(argument);
@@ -527,20 +527,20 @@ export class Symbol {
     // 解析变量声明
     private parseVariableStatement(
         stat: LocalStatement | AssignmentStatement, local?: LocalType) {
-        let symList: SymInfoEx[] = [];
+        const symList: SymInfoEx[] = [];
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
-            let varNode = stat.variables[index];
-            let nameInfo = this.parseBaseName(varNode);
+            const varNode = stat.variables[index];
+            const nameInfo = this.parseBaseName(varNode);
 
-            let name = nameInfo.name;
+            const name = nameInfo.name;
             if ("" === name) {
                 continue;
             }
 
             const init = stat.init[index];
 
-            let sym = this.toSym(nameInfo, varNode, init, local);
+            const sym = this.toSym(nameInfo, varNode, init, local);
             if (!sym) {
                 continue;
             }
@@ -557,7 +557,7 @@ export class Symbol {
                 // 这时候如果想让a、b成为x的子符号，那么x的范围就必须包含y，这显然无法
                 // 接受，那么这里特殊处理local x = {a = 1, b = 2}这种情况即可
                 if (init.loc && 1 === stat.variables.length) {
-                    let endLoc = sym.location.range.end;
+                    const endLoc = sym.location.range.end;
                     endLoc.line = init.loc.end.line - 1;
                     endLoc.character = init.loc.end.column;
                 }
@@ -581,7 +581,7 @@ export class Symbol {
 
     // 记录local MAX = M.X.Y 这种引用
     private toRefVallue(node: MemberExpression) {
-        let refVal: string[] = [];
+        const refVal: string[] = [];
 
         let init = node;
         for (let deepth = 0; deepth < 8; deepth++) {
@@ -621,7 +621,7 @@ export class Symbol {
         }
 
         // lua的字符串可能包含在 ''、""、[[]]中
-        let raw = val.raw;
+        const raw = val.raw;
         if (raw.startsWith("'") || raw.startsWith("\"")) {
             return raw.substring(1, raw.length - 1);
         }
@@ -658,8 +658,8 @@ export class Symbol {
     private toConstBinaryVal(expr: BinaryExpression) {
         // TODO: 这里的字符串格式化可能有问题，AST后，括号去掉了，简单地按左右拼接可能
         // 导致优先级错误
-        let left = this.toConst(expr.left);
-        let right = this.toConst(expr.right);
+        const left = this.toConst(expr.left);
+        const right = this.toConst(expr.right);
 
         if (left && right) {
             return `${left} ${expr.operator} ${right}`;
@@ -684,16 +684,16 @@ export class Symbol {
         if (0 === scope && nameInfo.base) {
             scope = 1;
         }
-        let sym: SymInfoEx = {
+        const sym: SymInfoEx = {
             name: nameInfo.name,
             base: nameInfo.base,
             indexer: nameInfo.indexer,
             scope: scope,
             kind: SymbolKind.Variable,
-            location: Symbol.toLocation(this.parseUri, loc),
+            location: SymbolEx.toLocation(this.parseUri, loc),
         };
 
-        let initNode = init || node;
+        const initNode = init || node;
         switch (initNode.type) {
             case "Identifier": {
                 // local N = M 会被视为把模块M本地化为N
@@ -727,7 +727,7 @@ export class Symbol {
             }
             case "UnaryExpression": {
                 // local a = -1
-                let val = this.toConstUnaryVal(initNode);
+                const val = this.toConstUnaryVal(initNode);
                 if (val) {
                     sym.value = val;
                     sym.kind = SymbolKind.Number;
@@ -736,7 +736,7 @@ export class Symbol {
             }
             case "BinaryExpression": {
                 // local a = 1 << 2
-                let val = this.toConstBinaryVal(initNode);
+                const val = this.toConstBinaryVal(initNode);
                 if (val) {
                     sym.value = val;
                     sym.kind = SymbolKind.Number;
@@ -751,8 +751,8 @@ export class Symbol {
                 sym.kind = SymbolKind.Function;
 
                 sym.parameters = [];
-                for (let para of initNode.parameters) {
-                    let paramName =
+                for (const para of initNode.parameters) {
+                    const paramName =
                         "Identifier" === para.type ? para.name : para.value;
 
                     sym.parameters.push(paramName);
@@ -760,9 +760,9 @@ export class Symbol {
                 break;
             }
             case "CallExpression": {// local M = require("x")
-                let base = initNode.base;
+                const base = initNode.base;
                 if ("Identifier" === base.type && "require" === base.name) {
-                    let arg = initNode.arguments[0];
+                    const arg = initNode.arguments[0];
                     if (arg.type === "StringLiteral") {
                         sym.refUri = this.stringLiteralValue(arg);
                     }
@@ -770,9 +770,9 @@ export class Symbol {
                 break;
             }
             case "StringCallExpression": {// local M = require "x"
-                let base = initNode.base;
+                const base = initNode.base;
                 if ("Identifier" === base.type && "require" === base.name) {
-                    let arg = initNode.argument;
+                    const arg = initNode.argument;
                     if (arg.type === "StringLiteral") {
                         sym.refUri = this.stringLiteralValue(arg);
                     }
@@ -819,7 +819,7 @@ export class Symbol {
         this.globalSymbol.clear();
         this.globalModule.clear();
 
-        for (let v of this.stlSymbol) {
+        for (const v of this.stlSymbol) {
             this.setGlobalSym(v);
             if (v.kind === SymbolKind.Namespace && v.scope === 0) {
                 if (this.globalModule.get(v.name)) {
@@ -852,7 +852,7 @@ export class Symbol {
                 // 合并时不能修改原符号，只能重新创建一个
                 if (-1 !== moduleSym.scope) {
                     // let newSym: SymInfoEx = Object.assign(moduleSym);
-                    let newSym = this.createModuleSym(name, -1);
+                    const newSym = this.createModuleSym(name, -1);
 
                     newSym.location = moduleSym.location;
                     if (!newSym.subSymList) {
@@ -894,14 +894,14 @@ export class Symbol {
             return null;
         }
 
-        let globalSym = this.getGlobalModule(refType);
+        const globalSym = this.getGlobalModule(refType);
         if (globalSym) {
             return globalSym;
         }
 
         // 本次查找不再递归查找引用的符号
         // 防止 local ipairs = ipairs这种同名引用死循环
-        let docSym = this.getDocumentModule(uri, refType, false);
+        const docSym = this.getDocumentModule(uri, refType, false);
         if (docSym instanceof Array) {
             return null;
         }
@@ -918,8 +918,8 @@ export class Symbol {
             }
 
             let found;
-            let name = base[idx];
-            for (let subSym of symList) {
+            const name = base[idx];
+            for (const subSym of symList) {
                 if (name === subSym.name) {
                     found = subSym;
                     break;
@@ -970,7 +970,7 @@ export class Symbol {
             this.updateGlobal();
         }
 
-        let sym = this.globalModule.get(bases[0]);
+        const sym = this.globalModule.get(bases[0]);
         if (!sym || 1 === bases.length) {
             return sym || null;
         }
@@ -1020,7 +1020,7 @@ export class Symbol {
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
     public parse(uri: string, text: string): SymInfoEx[] {
-        let ft = Setting.instance().getFileType(uri, text.length);
+        const ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return [];
         }
@@ -1035,7 +1035,7 @@ export class Symbol {
         }
 
         this.parseScopeDeepth = 0;
-        for (let node of nodeList) {
+        for (const node of nodeList) {
             this.parseNode(node);
         }
         this.appendComment(this.parseComments,
@@ -1088,7 +1088,7 @@ export class Symbol {
         }
 
         let index = -1;
-        for (let e of this.docNodeCache) {
+        for (const e of this.docNodeCache) {
             index++;
             if (e.uri === uri) {
                 break;
@@ -1107,7 +1107,7 @@ export class Symbol {
 
     // 解析一段代码并查找局部变量
     public rawParse(uri: string, text: string): Node[] | null {
-        let ft = Setting.instance().getFileType(uri, text.length);
+        const ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             return null;
         }
@@ -1121,7 +1121,7 @@ export class Symbol {
         this.parseModuleName = null;
 
         try {
-            let ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
+            const ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
                 this.parseText(uri, text) : this.parseLarge(text);
 
             if (!ok) {
@@ -1140,7 +1140,7 @@ export class Symbol {
 
     // 遍历所有文档的uri
     public eachUri(callBack: (uri: string) => void) {
-        for (let [uri] of this.documentSymbol) {
+        for (const [uri] of this.documentSymbol) {
             callBack(uri);
         }
     }
@@ -1151,7 +1151,7 @@ export class Symbol {
             this.updateGlobal();
         }
 
-        for (let [name] of this.globalModule) {
+        for (const [name] of this.globalModule) {
             callBack(name);
         }
     }
@@ -1176,7 +1176,7 @@ export class Symbol {
     public getDocumentModule(uri: string, bases: string[], ref = true) {
         // 先在当前文档的模块中查找
         const base = bases[0];
-        let moduleHash = this.documentModule.get(uri);
+        const moduleHash = this.documentModule.get(uri);
         if (moduleHash) {
             const sym = moduleHash.get(base);
             if (sym) {
@@ -1200,7 +1200,7 @@ export class Symbol {
             }
 
             if (ref && sym.refType) {
-                let rawSym = this.getRefSym(sym, uri);
+                const rawSym = this.getRefSym(sym, uri);
                 if (1 === bases.length) {
                     return rawSym;
                 }
@@ -1248,7 +1248,7 @@ export class Symbol {
      */
     private appendSymList(isSub: boolean, symList: SymInfoEx[],
         newSymList: SymInfoEx[], filter?: (sym: SymInfoEx) => boolean) {
-        for (let sym of newSymList) {
+        for (const sym of newSymList) {
             if (!filter || filter(sym)) {
                 symList.push(sym);
             }
@@ -1270,8 +1270,8 @@ export class Symbol {
             this.updateGlobal();
         }
 
-        let symList: SymInfoEx[] = [];
-        for (let [name, newSymList] of this.globalSymbol) {
+        const symList: SymInfoEx[] = [];
+        for (const [name, newSymList] of this.globalSymbol) {
             this.appendSymList(isSub, symList, newSymList, filter);
             if (maxSize && symList.length >= maxSize) {
                 break;
@@ -1288,12 +1288,12 @@ export class Symbol {
         filter?: (sym: SymInfoEx) => boolean, maxSize?: number): SymInfoEx[] {
 
         // 先搜索全局的
-        let symList = this.getGlobalSymbol(isSub, filter, maxSize);
+        const symList = this.getGlobalSymbol(isSub, filter, maxSize);
 
         // 再搜索非全局的
         // documentSymbol中不是以树形结构存符号，子符号也是在同一个数组里的
         for (const [name, newSymList] of this.documentSymbol) {
-            for (let sym of newSymList) {
+            for (const sym of newSymList) {
                 // return { a = 2 } 这种匿名table里的符号scope > 0，但无base
                 if (this.isGlobalSym(sym) || (sym.scope > 0 && sym.base)) {
                     continue;
@@ -1328,7 +1328,7 @@ export class Symbol {
         }
 
         let sym;
-        for (let one of symList) {
+        for (const one of symList) {
             if (one.name === base) {
                 sym = one;
                 break;
@@ -1360,7 +1360,7 @@ export class Symbol {
         }
 
         let sym;
-        for (let one of symList) {
+        for (const one of symList) {
             if (one.name === base) {
                 sym = one;
                 break;
@@ -1390,10 +1390,10 @@ export class Symbol {
         // 在所有uri里查询匹配的uri
         // 由于不知道项目中的path设置，因此这个路径其实可长可短
         // 如果项目中刚好有同名文件，而且刚好require的路径无法区分，那也没办法了
-        for (let [uri, val] of this.documentModule) {
+        for (const [uri, val] of this.documentModule) {
             if (uri.endsWith(endUri)) {
                 // make sure bbb do not match conf/aaabbb
-                let offset = uri.length - endUri.length;
+                const offset = uri.length - endUri.length;
                 if (0 === offset || "/" === uri[offset - 1]) {
                     return uri;
                 }
@@ -1408,8 +1408,8 @@ export class Symbol {
     // 只要尝试把这个table名解析出来就好
     private parseLarge(text: string) {
         // 只解析前512个字符，还找不到table名，就放弃
-        let head = text.substring(0, 512);
-        let parser: luaParser = luaParse(head, {
+        const head = text.substring(0, 512);
+        const parser: luaParser = luaParse(head, {
             locations: true, // 是否记录语法节点的位置(node)
             scope: false, // 是否记录作用域
             wait: true, // 是否等待显示调用end函数
@@ -1436,7 +1436,7 @@ export class Symbol {
             }
         } while (token.type !== LTT.EOF);
 
-        let node: AssignmentStatement = {
+        const node: AssignmentStatement = {
             "type": "AssignmentStatement",
             "variables": [
                 {
@@ -1486,7 +1486,7 @@ export class Symbol {
             return "";
         }
 
-        let file = Symbol.getSymbolPath(sym);
+        const file = SymbolEx.getSymbolPath(sym);
 
         // 加上markdown的换行，两个空格加\n
         return file ? `${file}  \n` : "";
@@ -1512,7 +1512,7 @@ export class Symbol {
         }
 
         // table field like: local tbl = { a = false } have no index
-        let indexer = sym.indexer ? sym.indexer : ".";
+        const indexer = sym.indexer ? sym.indexer : ".";
         return `${sym.base}${indexer}`;
     }
 
@@ -1581,7 +1581,7 @@ export class Symbol {
         let reset = false;
         for (let symIndex = begIndex;
             symIndex < symList.length; symIndex++) {
-            let sym = symList[symIndex];
+            const sym = symList[symIndex];
             const comp = this.compPos(sym.location, comment.loc);
             // 注释在当前符号之后了，当前符号之前的都不需要再查找
             if (-1 === comp) {
@@ -1614,7 +1614,7 @@ export class Symbol {
                  *
                  * 注释是test()的，而不是X的
                  */
-                let line = sym.location.range.start.line;
+                const line = sym.location.range.start.line;
                 if (line < codeLine.length && 1 === codeLine[line]) {
                     continue;
                 }
@@ -1622,7 +1622,7 @@ export class Symbol {
                 if (-1 === continueIndex) {
                     sym.comment = this.getCommentValue(comment);
                 } else {
-                    let symComment: string[] = [];
+                    const symComment: string[] = [];
                     for (let idx = continueIndex; idx <= index; idx++) {
                         // 多行注释有对齐，不要去掉空格
                         symComment.push(this.getCommentValue(comments[idx]));
@@ -1670,7 +1670,7 @@ export class Symbol {
             }
 
             // 记录连续多行的注释
-            let nextLine = continueLine + 1;
+            const nextLine = continueLine + 1;
             if (-1 !== continueIndex
                 && continueLine + 1 === comment.loc.start.line) {
                 continueLine = comment.loc.end.line;
@@ -1678,7 +1678,7 @@ export class Symbol {
                 continueIndex = -1;
             }
 
-            let ok = this.AppendOneComment(symList,
+            const ok = this.AppendOneComment(symList,
                 comments, lastSymIndex, index, continueIndex, codeLine);
 
             lastSymIndex = ok.index;
@@ -1734,7 +1734,7 @@ export class Symbol {
      * 获取全局符号(不包含STL中的符号)
      */
     public getGlobalSymbolList() {
-        let symList: SymInfoEx[] = [];
+        const symList: SymInfoEx[] = [];
         for (const [uri, docSymList] of this.documentSymbol) {
             for (const sym of docSymList) {
                 if (this.isGlobalSym(sym)) {
@@ -1756,17 +1756,17 @@ export class Symbol {
 
     private parseSTLSym(symbols: any) {
         // 先把模块都找出来缓存
-        let stlModule = new Map<string, SymInfoEx>();
-        for (let v of symbols) {
+        const stlModule = new Map<string, SymInfoEx>();
+        for (const v of symbols) {
             if (v.kind !== SymbolKind.Namespace) {
                 continue;
             }
 
             //Utils.instance().log(`json parse stl ${JSON.stringify(v)}`);
-            let sym: SymInfoEx = {
+            const sym: SymInfoEx = {
                 name: v.name,
                 kind: v.kind,
-                location: Symbol.invalidLoc,
+                location: SymbolEx.invalidLoc,
                 scope: 0,
                 comment: v.comment,
                 ctType: CommentType.CT_HTML
@@ -1776,17 +1776,17 @@ export class Symbol {
             this.stlSymbol.push(sym);
         }
 
-        for (let v of symbols) {
+        for (const v of symbols) {
             if (v.kind === SymbolKind.Namespace) {
                 continue;
             }
 
-            let sym: SymInfoEx = {
+            const sym: SymInfoEx = {
                 name: v.name,
                 kind: v.kind,
                 base: v.base,
                 parameters: v.parameters,
-                location: Symbol.invalidLoc,
+                location: SymbolEx.invalidLoc,
                 scope: v.base ? 1 : 0,
                 comment: v.comment,
                 ctType: CommentType.CT_HTML
@@ -1795,7 +1795,7 @@ export class Symbol {
             this.stlSymbol.push(sym);
 
             if (v.base) {
-                let baseSym = stlModule.get(v.base);
+                const baseSym = stlModule.get(v.base);
                 if (!baseSym) {
                     Utils.instance().error(
                         `load stl no module found: ${v.base}`);
@@ -1814,8 +1814,8 @@ export class Symbol {
      * 加载lua stand library
      */
     public loadStl() {
-        let ver = Setting.instance().getLuaVersion();
-        let uri = path.resolve(
+        const ver = Setting.instance().getLuaVersion();
+        const uri = path.resolve(
             __dirname, `../../stl/stl_${ver}.json`);
 
         fs.readFile(uri, 'utf8', (err, data) => {
@@ -1823,7 +1823,7 @@ export class Symbol {
                 Utils.instance().log(`${JSON.stringify(err)}`);
                 return;
             }
-            let symbols = JSON.parse(data.toString());
+            const symbols = JSON.parse(data.toString());
             if (!symbols) {
                 Utils.instance().log(`json parse stl for lua ${ver} error`);
                 return;
