@@ -3,8 +3,8 @@
 import * as fs from "fs";
 import { assert } from "console";
 
-// chrome 打开 lua-5.3.5/doc/contents.html
-// 选择所有 Lua functions
+// lua5.1.5的源码包中的contents.html不包含coroutine等模块的模块声明
+// 但是 http://www.lua.org/manual/5.1/ 中的是包含的，目前解析的是从浏览器下载而来的
 const stl = [
     {
         // jit using 5.1 manual now
@@ -34,14 +34,12 @@ const stl = [
 ];
 
 import {
-    Location,
     SymbolKind,
-    SymbolInformation
 } from 'vscode-languageserver';
 
 // 记录单个符号的信息
 // TODO: 直接import symbol.ts中的SymInfoEx来处理？可能会有加载失败风险，比如版本不一致
-interface Symbol {
+interface SymbolEx {
     url: string;
     kind: SymbolKind;
     name: string;
@@ -50,12 +48,16 @@ interface Symbol {
     comment?: string;
 }
 
+/**
+ * 先从菜单里搜索出所有需要导出的模块名和函数名
+ * @param ctx 需要搜索的文件内容
+ */
 function searchSymbol(ctx: string) {
     const begStr = '<H3><A NAME="functions">Lua functions</A></H3>';
     const endStr = '<H3><A NAME="env">environment<BR>variables</A></H3>';
     const endStr51 = '<H3>C API</H3>';
 
-    let begPos = ctx.indexOf(begStr);
+    const begPos = ctx.indexOf(begStr);
     let endPos = ctx.indexOf(endStr);
     if (endPos < 0) {
         endPos = ctx.indexOf(endStr51);
@@ -63,8 +65,8 @@ function searchSymbol(ctx: string) {
 
     ctx = ctx.substring(begPos, endPos);
 
-    let symbols: Symbol[] = [];
-    let lines = ctx.split(/\r?\n/g);
+    const symbols: SymbolEx[] = [];
+    const lines = ctx.split(/\r?\n/g);
     lines.forEach(line => {
         if (!line.startsWith('<A HREF="manual.html#')) {
             return;
@@ -72,7 +74,7 @@ function searchSymbol(ctx: string) {
 
         // 模块 <A HREF="manual.html#6.6">table</A><BR>
         let matchs = line.match(
-            /^\<A HREF=\"manual.html\#([.0-9]+)\"\>(.+?)\<\/A\>\<BR\>$/);
+            /^<A HREF="manual.html#([.0-9]+)">(.+?)<\/A><BR>$/);
         if (matchs && "basic" !== matchs[2]) {
             symbols.push({
                 name: matchs[2],
@@ -84,7 +86,7 @@ function searchSymbol(ctx: string) {
 
         // 函数 <A HREF="manual.html#pdf-table.concat">table.concat</A><BR>
         matchs = line.match(
-            /^\<A HREF=\"manual.html\#pdf-(.+?)\"\>(.+?)\<\/A\>\<BR\>$/);
+            /^<A HREF="manual.html#pdf-(.+?)">(.+?)<\/A><BR>$/);
         if (matchs && "basic" !== matchs[2]) {
             symbols.push({
                 name: matchs[2],
@@ -124,7 +126,7 @@ function searchDesc(ctx: string, from: number) {
     let emptyLine = 0;
     let endPos = begPos;
     while (--maxLoop > 0) {
-        let linePos = ctx.indexOf("\n", endPos);
+        const linePos = ctx.indexOf("\n", endPos);
         if (endPos === linePos) {
             emptyLine++;
             if (emptyLine >= 2) {
@@ -135,7 +137,7 @@ function searchDesc(ctx: string, from: number) {
             endPos += 1; // +1 mean "\n"
             continue;
         }
-        let lineCtx = ctx.substring(endPos, linePos);
+        const lineCtx = ctx.substring(endPos, linePos);
         if (lineCtx.startsWith("<hr>") || lineCtx.startsWith("<ul>")) {
             break;
         }
@@ -154,13 +156,13 @@ function searchDesc(ctx: string, from: number) {
     // g globa search，即搜索文中所有匹配的字符而不仅仅是第一次
     // m multi line，多行匹配
     // .+? 中的?表示非贪婪模式
-    desc = desc.replace(/\<code\>(.+?)\<\/code\>/gm, (match, p1) => {
+    desc = desc.replace(/<code>(.+?)<\/code>/gm, (match, p1) => {
         if (p1.startsWith("*")) {
             return `__${p1}__`;
         }
         return `**${p1}**`;
     });
-    desc = desc.replace(/\<b\>(.+?)\<\/b\>/gm, (match, p1) => {
+    desc = desc.replace(/<b>(.+?)<\/b>/gm, (match, p1) => {
         // 有些会同时被<a> <code>包括，已经替换的，不需要再替换
         if (p1.startsWith("**") || p1.startsWith("__")) {
             return p1;
@@ -170,16 +172,16 @@ function searchDesc(ctx: string, from: number) {
 
     // <em> ... </em>的内容都是在 <pre> ... </pre>中，并且以4个空格开头，表示这部分
     // 内容为代码，因此不需要加粗
-    desc = desc.replace(/\<em\>(.+?)\<\/em\>/gm, (match, p1) => {
+    desc = desc.replace(/<em>(.+?)<\/em>/gm, (match, p1) => {
         return p1;
     });
     // 次方符号，其实有些markdown是能解析的，比如markdown，但vscode不行
     // 
-    desc = desc.replace(/\<sup\>(.+?)\<\/sup\>/gm, (match, p1) => {
+    desc = desc.replace(/<sup>(.+?)<\/sup>/gm, (match, p1) => {
         return `^${p1}`;
     });
 
-    desc = desc.replace(/\<a .+\>(.+?)\<\/a\>/gm, (match, p1) => {
+    desc = desc.replace(/<a .+>(.+?)<\/a>/gm, (match, p1) => {
         // 有些会同时被<a> <code>包括，已经替换的，不需要再替换
         if (p1.startsWith("**") || p1.startsWith("__")) {
             return p1;
@@ -213,28 +215,28 @@ function searchDesc(ctx: string, from: number) {
  * @param ctx contents.html的文本内容
  * @param name 需要解析的函数名
  */
-function searchDecl(ctx: string, name: string): Symbol | null {
+function searchDecl(ctx: string, name: string): SymbolEx | null {
     const begStr = `<hr><h3><a name="pdf-${name}"><code>`;
     const endStr = "</code></a></h3>\n";
 
-    let basePos = ctx.indexOf(begStr);
+    const basePos = ctx.indexOf(begStr);
     if (basePos < 0) {
         return null;
     }
 
-    let begPos = basePos + begStr.length;
-    let endPos = ctx.indexOf(endStr, begPos);
+    const begPos = basePos + begStr.length;
+    const endPos = ctx.indexOf(endStr, begPos);
 
-    let decl = ctx.substring(begPos, endPos);
+    const decl = ctx.substring(begPos, endPos);
 
     let parameters;
     let kind: SymbolKind = SymbolKind.Function;
-    let matchs = decl.match(/^(.+?)\s*\((.*)\)$/);
+    const matchs = decl.match(/^(.+?)\s*\((.*)\)$/);
     if (matchs) {
         assert(name === matchs[1]);
 
         // 把html中的...替换成真正的...
-        let rawParam = matchs[2].replace(/&middot;&middot;&middot;/g, "...");
+        const rawParam = matchs[2].replace(/&middot;&middot;&middot;/g, "...");
 
         // 替换掉可选参数，不然singalhelp那里无法分解参数
         let paramStr = rawParam.replace(/ \[,/g, ",");
@@ -250,13 +252,13 @@ function searchDecl(ctx: string, name: string): Symbol | null {
     }
 
     let base;
-    let baseEndPos = name.indexOf(".");
+    const baseEndPos = name.indexOf(".");
     if (baseEndPos > 0) {
         base = name.substring(0, baseEndPos);
         name = name.substring(baseEndPos + 1);
     }
 
-    let desc = searchDesc(ctx, endPos + endStr.length);
+    const desc = searchDesc(ctx, endPos + endStr.length);
 
     return {
         url: "",
@@ -268,17 +270,24 @@ function searchDecl(ctx: string, name: string): Symbol | null {
     };
 }
 
-function searchNamespace(ctx: string, url: string, name: string): Symbol | null {
-    // <h2>6.8 &ndash; <a name="6.8">
-    const begStr = `<h2>${url} &ndash; <a name="${url}">`;
+function searchNamespace(
+    ctx: string, url: string, name: string): SymbolEx | null {
+    //lua5.3 <h2>6.8 &ndash; <a name="6.8">
+    let begStr = `<h2>${url} &ndash; <a name="${url}">`;
 
     let basePos = ctx.indexOf(begStr);
     if (basePos < 0) {
-        return null;
+        // lua5.1 <h2>5.2 - <a name="5.2">Coroutine Manipulation</a></h2>
+        begStr = `<h2>${url} - <a name="${url}">`;
+        basePos = ctx.indexOf(begStr);
+
+        if (basePos < 0) {
+            return null;
+        }
     }
 
-    let endPos = ctx.indexOf("\n", basePos) + 1;
-    let desc = searchDesc(ctx, endPos);
+    const endPos = ctx.indexOf("\n", basePos) + 1;
+    const desc = searchDesc(ctx, endPos);
 
     return {
         url: "",
@@ -293,7 +302,7 @@ function searchNamespace(ctx: string, url: string, name: string): Symbol | null 
  * @param ctx contents.html的文本内容
  * @param sym 需要解析的符号
  */
-function search(ctx: string, sym: Symbol): Symbol | null {
+function search(ctx: string, sym: SymbolEx): SymbolEx | null {
     if (SymbolKind.Function === sym.kind) {
         return searchDecl(ctx, sym.name);
     }
@@ -316,12 +325,17 @@ function main() {
 
         // let s = search(ctx, "debug.debug");
         // console.log(JSON.stringify(s));
-        let symbols: Symbol[] = searchSymbol(cctx);
+        const symbols: SymbolEx[] = searchSymbol(cctx);
+
+        // lua5.1的contents.html中不包含coroutine的模块声明，需要手动加上
 
         assert(symbols.length > 0, "no symbol found ...");
-        let finalSymbols: Symbol[] = [];
+        const finalSymbols: SymbolEx[] = [];
         symbols.forEach(s => {
-            let sym = search(mctx, s);
+            if (s.name === "coroutine") {
+                console.log(JSON.stringify(s));
+            }
+            const sym = search(mctx, s);
             if (!sym) {
                 console.log(` symbol not found: ${s.name}`);
             } else {
