@@ -4,7 +4,7 @@
 	"description": "Lua IntelliSense for Visual Studio Code",
 	"version": "1.0.15",
 	"engines": {
-		"vscode": ">=1.38.0"
+		"vscode": ">=1.51.0"
 	},
 	"categories": [
 		"Linters",

@@ -7,7 +7,7 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 * add lua、ngx_lua、love2d std library support
 
 ## [1.0.14] 2020-11-19
-1. update npm packages
+1. update npm packages(vscode engine version update to 1.51.0)
 2. load stl no module found: coroutine #5
 
 ## [1.0.14] 2020-11-11
