@@ -171,3 +171,8 @@ end
 
 -- test _G sub variable
 local gs = test_v
+
+-- test global reference
+function ref_func()
+end
+RefMob.ref_func = ref_func

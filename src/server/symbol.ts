@@ -327,8 +327,7 @@ export class SymbolEx {
         if (ider.type === "Identifier") {
             // function test() 这种直接声明函数的写法
             nameInfo.name = ider.name;
-        }
-        else if (ider.type === "MemberExpression") {
+        } else if (ider.type === "MemberExpression") {
             // function m:test()、M.val = xxx 或者 function m.test() 这种成员函数写法
             nameInfo.name = ider.identifier.name;
             if (ider.base.type === "Identifier") {

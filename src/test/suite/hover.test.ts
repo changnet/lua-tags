@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 // 鼠标悬浮提示 测试
 
 import * as path from 'path';
@@ -38,7 +39,7 @@ suite('Extension Hover Test Suite', () => {
         const docPath = path.join(samplePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
-        const val = "\`\`\`lua\nBT_PVP = 1 -- player vs player\n\`\`\`";
+        const val = "```lua\nBT_PVP = 1 -- player vs player\n```";
         await testHover(uri, new vscode.Position(15, 12), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -46,7 +47,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test local hove", async () => {
-        const val = "\`\`\`lua\n-- 测试声明多个变量\nlocal N = 1\n\`\`\`";
+        const val = "```lua\n-- 测试声明多个变量\nlocal N = 1\n```";
         await testHover(testUri, new vscode.Position(13, 9), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -62,7 +63,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test table hove", async () => {
-        const val = "\`\`\`lua\n-- 测试声明多个变量\n(table) local M\n\`\`\`";
+        const val = "```lua\n-- 测试声明多个变量\n(table) local M\n```";
         await testHover(testUri, new vscode.Position(13, 7), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -187,6 +188,19 @@ suite('Extension Hover Test Suite', () => {
     test("test global module sub variable duplicate hover", async () => {
         const val = "new_object.lua  \n```lua\ntest_v = 100\n```";
         await testHover(testUri, new vscode.Position(172, 14), [{
+            contents: [{ value: val } as vscode.MarkdownString],
+        }
+        ]);
+    });
+
+    /**
+     * function ref_func() end
+     * RefMob.ref_func = ref_func
+     * 这种情况下，上面的全局函数ref_func能与RefMob.ref_func区分
+     */
+    test("test global function reference hover", async () => {
+        const val = "```lua\n-- test global reference\nfunction ref_func()\n```";
+        await testHover(testUri, new vscode.Position(175, 14), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
         ]);

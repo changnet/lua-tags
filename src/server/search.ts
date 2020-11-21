@@ -547,9 +547,11 @@ export class Search {
         return null;
     }
 
-    // searchLocal只查找非顶层的局部符号，因此顶层的local符号在这里处理
+    /**
+     * 检测列表中是否有需要搜索的local符号
+     */
     private checkHasLocalSym(symList: SymInfoEx[], query: SymbolQuery) {
-        // 带base肯定不是局部符号
+        // 带base肯定不是局部符号，都不需要检测了
         if (query.base) {
             return null;
         }
@@ -602,16 +604,29 @@ export class Search {
             const symList = this.localizationFilter(query, items);
             if (symList && this.checkHasLocalSym(symList, query)) {
                 return symList;
-            } else {
-                /*
-                 * foo()
-                 * local function foo() end
-                 * allow the first foo() call to jump to the later definition if
-                 * no other fefinition found
-                 */
-                possibleSym.push(...items);
+            }
+            /*
+             * foo()
+             * local function foo() end
+             * allow the first foo() call to jump to the later definition if
+             * no other definition found
+             */
+            possibleSym.push(...items);
+        }
+
+        // 搜索不带模块名的全局符号
+        if (!query.base) {
+            items = symbol.getGlobalSymbol(
+                false, sym => query.name === sym.name);
+            if (items.length > 0) {
+                return items;
             }
         }
+
+        ////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////
+        // 找不到匹配的符号，下面开始靠猜
 
         // 忽略模块名，直接查找当前文档符号
         items = filter(symbol.getDocumentSymbol(uri));
@@ -624,9 +639,8 @@ export class Search {
             const symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
                 return symList;
-            } else {
-                possibleSym.push(...items);
             }
+            possibleSym.push(...items);
         }
 
         // 忽略模块名，直接查找所有可能匹配的符号

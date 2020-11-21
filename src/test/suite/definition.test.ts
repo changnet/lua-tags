@@ -33,9 +33,11 @@ async function testGoToDefinition(uri: vscode.Uri,
         const actualRange = actualItem.range;
         const expectRange = expectedItem.range;
         assert.strictEqual(actualRange.start.line, expectRange.start.line);
-        assert.strictEqual(actualRange.start.character, expectRange.start.character);
+        assert.strictEqual(
+            actualRange.start.character, expectRange.start.character);
         assert.strictEqual(actualRange.end.line, expectRange.end.line);
-        assert.strictEqual(actualRange.end.character, expectRange.end.character);
+        assert.strictEqual(
+            actualRange.end.character, expectRange.end.character);
     });
 }
 

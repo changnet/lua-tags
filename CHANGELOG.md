@@ -6,7 +6,14 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 * read type from comments like phpdoc
 * add lua、ngx_lua、love2d std library support
 
-## [1.0.14] 2020-11-19
+## [1.0.16] 2020-??-??
+1. fix global symbol go to reference symbol
+```lua
+function ref_func() end -- fix this function to to RefMob.ref_func
+RefMob.ref_func = ref_func
+```
+
+## [1.0.15] 2020-11-19
 1. update npm packages(vscode engine version update to 1.51.0)
 2. load stl no module found: coroutine #5
 
