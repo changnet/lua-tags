@@ -122,7 +122,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test ref value hove", async () => {
-        const val = "```lua\n-- test ref value\nlocal scene -> BattleConf.scene = 1000\n```";
+        const val = "```lua\n-- test ref value\nlocal scene == BattleConf.scene = 1000\n```";
         await testHover(testUri, new vscode.Position(82, 9), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -130,7 +130,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test ref function hove", async () => {
-        const val = "```lua\nlocal empty -> function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
+        const val = "```lua\nlocal empty == function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
         await testHover(testUri, new vscode.Position(124, 18), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -138,7 +138,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test member ref function hove", async () => {
-        const val = "```lua\nref_tbl.empty -> function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
+        const val = "```lua\nref_tbl.empty == function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
         await testHover(testUri, new vscode.Position(127, 10), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -146,7 +146,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test same name ref symbol dead loop hove", async () => {
-        const val = "```lua\nlocal ipair -> ipair\n```";
+        const val = "```lua\nlocal ipair == ipair\n```";
         await testHover(testUri, new vscode.Position(129, 8), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }

@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 // 跳转到定义 测试
 
 import * as path from 'path';
@@ -32,7 +33,7 @@ async function testSignatureHelp(uri: vscode.Uri,
             expectedItem.parameters.length, "parameters length");
 
         if (expectedItem.documentation) {
-            let doc = actualItem.documentation as vscode.MarkdownString;
+            const doc = actualItem.documentation as vscode.MarkdownString;
             if (doc.value !== expectedItem.documentation) {
                 console.log("expect", expectedItem.documentation);
                 console.log("got", doc.value);
@@ -42,8 +43,10 @@ async function testSignatureHelp(uri: vscode.Uri,
         }
         expectedItem.parameters.forEach((param, paramIdx) => {
             const actualParam = actualItem.parameters[paramIdx];
-            assert.strictEqual(actualParam.label[0], param.label[0], "param label 0");
-            assert.strictEqual(actualParam.label[1], param.label[1], "param label 1");
+            assert.strictEqual(
+                actualParam.label[0], param.label[0], "param label 0");
+            assert.strictEqual(
+                actualParam.label[1], param.label[1], "param label 1");
         });
     });
 }
@@ -105,7 +108,7 @@ suite('Extension Signature Test Suite', () => {
     test("test ref function signature help", async () => {
         await testSignatureHelp(testUri, new vscode.Position(132, 17), {
             signatures: [{
-                label: 'function empty -> table.empty(tbl)',
+                label: 'function empty == table.empty(tbl)',
                 parameters: [
                     { label: [30, 33] },
                 ],

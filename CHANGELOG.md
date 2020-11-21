@@ -13,6 +13,12 @@ function ref_func() end -- fix this function to to RefMob.ref_func
 RefMob.ref_func = ref_func
 ```
 
+2. use `==` to represent reference symbol instead of `->`, since `->` means a lambda function in most language
+```lua
+local V = 1
+M.v = V -- M.v == V = 1
+```
+
 ## [1.0.15] 2020-11-19
 1. update npm packages(vscode engine version update to 1.51.0)
 2. load stl no module found: coroutine #5

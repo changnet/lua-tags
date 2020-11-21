@@ -51,7 +51,8 @@ export class SignatureProvider {
         let funcName = `function ${sym.name}`;
         if (refSym && sym.refType) {
             symParam = refSym.parameters;
-            funcName = `${funcName} -> ${sym.refType.join(".")}`;
+            const mark = SymbolEx.refMark;
+            funcName = `${funcName} ${mark} ${sym.refType.join(".")}`;
         }
         const parameters: ParameterInformation[] = [];
         if (symParam) {

@@ -148,6 +148,8 @@ export class SymbolEx {
         }
     };
 
+    public static refMark = "==";
+
     private options: Options;
 
     // 是否需要更新全局符号
@@ -1694,7 +1696,7 @@ export class SymbolEx {
     }
 
     // 获取变量本地化的引用提示
-    // local M = X.Y.Z 提示为 local M -> X.Y.Z = 5
+    // local M = X.Y.Z 提示为 local M = X.Y.Z = 5
     public getRefValue(sym: SymInfoEx) {
         if (!sym.refType) {
             return "";
@@ -1725,7 +1727,7 @@ export class SymbolEx {
             }
         }
 
-        return ` -> ${prefix}${sym.refType.join(".")}${val}`;
+        return ` ${SymbolEx.refMark} ${prefix}${sym.refType.join(".")}${val}`;
     }
 
     /**

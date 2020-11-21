@@ -195,7 +195,7 @@ suite('Extension Completion Test Suite', () => {
             items: [
                 {
                     label: 'scene',
-                    documentation: "```lua\n-- test ref value\nlocal scene -> BattleConf.scene = 1000\n```",
+                    documentation: "```lua\n-- test ref value\nlocal scene == BattleConf.scene = 1000\n```",
                     kind: vscode.CompletionItemKind.Variable
                 },
                 // 实际运行时，这里会有下面这个提示，但在测试时没有，暂时不知什么原因
