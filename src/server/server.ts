@@ -40,7 +40,7 @@ import { HoverProvider } from "./hoverProvider";
 import { AutoCompletion } from "./autoCompletion";
 import { GoToDefinition } from "./goToDefinition";
 import { SignatureProvider } from "./signatureProvider";
-import { DiagnosticProvider, CheckHow } from "./DiagnosticProvider";
+import { DiagnosticProvider, CheckHow } from "./diagnosticProvider";
 import { Setting, FileParseType } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -432,6 +432,9 @@ export class Server {
         let base;
         let extBase;
 
+        // 调用方式，是通过.还是:调用
+        let indexer;
+
         let beg: number = pos.character;
         let end: number = pos.character;
 
@@ -478,6 +481,15 @@ export class Server {
             }
         }
 
+        const dotPos = text.lastIndexOf(".", beg);
+        if (dotPos > 0) {
+            indexer = ".";
+        }
+        const colonPos = text.lastIndexOf(":", beg);
+        if (colonPos > dotPos) {
+            indexer = ":";
+        }
+
         return {
             uri: uri,
             base: base,
@@ -485,7 +497,8 @@ export class Server {
             kind: kind,
             extBase: extBase,
             position: { line: pos.line, beg: beg, end: end },
-            text: text
+            text: text,
+            indexer: indexer
         };
     }
 

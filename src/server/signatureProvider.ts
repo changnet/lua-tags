@@ -31,7 +31,7 @@ export class SignatureProvider {
     }
 
     private toSignature(sym: SymInfoEx,
-        uri: string, index: number): SignatureInformation | null {
+        uri: string): SignatureInformation | null {
 
         /**
          * local comp = string_comp
@@ -58,18 +58,14 @@ export class SignatureProvider {
         if (symParam) {
             funcParam = symParam.join(", ");
 
-            // 如果当前输入的参数已超过这个函数的参数，则不用计算当前输入的参数
-            // 显示全部参数就可以了
-            if (index < symParam.length) {
-                // +1是因为函数名和参数之间有个左括号
-                let offset = funcName.length + 1;
-                for (const param of symParam) {
-                    parameters.push({
-                        label: [offset, offset + param.length]
-                    });
-                    // test(a, b, c)每个参数的位置中包含一个逗号和上空格，所以加2
-                    offset += param.length + 2;
-                }
+            // +1是因为函数名和参数之间有个左括号
+            let offset = funcName.length + 1;
+            for (const param of symParam) {
+                parameters.push({
+                    label: [offset, offset + param.length]
+                });
+                // test(a, b, c)每个参数的位置中包含一个逗号和上空格，所以加2
+                offset += param.length + 2;
             }
         }
 
@@ -103,7 +99,8 @@ export class SignatureProvider {
         };
     }
 
-    /* 扫描出要查询的符号信息
+    /**
+     * 扫描出要查询的符号信息
      * test(a, {a = 1, b = 2}, function(a, b) end,)
      * 通过 {} () 配对查找出当前要提示的函数名和参数索引
      * 这个配对是不太准确的，如果中间有注释、字符串包含这些符号，那就不对了
@@ -161,6 +158,25 @@ export class SignatureProvider {
         };
     }
 
+    private calcActivieParam(sym: SymInfoEx, index: number, indexer?: string) {
+        // 以.声明的函数通过:调用，则参数会相差一个self
+        if (sym.indexer === "." && indexer === ":") {
+            index += 1;
+        }
+
+        if (sym.indexer === ":" && indexer === ".") {
+            index -= 1;
+        }
+
+        // 如果有多个候选函数，这里是无法区分到底用哪一个的，尝试通过参数判断
+        // TODO 可变参数未处理
+        if (!sym.parameters || index < sym.parameters.length) {
+            return index;
+        }
+
+        return null;
+    }
+
     public doSignature(srv: Server, uri: string,
         pos: Position, text: string, offset: number): SignatureHelp | null {
         const info = this.scanSym(text, offset);
@@ -190,14 +206,17 @@ export class SignatureProvider {
                 && line === sym.location.range.start.line) {
                 return;
             }
-            const sig = this.toSignature(sym, uri, info.index);
+            const sig = this.toSignature(sym, uri);
             if (sig) {
                 signatureList.push(sig);
-                // 如果有多个函数，输入的参数超过了第一个，尝试下一个
-                if (null === activeIndex && (!sym.parameters
-                    || info.index < sym.parameters.length)) {
-                    activeIndex = index;
-                    activeParam = info.index;
+                // 如果有多个函数，输入的参数超过了第一个，尝试下一个函数
+                if (null === activeIndex) {
+                    const idx = this.calcActivieParam(
+                        sym, info.index, query.indexer);
+                    if (idx) {
+                        activeIndex = index;
+                        activeParam = idx;
+                    }
                 }
             }
         });

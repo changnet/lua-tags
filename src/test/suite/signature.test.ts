@@ -81,7 +81,9 @@ suite('Extension Signature Test Suite', () => {
         await testSignatureHelp(testUri, new vscode.Position(42, 75), {
             signatures: [{
                 label: 'function signature_help(a, b, c)',
-                parameters: []
+                parameters: [
+                    {label: [24,25]},{label: [27,28]},{label: [30,31]},
+                ]
             }, {
                 label: 'function signature_help(a, b, c, d)',
                 parameters: [
@@ -130,6 +132,38 @@ suite('Extension Signature Test Suite', () => {
                     { label: [27, 32] },
                 ],
                 documentation: "Lua Standard Libraries  \nInserts element **value** at position **pos** in **list**, shifting up the elements **list[pos], list[pos+1], ..., list[#list]**. The default value for **pos** is **#list+1**, so that a call **table.insert(t,x)** inserts **x** at the end of list **t**."
+            }
+            ],
+            activeSignature: 0,
+            activeParameter: 1
+        });
+    });
+
+    // 测试Index:test用Index.test调用时，参数能否自动修正
+    test("test dot call colon function signalture", async () => {
+        await testSignatureHelp(testUri, new vscode.Position(184, 26), {
+            signatures: [{
+                label: 'function call_with_dot(args1, args2)',
+                parameters: [
+                    { label: [23, 28] },
+                    { label: [30, 35] },
+                ],
+            }
+            ],
+            activeSignature: 0,
+            activeParameter: 0
+        });
+    });
+
+    // 测试Index.test用Index:test调用时，参数能否自动修正
+    test("test colon call dot function signalture", async () => {
+        await testSignatureHelp(testUri, new vscode.Position(185, 27), {
+            signatures: [{
+                label: 'function call_with_colon(args1, args2)',
+                parameters: [
+                    { label: [25, 30] },
+                    { label: [32, 37] },
+                ],
             }
             ],
             activeSignature: 0,

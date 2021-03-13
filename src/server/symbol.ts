@@ -81,6 +81,7 @@ export interface SymbolQuery {
     kind: SymbolKind; // 查询的符号是什么类型
     position: QueryPos; //符号位置
     text: string; // 符号所在的整行代码
+    indexer?: string;// 调用方式，是通过.还是:调用
 }
 
 export interface NameInfo {
