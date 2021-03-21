@@ -188,12 +188,12 @@ export class DiagnosticProvider {
 
         if (platform === "win32") {
             cmd = path.resolve(
-                __dirname, "../../luacheck/luacheck_0.23.0.exe");
+                __dirname, "../../luacheck/luacheck32.exe");
         } else if (platform === "linux") {
             // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
-            cmd = path.resolve(__dirname, "../../luacheck/luacheck_0.23.0");
-            Utils.instance().setExec(cmd);
+            cmd = path.resolve(__dirname, "../../luacheck/luacheck_x64");
+            //Utils.instance().setExec(cmd);
         }
 
         return cmd;
