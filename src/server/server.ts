@@ -233,6 +233,7 @@ export class Server {
         const folders = params.workspaceFolders;
         if (folders && folders.length > 0) {
             this.rootUri = folders[0].uri;
+            Utils.instance().log(`using ${this.rootUri} as root`);
         }
 
         return {
@@ -297,7 +298,7 @@ export class Server {
         const checkOnInit = Setting.instance().isCheckOnInit();
         const files = await DirWalker.instance().walk(
             uri.fsPath, (uri, ctx) => {
-                symbol.parse(uri, ctx);
+                symbol.parse(uri, ctx, true);
                 if (checkOnInit) {
                     diagnostic.check(uri, ctx, CheckHow.INITIALIZE);
                 }

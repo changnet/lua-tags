@@ -500,7 +500,11 @@ export class Search {
     }
 
 
-    // 判断是否本地化
+    /**
+     * 判断是否local M = M这种本地化
+     * @param query 
+     * @param sym 
+     */
     private isLocalization(query: SymbolQuery, sym: SymInfoEx) {
         const loc: Location = sym.location;
         if (query.uri !== loc.uri) { return false; }
@@ -519,7 +523,11 @@ export class Search {
         return query.position.end > eqIdx ? true : false;
     }
 
-    // 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M
+    /**
+     * 检测local M = M这种本地化并过滤掉，当查找后面那个M时，不要跳转到前面那个M
+     * @param query 
+     * @param symList 
+     */
     private localizationFilter(
         query: SymbolQuery, symList: SymInfoEx[] | null) {
         if (!symList) { return null; }
@@ -567,7 +575,11 @@ export class Search {
         return null;
     }
 
-    // 搜索符号
+    /**
+     * 搜索符号
+     * @param srv 
+     * @param query 需要搜索的符号信息
+     */
     public search(srv: Server, query: SymbolQuery) {
         const symbol = SymbolEx.instance();
 
@@ -578,28 +590,20 @@ export class Search {
                 ));
         };
 
-        /* 查找一个符号，正常情况下应该是 局部-当前文档-全局 这样的顺序才是对的
-         * 但事实是查找局部是最困难的，也是最耗时的，因此放在最后面
-         * 全局和文档都做了符号hash缓存，优先匹配
-         */
-
-        // 优先根据模块名匹配全局符号
-        let items = this.searchGlobalModule(query, filter);
-        if (items) {
-            return items;
-        }
-
-        // 根据模块名匹配文档符号
-        items = this.searchDocumentModule(query, filter);
-        if (items) {
-            return items;
-        }
-
-        // 查找局部变量(不包含顶层局部变量)
-        const possibleSym: SymInfoEx[] = [];
+        // 确实当前文件已经被解析并且生成了符号缓存，以下符号的查询都是从缓存中查找
         const uri = query.uri;
         srv.ensureSymbolCache(uri);
-        items = this.searchlocal(query);
+
+        // vs code本身会做缓存，比如 info information
+        // 当输入info时，第一次取到的符号列表里有这两个，如果继续输入，还能在列表里查询到，则
+        // 不会向language server查询新的符号列表，因此每次返回时，必须尽可能的所有可能的符号
+        // 所以必须一次性搜索所有的本地、模块、全局符号
+
+        // 无法搜索到时，备选的数据
+        const possibleSym: SymInfoEx[] = [];
+
+        // 查找局部变量(不包含顶层局部变量)
+        let items = this.searchlocal(query);
         if (items) {
             const symList = this.localizationFilter(query, items);
             if (symList && this.checkHasLocalSym(symList, query)) {
@@ -612,6 +616,18 @@ export class Search {
              * no other definition found
              */
             possibleSym.push(...items);
+        }
+
+        // 根据模块名匹配文档符号
+        items = this.searchDocumentModule(query, filter);
+        if (items) {
+            return items;
+        }
+
+        // 优先根据模块名匹配全局符号
+        items = this.searchGlobalModule(query, filter);
+        if (items) {
+            return items;
         }
 
         // 搜索不带模块名的全局符号

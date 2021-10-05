@@ -1021,10 +1021,20 @@ export class SymbolEx {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string): SymInfoEx[] {
+    public parse(uri: string, text: string, isLog: boolean = false): SymInfoEx[] {
         const ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
+            Utils.instance().log(`${uri} being ignore`);
             return [];
+        }
+
+        if (isLog) {
+            if (0 !== (FileParseType.FPT_LARGE & ft)) {
+                Utils.instance().log(`${uri} pase in large mode`);
+            }
+            if (0 !== (FileParseType.FPT_SINGLE & ft)) {
+                Utils.instance().log(`${uri} pase in single mode`);
+            }
         }
 
         // 不能用clear，这里的数据会直接存到this.documentModule
@@ -1819,6 +1829,7 @@ export class SymbolEx {
         const uri = path.resolve(
             __dirname, `../../stl/stl_${ver}.json`);
 
+        Utils.instance().log(`load stl from ${uri}`);
         fs.readFile(uri, 'utf8', (err, data) => {
             if (err) {
                 Utils.instance().log(`${JSON.stringify(err)}`);
