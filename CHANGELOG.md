@@ -19,6 +19,8 @@ local V = 1
 M.v = V -- M.v == V = 1
 ```
 
+3. improve symbol search
+
 ## [1.0.15] 2020-11-19
 1. update npm packages(vscode engine version update to 1.51.0)
 2. load stl no module found: coroutine #5
