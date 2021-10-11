@@ -33,8 +33,6 @@ interface PendingTask {
     how?: CheckHow;
 }
 
-const ChunkSize = 16384;
-
 export class DiagnosticProvider {
     private static ins: DiagnosticProvider;
 
@@ -117,24 +115,26 @@ export class DiagnosticProvider {
         return diags;
     }
 
-    /* luacheck chooses exit code as follows:
-     * Exit code is 0 if no warnings or errors occurred.
-     * Exit code is 1 if some warnings occurred but there were no syntax errors or invalid inline options.
-     * Exit code is 2 if there were some syntax errors or invalid inline options.
-     * Exit code is 3 if some files couldn’t be checked, typically due to an incorrect file name.
-     * Exit code is 4 if there was a critical error (invalid CLI arguments, config, or cache file).
-     */
     private runCheck(cmd: string, args: string[], ctx: string): Thenable<any> {
         return new Promise((resolve, reject) => {
             try {
                 const child = execFile(
                     cmd, args, this.option, (error, stdout) => {
+                        /* luacheck chooses exit code as follows:
+                         * Exit code is 0 if no warnings or errors occurred.
+                         * Exit code is 1 if some warnings occurred but there were no syntax errors or invalid inline options.
+                         * Exit code is 2 if there were some syntax errors or invalid inline options.
+                         * Exit code is 3 if some files couldn’t be checked, typically due to an incorrect file name.
+                         * Exit code is 4 if there was a critical error (invalid CLI arguments, config, or cache file).
+                         */
                         if (!error) {
+                            // no warnings or errors occurred
                             resolve("");
                             return;
                         }
                         const code: number = (error as any).code;
-                        if (1 === code || 2 === code) {
+                        // 测试发现，如果luacheck出错，code也为1，但这时stdout为null
+                        if (stdout && (1 === code || 2 === code)) {
                             resolve(stdout);
                         } else {
                             reject(error);
@@ -145,12 +145,23 @@ export class DiagnosticProvider {
                  * child.on("error") or child.on("exit") does not work here.
                  * I do NOT find any thing to check if child is ready except
                  * it's pid. if child exec fail(e.g. permission denied),don't
-                 * write to stdin.just return, it will throw a error later.
+                 * write to stdin. Just return, it will throw a error later.
                  */
                 if (!child.pid || !child.stdin) {
                     return;
                 }
-                if (ctx.length <= ChunkSize) {
+
+                // try catch 捕获不到stdin的错误，不太清楚为啥
+                let stop = false;
+                child.stdin.on("error", (e) => {
+                    stop = true;
+                    Utils.instance().error(`luacheck fail ${args}`);
+                    Utils.instance().log(`write to luacheck stdin error ${e}`);
+                });
+
+                // 这个值大概是16384
+                const OnceSize = child.stdin.writableHighWaterMark;
+                if (ctx.length <= OnceSize) {
                     return child.stdin.end(ctx);
                 }
 
@@ -159,8 +170,10 @@ export class DiagnosticProvider {
                  * but you can write multi times
                  * While a stream is not draining, calls to write() will buffer chunk, and return false
                  */
-                for (let index = 0; index < ctx.length; index += ChunkSize) {
-                    child.stdin.write(ctx.substring(index, index + ChunkSize));
+                for (let index = 0; index < ctx.length; index += OnceSize) {
+                    if (stop) break;
+                    child.stdin.write(
+                        ctx.substring(index, index + OnceSize));
                 }
                 child.stdin.end();
             } catch (e) {
@@ -188,7 +201,7 @@ export class DiagnosticProvider {
 
         if (platform === "win32") {
             cmd = path.resolve(
-                __dirname, "../../luacheck/luacheck32.exe");
+                __dirname, "../../luacheck/luacheck.exe");
         } else if (platform === "linux") {
             // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
@@ -251,9 +264,9 @@ export class DiagnosticProvider {
         } catch (e) {
             // if there are too many files in root dir,send too many error
             // message to vs code will crash it
-            if (e.errno === "ENOENT" || e.errno === "EACCES") {
-                this.abort = true;
-            }
+            // if (e.errno === "ENOENT" || e.errno === "EACCES") {
+            //     this.abort = true;
+            // }
             Utils.instance().anyError(e);
             Utils.instance().error(`luacheck ${JSON.stringify(e)}`);
             Utils.instance().error(rawUri);

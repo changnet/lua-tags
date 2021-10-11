@@ -1021,7 +1021,9 @@ export class SymbolEx {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string, isLog: boolean = false): SymInfoEx[] {
+    public parse(uri: string, text: string,
+        isLog: boolean = false): SymInfoEx[] {
+
         const ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
             Utils.instance().log(`${uri} being ignore`);
@@ -1030,10 +1032,10 @@ export class SymbolEx {
 
         if (isLog) {
             if (0 !== (FileParseType.FPT_LARGE & ft)) {
-                Utils.instance().log(`${uri} pase in large mode`);
+                Utils.instance().log(`${uri} parse in large mode`);
             }
             if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-                Utils.instance().log(`${uri} pase in single mode`);
+                Utils.instance().log(`${uri} parse in single mode`);
             }
         }
 

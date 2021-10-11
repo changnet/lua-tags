@@ -21,6 +21,28 @@ M.v = V -- M.v == V = 1
 
 3. improve symbol search
 
+4. update packages
+```text
+>npm outdated
+Package                           Current    Wanted   Latest  Location
+@types/glob                         7.1.3     7.1.4    7.1.4  lua-tags
+@types/luaparse                     0.2.6     0.2.8    0.2.8  lua-tags
+@types/mocha                        8.0.4     8.2.3    9.0.0  lua-tags
+@types/node                       14.14.7  14.17.21  16.10.3  lua-tags
+@types/vscode                      1.51.0    1.61.0   1.61.0  lua-tags
+@typescript-eslint/eslint-plugin    4.7.0    4.33.0   4.33.0  lua-tags
+@typescript-eslint/parser           4.7.0    4.33.0   4.33.0  lua-tags
+eslint                             7.13.0    7.32.0   7.32.0  lua-tags
+glob                                7.1.6     7.2.0    7.2.0  lua-tags
+luaparse                            0.3.0     0.3.1    0.3.1  lua-tags
+mocha                               8.2.1     8.4.0    9.1.2  lua-tags
+typescript                          4.0.5     4.4.3    4.4.3  lua-tags
+vscode-languageclient               6.1.3     6.1.4    7.0.0  lua-tags
+vscode-languageserver               6.1.1     6.1.1    7.0.0  lua-tags
+vscode-test                         1.4.1     1.6.1    1.6.1  lua-tags
+vscode-uri                          2.1.2     2.1.2    3.0.2  lua-tags
+```
+
 ## [1.0.15] 2020-11-19
 1. update npm packages(vscode engine version update to 1.51.0)
 2. load stl no module found: coroutine #5
