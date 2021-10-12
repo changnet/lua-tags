@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 // 自动补全 测试
 
 import * as path from 'path';
@@ -7,6 +8,8 @@ import * as vscode from 'vscode';
 const samplePath = path.resolve(__dirname, "../../../src/test/sample");
 const testPath = path.join(samplePath, "test.lua");
 const testUri = vscode.Uri.file(testPath);
+
+const CMP_KIND = vscode.CompletionItemKind;
 
 
 // test auto completion
@@ -50,7 +53,7 @@ async function testCompletion(
         if (expectedItem.documentation) {
             // test库里的CompletionItem和vs code server那边不一样
             // server那边用的是markdown
-            let doc = actualItem.documentation as vscode.MarkdownString;
+            const doc = actualItem.documentation as vscode.MarkdownString;
             assert.strictEqual(doc.value, expectedItem.documentation);
         }
     });
@@ -68,14 +71,15 @@ suite('Extension Completion Test Suite', () => {
     test('test require path completion', async () => {
         await testCompletion(testUri, new vscode.Position(4, 16), {
             items: [
-                { label: 'animal', kind: vscode.CompletionItemKind.File },
-                { label: 'battle', kind: vscode.CompletionItemKind.File },
-                { label: 'check', kind: vscode.CompletionItemKind.File },
-                { label: 'conf', kind: vscode.CompletionItemKind.File },
-                { label: 'monster', kind: vscode.CompletionItemKind.File },
-                { label: 'new_object', kind: vscode.CompletionItemKind.File },
-                { label: 'oo', kind: vscode.CompletionItemKind.File },
-                { label: 'test', kind: vscode.CompletionItemKind.File },
+                { label: 'animal', kind: CMP_KIND.File },
+                { label: 'battle', kind: CMP_KIND.File },
+                { label: 'case', kind: CMP_KIND.File },
+                { label: 'check', kind: CMP_KIND.File },
+                { label: 'conf', kind: CMP_KIND.File },
+                { label: 'monster', kind: CMP_KIND.File },
+                { label: 'new_object', kind: CMP_KIND.File },
+                { label: 'oo', kind: CMP_KIND.File },
+                { label: 'test', kind: CMP_KIND.File },
             ]
         });
     }).timeout(10240);
@@ -83,9 +87,9 @@ suite('Extension Completion Test Suite', () => {
     test('test module completion', async () => {
         await testCompletion(testUri, new vscode.Position(10, 10), {
             items: [
-                { label: 'factory', kind: vscode.CompletionItemKind.Function },
-                { label: 'start', kind: vscode.CompletionItemKind.Function },
-                { label: 'stop', kind: vscode.CompletionItemKind.Function },
+                { label: 'factory', kind: CMP_KIND.Function },
+                { label: 'start', kind: CMP_KIND.Function },
+                { label: 'stop', kind: CMP_KIND.Function },
             ]
         });
     });
@@ -96,7 +100,7 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(19, 13), {
             items: [
-                { label: 'new', kind: vscode.CompletionItemKind.Function },
+                { label: 'new', kind: CMP_KIND.Function },
             ]
         });
     });
@@ -104,7 +108,7 @@ suite('Extension Completion Test Suite', () => {
     test('test external module completion', async () => {
         await testCompletion(testUri, new vscode.Position(33, 7), {
             items: [
-                { label: 'table', kind: vscode.CompletionItemKind.Module },
+                { label: 'table', kind: CMP_KIND.Module },
             ]
         });
     });
@@ -112,7 +116,7 @@ suite('Extension Completion Test Suite', () => {
     test('test external module function completion', async () => {
         await testCompletion(testUri, new vscode.Position(34, 10), {
             items: [
-                { label: 'empty', kind: vscode.CompletionItemKind.Function },
+                { label: 'empty', kind: CMP_KIND.Function },
             ]
         });
     });
@@ -120,7 +124,7 @@ suite('Extension Completion Test Suite', () => {
     test('test sub function completion', async () => {
         await testCompletion(testUri, new vscode.Position(69, 13), {
             items: [
-                { label: 'sub_func', kind: vscode.CompletionItemKind.Function },
+                { label: 'sub_func', kind: CMP_KIND.Function },
             ]
         });
     });
@@ -131,13 +135,13 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(28, 48), {
             items: [
-                { label: 'boss', kind: vscode.CompletionItemKind.Module },
-                { label: 'desc', kind: vscode.CompletionItemKind.Variable },
-                { label: 'level', kind: vscode.CompletionItemKind.Variable },
-                { label: 'monster', kind: vscode.CompletionItemKind.Module },
-                { label: 'parameters', kind: vscode.CompletionItemKind.Module },
-                { label: 'player', kind: vscode.CompletionItemKind.Module },
-                { label: 'skill_id', kind: vscode.CompletionItemKind.Variable },
+                { label: 'boss', kind: CMP_KIND.Module },
+                { label: 'desc', kind: CMP_KIND.Variable },
+                { label: 'level', kind: CMP_KIND.Variable },
+                { label: 'monster', kind: CMP_KIND.Module },
+                { label: 'parameters', kind: CMP_KIND.Module },
+                { label: 'player', kind: CMP_KIND.Module },
+                { label: 'skill_id', kind: CMP_KIND.Variable },
             ]
         });
     });
@@ -148,9 +152,9 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(31, 47), {
             items: [
-                { label: 'monster', kind: vscode.CompletionItemKind.Variable },
-                { label: 'monster_attack', kind: vscode.CompletionItemKind.Module },
-                { label: 'MonsterConf', kind: vscode.CompletionItemKind.Module },
+                { label: 'monster', kind: CMP_KIND.Variable },
+                { label: 'monster_attack', kind: CMP_KIND.Module },
+                { label: 'MonsterConf', kind: CMP_KIND.Module },
             ]
         });
     });
@@ -161,8 +165,8 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(50, 65), {
             items: [
-                { label: 'BT_PVE', kind: vscode.CompletionItemKind.Variable },
-                { label: 'BT_PVP', kind: vscode.CompletionItemKind.Variable },
+                { label: 'BT_PVE', kind: CMP_KIND.Variable },
+                { label: 'BT_PVP', kind: CMP_KIND.Variable },
             ]
         });
     });
@@ -173,7 +177,7 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(36, 47), {
             items: [
-                { label: 'player', kind: vscode.CompletionItemKind.Variable },
+                { label: 'player', kind: CMP_KIND.Variable },
             ]
         });
     });
@@ -185,7 +189,7 @@ suite('Extension Completion Test Suite', () => {
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(64, 54), {
             items: [
-                { label: 'BattleConf', kind: vscode.CompletionItemKind.Module },
+                { label: 'BattleConf', kind: CMP_KIND.Module },
             ]
         });
     });
@@ -196,12 +200,12 @@ suite('Extension Completion Test Suite', () => {
                 {
                     label: 'scene',
                     documentation: "```lua\n-- test ref value\nlocal scene == BattleConf.scene = 1000\n```",
-                    kind: vscode.CompletionItemKind.Variable
+                    kind: CMP_KIND.Variable
                 },
                 // 实际运行时，这里会有下面这个提示，但在测试时没有，暂时不知什么原因
                 // {
                 // 	label: 'support_comment',
-                // 	kind: vscode.CompletionItemKind.Variable
+                // 	kind: CMP_KIND.Variable
                 // },
             ]
         });
@@ -213,7 +217,7 @@ suite('Extension Completion Test Suite', () => {
             items: [
                 {
                     label: 'lsdf_name',
-                    kind: vscode.CompletionItemKind.Variable
+                    kind: CMP_KIND.Variable
                 },
             ]
         });
@@ -225,11 +229,11 @@ suite('Extension Completion Test Suite', () => {
             items: [
                 {
                     label: 'boss',
-                    kind: vscode.CompletionItemKind.Variable
+                    kind: CMP_KIND.Variable
                 },
                 {
                     label: 'monster',
-                    kind: vscode.CompletionItemKind.Variable
+                    kind: CMP_KIND.Variable
                 },
             ]
         });
@@ -241,11 +245,11 @@ suite('Extension Completion Test Suite', () => {
             items: [
                 {
                     label: 'effect',
-                    kind: vscode.CompletionItemKind.Variable
+                    kind: CMP_KIND.Variable
                 },
                 {
                     label: 'factor',
-                    kind: vscode.CompletionItemKind.Variable
+                    kind: CMP_KIND.Variable
                 },
             ]
         });
@@ -257,7 +261,7 @@ suite('Extension Completion Test Suite', () => {
             items: [
                 {
                     label: 'class',
-                    kind: vscode.CompletionItemKind.Function
+                    kind: CMP_KIND.Function
                 },
             ]
         });
@@ -268,7 +272,7 @@ suite('Extension Completion Test Suite', () => {
             items: [
                 {
                     label: 'pack',
-                    kind: vscode.CompletionItemKind.Function,
+                    kind: CMP_KIND.Function,
                     detail: "Lua Standard Libraries",
                     documentation: "Returns a new table with all arguments stored into keys 1, 2, etc. and with a field \"**n**\" with the total number of arguments. Note that the resulting table may not be a sequence.\n```lua\nfunction pack(...)\n```"
                 },

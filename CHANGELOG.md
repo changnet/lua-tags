@@ -43,6 +43,8 @@ vscode-test                         1.4.1     1.6.1    1.6.1  lua-tags
 vscode-uri                          2.1.2     2.1.2    3.0.2  lua-tags
 ```
 
+5. fix ref show local function
+
 ## [1.0.15] 2020-11-19
 1. update npm packages(vscode engine version update to 1.51.0)
 2. load stl no module found: coroutine #5

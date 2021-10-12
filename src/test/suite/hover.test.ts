@@ -6,8 +6,8 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 
 const samplePath = path.resolve(__dirname, "../../../src/test/sample");
-const testPath = path.join(samplePath, "test.lua");
-const testUri = vscode.Uri.file(testPath);
+const testUri = vscode.Uri.file(path.join(samplePath, "test.lua"));
+const test1Uri = vscode.Uri.file(path.join(samplePath, "case/test1.lua"));
 
 
 // test hover
@@ -201,6 +201,20 @@ suite('Extension Hover Test Suite', () => {
     test("test global function reference hover", async () => {
         const val = "```lua\n-- test global reference\nfunction ref_func()\n```";
         await testHover(testUri, new vscode.Position(175, 14), [{
+            contents: [{ value: val } as vscode.MarkdownString],
+        }
+        ]);
+    });
+
+    /**
+     * local function local_func_export() end
+     * Case1.local_func_export = local_func_export
+     * 
+     * 这种情况下，只显示一个Case1.local_func_export，不要显示local函数
+     */
+    test("test ref not using local func hover", async () => {
+        const val = "case1.lua  \n```lua\nCase1.local_func_export == function local_func_export()\n```";
+        await testHover(test1Uri, new vscode.Position(1, 17), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
         ]);

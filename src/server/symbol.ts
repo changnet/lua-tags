@@ -1227,7 +1227,16 @@ export class SymbolEx {
                 if (!rawUri) {
                     return null;
                 }
-                const symList = this.getDocumentSymbol(rawUri);
+                const docSymList = this.getDocumentSymbol(rawUri);
+                // 引用另一个文件的符号时，不包含local符号
+                const symList = [];
+                if (docSymList) {
+                    for (const docSym of docSymList) {
+                        if (!docSym.local) {
+                            symList.push(docSym);
+                        }
+                    }
+                }
                 // TODO:这里不太好处理 local M = require "a.b.c" 引用特定文件时
                 // 由于没有解析对应文件的return值，无法确定引用的模块，或者该模块是
                 // 一个匿名table，没有符号，这里返回所有符号，需要的地方需要特殊处理
