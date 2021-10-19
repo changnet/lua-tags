@@ -448,6 +448,28 @@ export class Search {
     }
 
     /**
+     * 搜索当前文件中的符号
+     */
+    public searchDocumentSymbol(query: SymbolQuery, filter: Filter) {
+        if (query.base) {
+            return null;
+        }
+        const symList = SymbolEx.instance().getDocumentSymbol(query.uri);
+        if (!symList) {
+            return null;
+        }
+
+        const list = [];
+        for (const sym of symList) {
+            if (!sym.base && sym.name === query.name) {
+                list.push(sym);
+            }
+        }
+
+        return filter(list);
+    }
+
+    /**
      * 如果找到了位置一致的符号，则认为是需要查找的符号，过滤掉其他同名符号
      */
     public filterPosition(query: SymbolQuery, symList: SymInfoEx[] | null) {
@@ -630,6 +652,21 @@ export class Search {
             return items;
         }
 
+        // 当前文档查找不带模块名符号
+        items = this.searchDocumentSymbol(query, filter);
+        if (items) {
+            const symList = this.filterLocalSym(items, query);
+            if (symList.length > 0) {
+                // 如果在当前文件找到local变量，就不需要继续查找了
+                const topSym = this.checkHasLocalSym(items, query);
+                if (topSym) {
+                    return topSym;
+                }
+                return symList;
+            }
+            possibleSym.push(...items);
+        }
+
         // 搜索不带模块名的全局符号
         if (!query.base) {
             items = symbol.getGlobalSymbol(
@@ -639,27 +676,7 @@ export class Search {
             }
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////
-        // 找不到匹配的符号，下面开始靠猜
-
-        // 忽略模块名，直接查找当前文档符号
-        items = filter(symbol.getDocumentSymbol(uri));
-        if (items) {
-            // 优先查找顶层的local变量
-            const topSym = this.checkHasLocalSym(items, query);
-            if (topSym) {
-                return topSym;
-            }
-            const symList = this.filterLocalSym(items, query);
-            if (symList.length > 0) {
-                return symList;
-            }
-            possibleSym.push(...items);
-        }
-
-        // 忽略模块名，直接查找所有可能匹配的符号
+        // 都搜索不到，则查找所有可能匹配的符号
         items = filter(symbol.getAnySymbol(
             true, sym => sym.location.uri !== uri && query.name === sym.name));
         if (items) {

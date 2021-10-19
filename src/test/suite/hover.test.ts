@@ -219,4 +219,26 @@ suite('Extension Hover Test Suite', () => {
         }
         ]);
     });
+
+    /**
+     * 同一文档中，在同名的local函数之前调用，需要能跳转到全局函数
+     */
+    test("test global func before same name local call hover", async () => {
+        const val = "case1.lua  \n```lua\nfunction g_func_test()\n```";
+        await testHover(test1Uri, new vscode.Position(3, 8), [{
+            contents: [{ value: val } as vscode.MarkdownString],
+        }
+        ]);
+    });
+
+    /**
+     * 同一文档中，在同名的local函数之后调用，需要能跳转到local函数
+     */
+    test("test local func after same name global call hover", async () => {
+        const val = "```lua\nlocal function g_func_test()\n```";
+        await testHover(test1Uri, new vscode.Position(8, 6), [{
+            contents: [{ value: val } as vscode.MarkdownString],
+        }
+        ]);
+    });
 });

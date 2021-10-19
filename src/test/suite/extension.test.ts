@@ -35,19 +35,21 @@ async function activateExtension() {
 		await ext.activate();
 		// Wait for server activation and parse all file
 		// it took a little time at my poor laptop
-		await sleep(5000);
+		await sleep(8000);
 	} catch (e) {
 		assert.ok(false, `error in activate extension ${e}`);
 	}
 }
 
 // test work space symbol
-async function testWorkspaceSymbol(query: string, expect: vscode.SymbolInformation[]) {
+async function testWorkspaceSymbol(query: string,
+	expect: vscode.SymbolInformation[]) {
 	const actualList = (await vscode.commands.executeCommand(
 		"vscode.executeWorkspaceSymbolProvider", query)
 	) as vscode.SymbolInformation[];
 
-	assert.strictEqual(actualList.length, expect.length, "workspace symbol count");
+	assert.strictEqual(actualList.length,
+		expect.length, "workspace symbol count");
 
 	actualList.sort((src, dst) => {
 		if (src.name === dst.name) {
@@ -61,7 +63,8 @@ async function testWorkspaceSymbol(query: string, expect: vscode.SymbolInformati
 	expect.forEach((exp, index) => {
 		const act = actualList[index];
 		assert.strictEqual(act.name, exp.name, "sym name");
-		assert.strictEqual(act.location.uri.toString(), exp.location.uri.toString(), "location");
+		assert.strictEqual(act.location.uri.toString(),
+			exp.location.uri.toString(), "location");
 	});
 }
 
@@ -90,8 +93,10 @@ async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic[]) {
 	assert.strictEqual(actualList.length, expectList.length);
 	expectList.forEach((expectedItem, index) => {
 		const actualItem = actualList[index];
-		assert.strictEqual(actualItem.severity, expectedItem.severity, "serverity");
-		assert.strictEqual(actualItem.message, expectedItem.message, "message");
+		assert.strictEqual(actualItem.severity,
+			expectedItem.severity, "serverity");
+		assert.strictEqual(actualItem.message,
+			expectedItem.message, "message");
 	});
 }
 
@@ -115,17 +120,35 @@ suite('Extension Test Suite', () => {
 	// 工作区所有符号模糊搜索
 	test('test fuzz workspace symbol', async () => {
 		const range = new vscode.Range(0, 0, 0, 0);
-		const uri0 = vscode.Uri.file(path.join(samplePath, "conf", "battle_conf.lua"));
-		const uri1 = vscode.Uri.file(path.join(samplePath, "conf", "monster_conf.lua"));
-		const uri2 = vscode.Uri.file(path.join(samplePath, "conf", "skill_conf.lua"));
+		const uri0 = vscode.Uri.file(path.join(samplePath,
+			"conf", "battle_conf.lua"));
+		const uri1 = vscode.Uri.file(path.join(samplePath,
+			"conf", "monster_conf.lua"));
+		const uri2 = vscode.Uri.file(path.join(samplePath,
+			"conf", "skill_conf.lua"));
 		const uri3 = vscode.Uri.file(path.join(samplePath, "test.lua"));
 		const uri4 = vscode.Uri.file(path.join(samplePath, "monster.lua"));
 		await testWorkspaceSymbol("mon", [
-			{ name: "monster", kind: 0, containerName: "", location: { uri: uri0, range: range } },
-			{ name: "MonsterConf", kind: 0, containerName: "", location: { uri: uri1, range: range } },
-			{ name: "monster", kind: 0, containerName: "", location: { uri: uri2, range: range } },
-			{ name: "Monster", kind: 0, containerName: "", location: { uri: uri4, range: range } },
-			{ name: "Monster", kind: 0, containerName: "", location: { uri: uri3, range: range } },
+			{
+				name: "monster", kind: 0, containerName: "",
+				location: { uri: uri0, range: range }
+			},
+			{
+				name: "MonsterConf", kind: 0, containerName: "",
+				location: { uri: uri1, range: range }
+			},
+			{
+				name: "monster", kind: 0, containerName: "",
+				location: { uri: uri2, range: range }
+			},
+			{
+				name: "Monster", kind: 0, containerName: "",
+				location: { uri: uri4, range: range }
+			},
+			{
+				name: "Monster", kind: 0, containerName: "",
+				location: { uri: uri3, range: range }
+			},
 		]);
 	});
 
@@ -135,13 +158,34 @@ suite('Extension Test Suite', () => {
 
 		const docPath = path.join(samplePath, "conf", "skill_conf.lua");
 		await testDocumentSymbol(vscode.Uri.file(docPath), [
-			{ name: "skill_id", kind: 0, containerName: "", location: { uri: uri, range: range } },
-			{ name: "level", kind: 0, containerName: "", location: { uri: uri, range: range } },
-			{ name: "desc", kind: 0, containerName: "", location: { uri: uri, range: range } },
-			{ name: "parameters", kind: 0, containerName: "", location: { uri: uri, range: range } },
-			{ name: "boss", kind: 0, containerName: "", location: { uri: uri, range: range } },
-			{ name: "monster", kind: 0, containerName: "", location: { uri: uri, range: range } },
-			{ name: "player", kind: 0, containerName: "", location: { uri: uri, range: range } },
+			{
+				name: "skill_id", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
+			{
+				name: "level", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
+			{
+				name: "desc", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
+			{
+				name: "parameters", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
+			{
+				name: "boss", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
+			{
+				name: "monster", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
+			{
+				name: "player", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			},
 		]);
 	});
 
@@ -151,7 +195,10 @@ suite('Extension Test Suite', () => {
 
 		const docPath = path.join(samplePath, "conf", "battle_conf.lua");
 		await testDocumentSymbol(vscode.Uri.file(docPath), [
-			{ name: "BattleConf", kind: 0, containerName: "", location: { uri: uri, range: range } }
+			{
+				name: "BattleConf", kind: 0, containerName: "",
+				location: { uri: uri, range: range }
+			}
 			// 这里需要注意下，BattleConf包含下面这几个符号信息(在OUTLINE可以折叠)，这个接口只返回一个符号
 			// TODO:暂时不知道原因
 			// {name: "max_player", kind: 0, containerName: "", location: {uri: uri, range: range}},
