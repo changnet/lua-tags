@@ -676,9 +676,10 @@ export class Search {
             }
         }
 
+        // tbl.func() 这种，由于无法确定tbl的类型，不能准确定位
         // 都搜索不到，则查找所有可能匹配的符号
         items = filter(symbol.getAnySymbol(
-            true, sym => sym.location.uri !== uri && query.name === sym.name));
+            true, sym => query.name === sym.name));
         if (items) {
             const symList = this.filterLocalSym(items, query);
             if (symList.length > 0) {
