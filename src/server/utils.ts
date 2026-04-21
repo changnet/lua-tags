@@ -1,10 +1,7 @@
-import {
-    Connection,
-    Diagnostic,
-} from 'vscode-languageserver';
+import { Connection, Diagnostic } from 'vscode-languageserver';
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from 'fs';
+import * as path from 'path';
 import { URI } from 'vscode-uri';
 import { Setting } from './setting';
 import { SymInfoEx } from './symbol';
@@ -14,9 +11,8 @@ type WalkerCallBack = (uri: string, ctx: string) => void;
 export class DirWalker {
     private static ins: DirWalker;
 
-    private files: number = 0
-    private constructor() {
-    }
+    private files: number = 0;
+    private constructor() {}
 
     public static instance() {
         if (!DirWalker.ins) {
@@ -34,35 +30,39 @@ export class DirWalker {
 
         // 当使用 withFileTypes 选项设置为 true 调用 fs.readdir() 或
         // fs.readdirSync() 时，生成的数组将填充 fs.Dirent 对象，而不是路径字符串
-        const files = await fs.promises.readdir(
-            dirPath, { withFileTypes: true });
+        const files = await fs.promises.readdir(dirPath, {
+            withFileTypes: true,
+        });
 
         for (const file of files) {
             const subPath = path.join(dirPath, file.name);
 
             if (file.isDirectory()) {
                 await this.walkDir(subPath, callBack);
-            }
-            else if (file.isFile()) {
+            } else if (file.isFile()) {
                 await this.walkFile(subPath, callBack);
             }
-
         }
     }
 
     // 处理单个Lua文件
     public async walkFile(
-        filePath: string, callBack: WalkerCallBack, rawUri?: string) {
-        if (!filePath.endsWith(".lua")) {
+        filePath: string,
+        callBack: WalkerCallBack,
+        rawUri?: string,
+    ) {
+        if (!filePath.endsWith('.lua')) {
             return;
         }
 
         // uri总是用/来编码，在win下，路径是用\的
         // 这时编码出来的uri和vs code传进来的就会不一样，无法快速根据uri查询符号
-        const uri = rawUri || URI.from({
-            scheme: "file",
-            path: filePath.replace(/\\/g, "/")
-        }).toString();
+        const uri =
+            rawUri ||
+            URI.from({
+                scheme: 'file',
+                path: filePath.replace(/\\/g, '/'),
+            }).toString();
 
         const data = await fs.promises.readFile(filePath);
 
@@ -88,8 +88,7 @@ export class Utils {
     private static ins: Utils;
     private conn: Connection | null = null;
 
-    private constructor() {
-    }
+    private constructor() {}
 
     public static instance() {
         if (!Utils.ins) {
@@ -111,7 +110,7 @@ export class Utils {
     // 导出全局符号，不常用，直接用同步写入就可以了
     public writeGlobalSymbols(symList: SymInfoEx[]) {
         const fileName = Setting.instance().getExportPath();
-        const option: fs.WriteFileOptions = { encoding: "utf8", flag: "a" };
+        const option: fs.WriteFileOptions = { encoding: 'utf8', flag: 'a' };
 
         const rootUri = Setting.instance().getRoot();
 
@@ -121,15 +120,16 @@ export class Utils {
                 return -1;
             } else if (a.name > b.name) {
                 return 1;
-            } else {
-                return 0;
             }
+            return 0;
         });
 
-        fs.writeFileSync(fileName,
+        fs.writeFileSync(
+            fileName,
             // eslint-disable-next-line max-len
             `-- auto export by lua-tags ${symList.length} symbols\n\nreturn {\n`,
-            { encoding: "utf8", flag: "w" });
+            { encoding: 'utf8', flag: 'w' },
+        );
 
         // let lastUri: string | null = null;
         for (const sym of symList) {
@@ -139,15 +139,16 @@ export class Utils {
             // }
 
             const file = sym.location.uri.substring(rootUri.length + 1);
-            fs.writeFileSync(fileName,
-                `"${sym.name}", -- ${file}\n`, option);
+            fs.writeFileSync(fileName, `"${sym.name}", -- ${file}\n`, option);
         }
         fs.writeFileSync(fileName, `}\n`, option);
     }
 
     public static pad(num: number, size: number) {
         let s = String(num);
-        while (s.length < (size || 2)) { s = "0" + s; }
+        while (s.length < (size || 2)) {
+            s = '0' + s;
+        }
         return s;
     }
 
@@ -162,19 +163,18 @@ export class Utils {
         const min = Utils.pad(date.getMinutes(), 2);
         const sec = Utils.pad(date.getSeconds(), 2);
 
-        const now =
-            `${date.getFullYear()}-${month}-${day} ${hour}:${min}:${sec} `;
-        fs.writeFileSync("lua-tags.log", now, { encoding: "utf8", flag: "a" });
-        fs.writeFileSync("lua-tags.log", ctx, { encoding: "utf8", flag: "a" });
-        fs.writeFileSync("lua-tags.log", "\n", { encoding: "utf8", flag: "a" });
+        const now = `${date.getFullYear()}-${month}-${day} ${hour}:${min}:${sec} `;
+        fs.writeFileSync('lua-tags.log', now, { encoding: 'utf8', flag: 'a' });
+        fs.writeFileSync('lua-tags.log', ctx, { encoding: 'utf8', flag: 'a' });
+        fs.writeFileSync('lua-tags.log', '\n', { encoding: 'utf8', flag: 'a' });
     }
 
     public anyError(e: any) {
-        let msg = "unknow";
+        let msg = 'unknow';
         if (e) {
-            const name: string = e.name || "unknow";
-            const message: string = e.message || "unknow";
-            const stack: string = e.stack || "";
+            const name: string = e.name || 'unknow';
+            const message: string = e.message || 'unknow';
+            const stack: string = e.stack || '';
             msg = `name: ${name}\nmessage: ${message}\nstack: ${stack}`;
         }
 
@@ -183,7 +183,7 @@ export class Utils {
 
     public error(ctx: string) {
         // 发送自定义协议，这个要在client那定定义一个接收函数
-        this.conn!.sendNotification("__error", ctx);
+        this.conn!.sendNotification('__error', ctx);
     }
 
     public diagnostics(uri: string, diags: Diagnostic[]): void {
@@ -200,4 +200,3 @@ export class Utils {
         fs.chmodSync(exePath, stat.mode | fs.constants.S_IXUSR);
     }
 }
-
