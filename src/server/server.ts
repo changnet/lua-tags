@@ -30,6 +30,7 @@ import { SymbolEx, SymbolQuery } from './symbol';
 
 import { URI } from 'vscode-uri';
 import { Utils, DirWalker } from './utils';
+import { writeGlobalSymbols } from './exportSymbol';
 import { HoverProvider } from './hoverProvider';
 import { AutoCompletion } from './autoCompletion';
 import { GoToDefinition } from './goToDefinition';
@@ -50,9 +51,6 @@ export class Server {
     private rootUri: string | null = null;
 
     private isPreInit = false;
-
-    private exportVer: number = 0;
-    private exportSym = new Map<string, number>();
 
     public constructor() {
         const conn = this.connection;
@@ -140,10 +138,11 @@ export class Server {
                 return null;
             }
         });
+        // 通过ctrl + shift + p输入export global symbol命令导出
         conn.onNotification('__export', () => {
             try {
                 const symList = SymbolEx.instance().getGlobalSymbolList();
-                Utils.instance().writeGlobalSymbols(symList);
+                writeGlobalSymbols(symList);
             } catch (e) {
                 Utils.instance().anyError(e);
                 return null;
@@ -231,7 +230,7 @@ export class Server {
         const folders = params.workspaceFolders;
         if (folders && folders.length > 0) {
             this.rootUri = folders[0].uri;
-            Utils.instance().log(`using ${this.rootUri} as root`);
+            Utils.instance().debug(`using ${this.rootUri} as root`);
         }
 
         return {
@@ -308,53 +307,10 @@ export class Server {
         symbol.loadStl();
 
         const end = Date.now();
-        Utils.instance().log(
+        Utils.instance().debug(
             // eslint-disable-next-line max-len
             `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`,
         );
-
-        const interval = Setting.instance().getExportInterval();
-        if (interval > 0) {
-            setInterval(() => {
-                this.exportGlobalTimeout();
-            }, interval * 1000);
-        }
-    }
-
-    // 定时导出全局符号
-    private exportGlobalTimeout() {
-        const symbol = SymbolEx.instance();
-
-        // no change
-        if (this.exportVer === symbol.getUpdateVersion()) {
-            return;
-        }
-
-        this.exportVer = symbol.getUpdateVersion();
-        const symList = symbol.getGlobalSymbolList();
-
-        let change = false;
-        if (symList.length === this.exportSym.size) {
-            for (const sym of symList) {
-                if (!this.exportSym.get(sym.name)) {
-                    change = true;
-                    break;
-                }
-            }
-        } else {
-            change = true;
-        }
-
-        if (!change) {
-            return;
-        }
-
-        this.exportSym.clear();
-        for (const sym of symList) {
-            this.exportSym.set(sym.name, 1);
-        }
-
-        Utils.instance().writeGlobalSymbols(symList);
     }
 
     // 返回当前文档的符号

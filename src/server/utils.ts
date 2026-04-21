@@ -104,70 +104,28 @@ export class Utils {
     }
 
     // 写日志到终端，设置了lua-tags.trace: verbose就可以在OUTPUT看到
-    public log(ctx: string) {
-        this.conn!.console.log(ctx);
+    // 默认情况下，vscode的日志是trace，如：[Trace - 2:39:21 PM] Received response 'textDocument/hover
+    // 为了方便，自己的日志可加前缀
+    public debug(str: string) {
+        const text = `[Debug ${Utils.formatTime()}] ${str}`;
+        this.conn!.console.log(text);
     }
 
-    // 导出全局符号，不常用，直接用同步写入就可以了
-    public writeGlobalSymbols(symList: SymInfoEx[]) {
-        const fileName = Setting.instance().getExportPath();
-        const option: { encoding?: BufferEncoding | null; flag?: string } = {
-            encoding: 'utf8',
-            flag: 'a',
-        };
-
-        const rootUri = Setting.instance().getRoot();
-
-        // 按名字排序，防止git等版本工具提示变更太多
-        symList.sort((a: SymInfoEx, b: SymInfoEx) => {
-            if (a.name < b.name) {
-                return -1;
-            } else if (a.name > b.name) {
-                return 1;
-            }
-            return 0;
-        });
-
-        fs.writeFileSync(
-            fileName,
-            // eslint-disable-next-line max-len
-            `-- auto export by lua-tags ${symList.length} symbols\n\nreturn {\n`,
-            { encoding: 'utf8', flag: 'w' },
-        );
-
-        // let lastUri: string | null = null;
-        for (const sym of symList) {
-            // if (lastUri !== sym.location.uri) {
-            //     lastUri = sym.location.uri;
-            //     syncfs.writeFileSync(fileName, `\n-- ${lastUri}\n`, option);
-            // }
-
-            const file = sym.location.uri.substring(rootUri.length + 1);
-            fs.writeFileSync(fileName, `"${sym.name}", -- ${file}\n`, option);
-        }
-        fs.writeFileSync(fileName, `}\n`, option);
-    }
-
-    public static pad(num: number, size: number) {
-        let s = String(num);
-        while (s.length < (size || 2)) {
-            s = '0' + s;
-        }
-        return s;
-    }
-
-    // 写日志到文件
-    // 测试时，不好调试的可以用日志来调试
-    public logFile(ctx: string) {
+    public static formatTime() {
         const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const sec = String(date.getSeconds()).padStart(2, '0');
 
-        const month = Utils.pad(date.getMonth(), 2);
-        const day = Utils.pad(date.getMonth(), 2);
-        const hour = Utils.pad(date.getHours(), 2);
-        const min = Utils.pad(date.getMinutes(), 2);
-        const sec = Utils.pad(date.getSeconds(), 2);
+        return `${year}-${month}-${day} ${hour}:${min}:${sec} `;
+    }
 
-        const now = `${date.getFullYear()}-${month}-${day} ${hour}:${min}:${sec} `;
+    // 写日志到文件，测试时，不好调试的可以用日志来调试
+    public logFile(ctx: string) {
+        const now = `${Utils.formatTime()} `;
         fs.writeFileSync('lua-tags.log', now, { encoding: 'utf8', flag: 'a' });
         fs.writeFileSync('lua-tags.log', ctx, { encoding: 'utf8', flag: 'a' });
         fs.writeFileSync('lua-tags.log', '\n', { encoding: 'utf8', flag: 'a' });
@@ -185,6 +143,7 @@ export class Utils {
         this.error(msg);
     }
 
+    // 在vs code右下角弹出一个错误信息窗口
     public error(ctx: string) {
         // 发送自定义协议，这个要在client那定定义一个接收函数
         this.conn!.sendNotification('__error', ctx);

@@ -1,16 +1,15 @@
 // 符号处理
 
-import * as fs from "fs";
-import * as path from "path";
-import { Utils } from "./utils";
-import * as fuzzysort from "fuzzysort";
-import { Setting, FileParseType } from "./setting";
+import * as fs from 'fs';
+import * as path from 'path';
+import { Utils } from './utils';
+import * as fuzzysort from 'fuzzysort';
+import { Setting, FileParseType } from './setting';
 
 import {
     Options,
     parse as luaParse,
     Parser as luaParser,
-
     Node,
     Comment,
     Statement,
@@ -29,11 +28,7 @@ import {
     StringLiteral,
 } from 'luaparse';
 
-import {
-    Location,
-    SymbolKind,
-    SymbolInformation
-} from 'vscode-languageserver';
+import { Location, SymbolKind, SymbolInformation } from 'vscode-languageserver';
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -50,7 +45,7 @@ export enum LTT {
     Punctuator = 32,
     BooleanLiteral = 64,
     NilLiteral = 128,
-    VarargLiteral = 256
+    VarargLiteral = 256,
 }
 
 // lua parser的位置格式
@@ -81,7 +76,7 @@ export interface SymbolQuery {
     kind: SymbolKind; // 查询的符号是什么类型
     position: QueryPos; //符号位置
     text: string; // 符号所在的整行代码
-    indexer?: string;// 调用方式，是通过.还是:调用
+    indexer?: string; // 调用方式，是通过.还是:调用
 }
 
 export interface NameInfo {
@@ -104,7 +99,7 @@ export enum LocalType {
     LT_NONE = 0,
     LT_LOCAL = 1, // 普通local变量 local X
     LT_PARAMETER = 2, // 函数参数 function (a, b, c) end
-    LT_FOR_VAR = 3  // for k,v in或者for idx = 1, N do中的局部变量
+    LT_FOR_VAR = 3, // for k,v in或者for idx = 1, N do中的局部变量
 }
 
 // 注释类型
@@ -143,13 +138,14 @@ interface NodeCache {
 export class SymbolEx {
     private static ins: SymbolEx;
     private static invalidLoc: Location = {
-        uri: "", range: {
+        uri: '',
+        range: {
             start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 }
-        }
+            end: { line: 0, character: 0 },
+        },
     };
 
-    public static refMark = "==";
+    public static refMark = '==';
 
     private options: Options;
 
@@ -180,7 +176,7 @@ export class SymbolEx {
     private documentModule = new Map<string, Map<string, SymInfoEx>>();
 
     // 下面是一些解析当前文档的辅助变量
-    private parseUri: string = "";
+    private parseUri: string = '';
     private parseScopeDeepth: number = 0;
     private parseNodeList: Node[] = [];
     private parseCacheList: Node[] = [];
@@ -205,10 +201,10 @@ export class SymbolEx {
             onCreateScope: () => this.onCreateScope(),
             onDestroyScope: () => this.onDestoryScope(),
             onCreateNode: (node) => this.onCreateNode(node),
-            onLocalDeclaration: () => { },
+            onLocalDeclaration: () => {},
             extendedIdentifiers: false,
             // luaparse v0.3.0 需要指定编码才会把字符串解析到value字段
-            encodingMode: "none"
+            encodingMode: 'none',
         } as Options;
     }
 
@@ -233,7 +229,7 @@ export class SymbolEx {
     //  语法节点结束
     private onCreateNode(node: Node) {
         const loc = node.loc;
-        if (loc && node.type !== "Comment") {
+        if (loc && node.type !== 'Comment') {
             const line = loc.end.line;
             const codeLine = this.parseCodeLine;
             if (codeLine.length < line + 1) {
@@ -250,13 +246,14 @@ export class SymbolEx {
         this.parseCacheList.push(node);
 
         switch (node.type) {
-            case "FunctionDeclaration": // 函数
-            case "LocalStatement": // local变量赋值 local var = x
-            case "AssignmentStatement": // 全局变量 g_var = x 成员变量赋值 M.var = x
-            case "ReturnStatement": // return { a = 111 } 这种情况
+            case 'FunctionDeclaration': // 函数
+            case 'LocalStatement': // local变量赋值 local var = x
+            case 'AssignmentStatement': // 全局变量 g_var = x 成员变量赋值 M.var = x
+            case 'ReturnStatement': // return { a = 111 } 这种情况
                 this.parseNodeList.push(node);
                 break;
-            case "CallStatement": {// module("test", package.seeall)
+            case 'CallStatement': {
+                // module("test", package.seeall)
                 if (this.getModuleCall(node)) {
                     this.parseNodeList.push(node);
                 }
@@ -268,12 +265,12 @@ export class SymbolEx {
     // 处理模块声明 module("test", package.seeall)
     private getModuleCall(node: CallStatement) {
         const expr = node.expression;
-        if (expr.type !== "CallExpression") {
+        if (expr.type !== 'CallExpression') {
             return null;
         }
 
         const base = expr.base;
-        if (base.type !== "Identifier" || base.name !== "module") {
+        if (base.type !== 'Identifier' || base.name !== 'module') {
             return null;
         }
 
@@ -281,7 +278,7 @@ export class SymbolEx {
             return null;
         }
         const argument = expr.arguments[0];
-        if (argument.type !== "StringLiteral") {
+        if (argument.type !== 'StringLiteral') {
             return null;
         }
 
@@ -292,19 +289,20 @@ export class SymbolEx {
     private parseNode(node: Node) {
         let symList;
         switch (node.type) {
-            case "FunctionDeclaration": // 函数
+            case 'FunctionDeclaration': // 函数
                 symList = this.parseFunctionExpr(node);
                 break;
-            case "LocalStatement": // local变量
+            case 'LocalStatement': // local变量
                 symList = this.parseVariableStatement(node, LocalType.LT_LOCAL);
                 break;
-            case "AssignmentStatement": // 全局变量
+            case 'AssignmentStatement': // 全局变量
                 symList = this.parseVariableStatement(node);
                 break;
-            case "ReturnStatement": // return { a = 111 } 这种情况
+            case 'ReturnStatement': // return { a = 111 } 这种情况
                 symList = this.parseReturnStatement(node);
                 break;
-            case "CallStatement": {// module("test", package.seeall)
+            case 'CallStatement': {
+                // module("test", package.seeall)
                 symList = this.parseCallStatement(node);
                 break;
             }
@@ -320,25 +318,24 @@ export class SymbolEx {
 
     // 解析成员变量赋值
     private parseBaseName(
-        ider: Identifier | MemberExpression
-            | IndexExpression | null): NameInfo {
-        const nameInfo: NameInfo = { name: "" };
+        ider: Identifier | MemberExpression | IndexExpression | null,
+    ): NameInfo {
+        const nameInfo: NameInfo = { name: '' };
         if (!ider) {
             return nameInfo;
         }
 
-        if (ider.type === "Identifier") {
+        if (ider.type === 'Identifier') {
             // function test() 这种直接声明函数的写法
             nameInfo.name = ider.name;
-        } else if (ider.type === "MemberExpression") {
+        } else if (ider.type === 'MemberExpression') {
             // function m:test()、M.val = xxx 或者 function m.test() 这种成员函数写法
             nameInfo.name = ider.identifier.name;
-            if (ider.base.type === "Identifier") {
-                if ("_G" !== ider.base.name) {
+            if (ider.base.type === 'Identifier') {
+                if ('_G' !== ider.base.name) {
                     nameInfo.base = ider.base.name;
                 }
                 nameInfo.indexer = ider.indexer;
-
             }
         }
         // IndexExpression是list[idx]这种，暂时没用到
@@ -352,14 +349,14 @@ export class SymbolEx {
             name: name,
             kind: SymbolKind.Namespace,
             location: {
-                uri: "",
+                uri: '',
                 range: {
                     start: { line: 0, character: 0 },
                     end: { line: 0, character: 0 },
-                }
+                },
             },
             scope: scope,
-            subSymList: []
+            subSymList: [],
         };
     }
 
@@ -373,8 +370,11 @@ export class SymbolEx {
      */
     private findParseModuleSym(name: string) {
         for (const sym of this.parseSymList) {
-            if (sym.name === name && sym.scope === this.parseScopeDeepth
-                && sym.kind === SymbolKind.Variable) {
+            if (
+                sym.name === name &&
+                sym.scope === this.parseScopeDeepth &&
+                sym.kind === SymbolKind.Variable
+            ) {
                 return sym;
             }
         }
@@ -382,8 +382,7 @@ export class SymbolEx {
         return undefined;
     }
 
-    private pushModuleSymbol(
-        name: string, sym: SymInfoEx) {
+    private pushModuleSymbol(name: string, sym: SymInfoEx) {
         let moduleSym = this.parseModule.get(name);
         if (!moduleSym) {
             moduleSym = this.findParseModuleSym(name);
@@ -421,8 +420,12 @@ export class SymbolEx {
 
         // 如果声明了模块，那么所有没有模块名的符号都会被加上一个符号名
         let base = sym.base;
-        if (!base && sym.kind !== SymbolKind.Module
-            && !sym.local && this.parseModuleName) {
+        if (
+            !base &&
+            sym.kind !== SymbolKind.Module &&
+            !sym.local &&
+            this.parseModuleName
+        ) {
             base = this.parseModuleName;
             sym.baseModule = this.parseModuleName;
         }
@@ -463,7 +466,7 @@ export class SymbolEx {
     private parseFunctionExpr(expr: FunctionDeclaration): SymInfoEx[] {
         // return function() ... end 这种匿名函数没有identifier
         const nameInfo = this.parseBaseName(expr.identifier);
-        if ("" === nameInfo.name) {
+        if ('' === nameInfo.name) {
             return [];
         }
 
@@ -482,27 +485,42 @@ export class SymbolEx {
     // 解析子变量
     // local M = { a= 1, b = 2} 这种const变量，也当作变量记录到文档中
     public parseTableConstructorExpr(
-        expr: TableConstructorExpression, base?: string) {
+        expr: TableConstructorExpression,
+        base?: string,
+    ) {
         const symList: SymInfoEx[] = [];
 
         this.parseScopeDeepth++;
         for (const field of expr.fields) {
             // local M = { 1, 2, 3}这种没有key对自动补全、跳转都没用,没必要处理
             // local M = { a = 1, [2] = 2}这种就只能处理有Key的那部分了
-            if (("TableKey" !== field.type && "TableKeyString" !== field.type)
-                || "Identifier" !== field.key.type) {
+            if (
+                ('TableKey' !== field.type &&
+                    'TableKeyString' !== field.type) ||
+                'Identifier' !== field.key.type
+            ) {
                 continue;
             }
 
-            const sym = this.toSym({
-                name: field.key.name, base: base
-            }, field.key, field.value);
+            const sym = this.toSym(
+                {
+                    name: field.key.name,
+                    base: base,
+                },
+                field.key,
+                field.value,
+            );
 
             // 解析子table
-            if (sym && this.parseScopeDeepth < 8
-                && field.value.type === "TableConstructorExpression") {
+            if (
+                sym &&
+                this.parseScopeDeepth < 8 &&
+                field.value.type === 'TableConstructorExpression'
+            ) {
                 sym.subSymList = this.parseTableConstructorExpr(
-                    field.value, field.key.name);
+                    field.value,
+                    field.key.name,
+                );
             }
 
             if (sym) {
@@ -518,7 +536,7 @@ export class SymbolEx {
     private parseReturnStatement(node: ReturnStatement) {
         for (const argument of node.arguments) {
             // 如果是用来显示文档符号的，只处理 return {}
-            if ("TableConstructorExpression" === argument.type) {
+            if ('TableConstructorExpression' === argument.type) {
                 return this.parseTableConstructorExpr(argument);
             }
         }
@@ -528,7 +546,9 @@ export class SymbolEx {
 
     // 解析变量声明
     private parseVariableStatement(
-        stat: LocalStatement | AssignmentStatement, local?: LocalType) {
+        stat: LocalStatement | AssignmentStatement,
+        local?: LocalType,
+    ) {
         const symList: SymInfoEx[] = [];
         // lua支持同时初始化多个变量 local x,y = 1,2
         for (let index = 0; index < stat.variables.length; index++) {
@@ -536,7 +556,7 @@ export class SymbolEx {
             const nameInfo = this.parseBaseName(varNode);
 
             const name = nameInfo.name;
-            if ("" === name) {
+            if ('' === name) {
                 continue;
             }
 
@@ -550,7 +570,7 @@ export class SymbolEx {
 
             // 把 local M = { A = 1,B = 2}中的 A B符号解析出来
             // 因为常量声明在lua中很常用，显示出来比较好，这里特殊处理下
-            if (init && "TableConstructorExpression" === init.type) {
+            if (init && 'TableConstructorExpression' === init.type) {
                 sym.subSymList = this.parseTableConstructorExpr(init, name);
                 // vs code在显示文档符号时，会自动判断各个符号的位置，如果发现某个符号
                 // 属于另一个符号的位置范围内，则认为这个符号是另一个符号的子符号，可以
@@ -574,10 +594,11 @@ export class SymbolEx {
             uri: uri,
             range: {
                 start: {
-                    line: loc.start.line - 1, character: loc.start.column
+                    line: loc.start.line - 1,
+                    character: loc.start.column,
                 },
-                end: { line: loc.end.line - 1, character: loc.end.column }
-            }
+                end: { line: loc.end.line - 1, character: loc.end.column },
+            },
         };
     }
 
@@ -587,7 +608,7 @@ export class SymbolEx {
 
         let init = node;
         for (let deepth = 0; deepth < 8; deepth++) {
-            if (init.indexer !== ".") {
+            if (init.indexer !== '.') {
                 return;
             }
 
@@ -595,12 +616,12 @@ export class SymbolEx {
 
             const base = init.base;
             // 最后一个是Identifier而不是MemberExpression
-            if (base.type === "Identifier") {
+            if (base.type === 'Identifier') {
                 refVal.push(base.name);
                 break;
             }
 
-            if (base.type !== "MemberExpression") {
+            if (base.type !== 'MemberExpression') {
                 return;
             }
 
@@ -624,7 +645,7 @@ export class SymbolEx {
 
         // lua的字符串可能包含在 ''、""、[[]]中
         const raw = val.raw;
-        if (raw.startsWith("'") || raw.startsWith("\"")) {
+        if (raw.startsWith("'") || raw.startsWith('"')) {
             return raw.substring(1, raw.length - 1);
         }
 
@@ -633,10 +654,14 @@ export class SymbolEx {
 
     private toConst(expr: Node): string | null {
         switch (expr.type) {
-            case "UnaryExpression": return this.toConstUnaryVal(expr);
-            case "BinaryExpression": return this.toConstBinaryVal(expr);
-            case "StringLiteral": return expr.raw;
-            case "NumericLiteral": return expr.raw;
+            case 'UnaryExpression':
+                return this.toConstUnaryVal(expr);
+            case 'BinaryExpression':
+                return this.toConstBinaryVal(expr);
+            case 'StringLiteral':
+                return expr.raw;
+            case 'NumericLiteral':
+                return expr.raw;
         }
 
         return null;
@@ -645,11 +670,11 @@ export class SymbolEx {
     // 把 local a = -1中的-1表达式转换成常量显示
     private toConstUnaryVal(expr: UnaryExpression) {
         const arg = expr.argument;
-        if (arg.type === "StringLiteral") {
+        if (arg.type === 'StringLiteral') {
             return expr.operator + this.stringLiteralValue(arg);
         }
 
-        if (arg.type === "NumericLiteral") {
+        if (arg.type === 'NumericLiteral') {
             return expr.operator + arg.value;
         }
 
@@ -672,9 +697,12 @@ export class SymbolEx {
 
     // 构建一个vs code的符号
     // @loc: luaparse中的loc位置结构
-    public toSym(nameInfo: NameInfo,
+    public toSym(
+        nameInfo: NameInfo,
         node: Statement | Expression,
-        init?: Statement | Expression, local?: LocalType): VSCodeSymbol {
+        init?: Statement | Expression,
+        local?: LocalType,
+    ): VSCodeSymbol {
         const loc = node.loc;
         if (!loc) {
             return null;
@@ -697,7 +725,7 @@ export class SymbolEx {
 
         const initNode = init || node;
         switch (initNode.type) {
-            case "Identifier": {
+            case 'Identifier': {
                 // local N = M 会被视为把模块M本地化为N
                 // 在跟踪N的符号时会在M查找
                 // 给scope限定一个范围，不然大量的配置会有常量，导致记录太多数据内在激增
@@ -706,28 +734,28 @@ export class SymbolEx {
                 }
                 break;
             }
-            case "MemberExpression": {
+            case 'MemberExpression': {
                 if (sym.scope >= 0 && sym.scope <= 2 && init) {
                     sym.refType = this.toRefVallue(initNode);
                 }
                 break;
             }
-            case "StringLiteral": {
+            case 'StringLiteral': {
                 sym.value = initNode.raw;
                 sym.kind = SymbolKind.String;
                 break;
             }
-            case "NumericLiteral": {
+            case 'NumericLiteral': {
                 sym.value = initNode.raw;
                 sym.kind = SymbolKind.Number;
                 break;
             }
-            case "BooleanLiteral": {
+            case 'BooleanLiteral': {
                 sym.value = initNode.raw;
                 sym.kind = SymbolKind.Boolean;
                 break;
             }
-            case "UnaryExpression": {
+            case 'UnaryExpression': {
                 // local a = -1
                 const val = this.toConstUnaryVal(initNode);
                 if (val) {
@@ -736,7 +764,7 @@ export class SymbolEx {
                 }
                 break;
             }
-            case "BinaryExpression": {
+            case 'BinaryExpression': {
                 // local a = 1 << 2
                 const val = this.toConstBinaryVal(initNode);
                 if (val) {
@@ -745,37 +773,39 @@ export class SymbolEx {
                 }
                 break;
             }
-            case "TableConstructorExpression": {
+            case 'TableConstructorExpression': {
                 sym.kind = SymbolKind.Namespace;
                 break;
             }
-            case "FunctionDeclaration": {
+            case 'FunctionDeclaration': {
                 sym.kind = SymbolKind.Function;
 
                 sym.parameters = [];
                 for (const para of initNode.parameters) {
                     const paramName =
-                        "Identifier" === para.type ? para.name : para.value;
+                        'Identifier' === para.type ? para.name : para.value;
 
                     sym.parameters.push(paramName);
                 }
                 break;
             }
-            case "CallExpression": {// local M = require("x")
+            case 'CallExpression': {
+                // local M = require("x")
                 const base = initNode.base;
-                if ("Identifier" === base.type && "require" === base.name) {
+                if ('Identifier' === base.type && 'require' === base.name) {
                     const arg = initNode.arguments[0];
-                    if (arg.type === "StringLiteral") {
+                    if (arg.type === 'StringLiteral') {
                         sym.refUri = this.stringLiteralValue(arg);
                     }
                 }
                 break;
             }
-            case "StringCallExpression": {// local M = require "x"
+            case 'StringCallExpression': {
+                // local M = require "x"
                 const base = initNode.base;
-                if ("Identifier" === base.type && "require" === base.name) {
+                if ('Identifier' === base.type && 'require' === base.name) {
                     const arg = initNode.argument;
-                    if (arg.type === "StringLiteral") {
+                    if (arg.type === 'StringLiteral') {
                         sym.refUri = this.stringLiteralValue(arg);
                     }
                 }
@@ -826,7 +856,8 @@ export class SymbolEx {
             if (v.kind === SymbolKind.Namespace && v.scope === 0) {
                 if (this.globalModule.get(v.name)) {
                     Utils.instance().error(
-                        `update global stl symbol module error: ${v.name}`);
+                        `update global stl symbol module error: ${v.name}`,
+                    );
                 }
                 this.globalModule.set(v.name, v);
             }
@@ -869,7 +900,7 @@ export class SymbolEx {
                 }
 
                 // 之前保存的可能是外部符号，现在遇到定义的地方，则把位置修正为定义的位置
-                if ("" !== sym.location.uri) {
+                if ('' !== sym.location.uri) {
                     moduleSym.location = sym.location;
                 }
                 // 合并模块中的符号
@@ -912,7 +943,10 @@ export class SymbolEx {
     }
 
     private getSymbolFromList(
-        base: string[], index: number, symList?: SymInfoEx[]) {
+        base: string[],
+        index: number,
+        symList?: SymInfoEx[],
+    ) {
         let final;
         for (let idx = index; idx < base.length; idx++) {
             if (!symList) {
@@ -940,7 +974,11 @@ export class SymbolEx {
     }
     // 获取某个符号的子符号
     public getSubSymbolFromList(
-        base: string[], index: number, uri: string, symList?: SymInfoEx[]) {
+        base: string[],
+        index: number,
+        uri: string,
+        symList?: SymInfoEx[],
+    ) {
         const sym = this.getSymbolFromList(base, index, symList);
         if (!sym) {
             return null;
@@ -1021,21 +1059,23 @@ export class SymbolEx {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string,
-        isLog: boolean = false): SymInfoEx[] {
-
+    public parse(
+        uri: string,
+        text: string,
+        isLog: boolean = false,
+    ): SymInfoEx[] {
         const ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
-            Utils.instance().log(`${uri} being ignore`);
+            Utils.instance().debug(`${uri} being ignore`);
             return [];
         }
 
         if (isLog) {
             if (0 !== (FileParseType.FPT_LARGE & ft)) {
-                Utils.instance().log(`${uri} parse in large mode`);
+                Utils.instance().debug(`${uri} parse in large mode`);
             }
             if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-                Utils.instance().log(`${uri} parse in single mode`);
+                Utils.instance().debug(`${uri} parse in single mode`);
             }
         }
 
@@ -1052,8 +1092,11 @@ export class SymbolEx {
         for (const node of nodeList) {
             this.parseNode(node);
         }
-        this.appendComment(this.parseComments,
-            this.parseSymList, this.parseCodeLine);
+        this.appendComment(
+            this.parseComments,
+            this.parseSymList,
+            this.parseCodeLine,
+        );
 
         // 不是工程文件，不要把符号添加到工程里
         if (0 !== (FileParseType.FPT_SINGLE & ft)) {
@@ -1069,7 +1112,7 @@ export class SymbolEx {
         this.globalSymbol.clear();
         this.needUpdate = true;
         this.updateVer++;
-        if (this.updateVer > 0xFFFFFFFF) {
+        if (this.updateVer > 0xffffffff) {
             this.updateVer = 1;
         }
 
@@ -1095,8 +1138,12 @@ export class SymbolEx {
     }
 
     // 更新文档缓存
-    private updateCache(uri: string,
-        nodes: Node[], comments: Comment[], codeLine: number[]) {
+    private updateCache(
+        uri: string,
+        nodes: Node[],
+        comments: Comment[],
+        codeLine: number[],
+    ) {
         if (!this.openCache) {
             return;
         }
@@ -1115,7 +1162,10 @@ export class SymbolEx {
             this.docNodeCache.splice(0, 1);
         }
         this.docNodeCache.push({
-            uri: uri, nodes: nodes, comments: comments, codeLine: codeLine
+            uri: uri,
+            nodes: nodes,
+            comments: comments,
+            codeLine: codeLine,
         });
     }
 
@@ -1125,6 +1175,7 @@ export class SymbolEx {
         if (FileParseType.FPT_NONE === ft) {
             return null;
         }
+        // Utils.instance().debug(`parse file ${uri}`);
 
         this.parseUri = uri;
         this.parseScopeDeepth = 0;
@@ -1135,8 +1186,10 @@ export class SymbolEx {
         this.parseModuleName = null;
 
         try {
-            const ok = (0 === (ft & FileParseType.FPT_LARGE)) ?
-                this.parseText(uri, text) : this.parseLarge(text);
+            const ok =
+                0 === (ft & FileParseType.FPT_LARGE)
+                    ? this.parseText(uri, text)
+                    : this.parseLarge(text);
 
             if (!ok) {
                 return null;
@@ -1146,8 +1199,12 @@ export class SymbolEx {
             Utils.instance().error(uri);
         }
 
-        this.updateCache(uri, this.parseCacheList,
-            this.parseComments, this.parseCodeLine);
+        this.updateCache(
+            uri,
+            this.parseCacheList,
+            this.parseComments,
+            this.parseCodeLine,
+        );
 
         return this.parseNodeList;
     }
@@ -1218,8 +1275,9 @@ export class SymbolEx {
                 if (1 === bases.length) {
                     return rawSym;
                 }
-                return rawSym ?
-                    this.getSymbolFromList(bases, 1, sym.subSymList) : null;
+                return rawSym
+                    ? this.getSymbolFromList(bases, 1, sym.subSymList)
+                    : null;
             }
 
             if (sym.refUri) {
@@ -1243,8 +1301,9 @@ export class SymbolEx {
                 if (1 === bases.length) {
                     return symList;
                 }
-                return symList ?
-                    this.getSymbolFromList(bases, 1, symList) : null;
+                return symList
+                    ? this.getSymbolFromList(bases, 1, symList)
+                    : null;
             }
 
             // 本身没有引用其他变量
@@ -1269,8 +1328,12 @@ export class SymbolEx {
      * @param newSymList 需要合并的列表
      * @param filter 过滤器，哪些符号需要合并
      */
-    private appendSymList(isSub: boolean, symList: SymInfoEx[],
-        newSymList: SymInfoEx[], filter?: (sym: SymInfoEx) => boolean) {
+    private appendSymList(
+        isSub: boolean,
+        symList: SymInfoEx[],
+        newSymList: SymInfoEx[],
+        filter?: (sym: SymInfoEx) => boolean,
+    ) {
         for (const sym of newSymList) {
             if (!filter || filter(sym)) {
                 symList.push(sym);
@@ -1287,8 +1350,11 @@ export class SymbolEx {
      * @param isSub 是否查找子符号。跳转和自动补全无法精准定位时，会全局查找。这时并不
      * 希望查找子符号，因为这些符号都是必须通过模块名精准访问的
      */
-    public getGlobalSymbol(isSub: boolean,
-        filter?: (sym: SymInfoEx) => boolean, maxSize?: number): SymInfoEx[] {
+    public getGlobalSymbol(
+        isSub: boolean,
+        filter?: (sym: SymInfoEx) => boolean,
+        maxSize?: number,
+    ): SymInfoEx[] {
         if (this.needUpdate) {
             this.updateGlobal();
         }
@@ -1307,9 +1373,11 @@ export class SymbolEx {
     /**
      * 获取所有符号，包括本地和全局的
      */
-    public getAnySymbol(isSub: boolean,
-        filter?: (sym: SymInfoEx) => boolean, maxSize?: number): SymInfoEx[] {
-
+    public getAnySymbol(
+        isSub: boolean,
+        filter?: (sym: SymInfoEx) => boolean,
+        maxSize?: number,
+    ): SymInfoEx[] {
         // 先搜索全局的
         const symList = this.getGlobalSymbol(isSub, filter, maxSize);
 
@@ -1341,7 +1409,7 @@ export class SymbolEx {
     // 查找经过本地化的原符号uri
     public getRawUri(uri: string, base: string): string | null {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" === base || "_G" === base) {
+        if ('self' === base || '_G' === base) {
             return null;
         }
 
@@ -1373,7 +1441,7 @@ export class SymbolEx {
     // 查找经过本地化的原符号名字，local N = M时转到模块M查找
     public getRawModule(uri: string, base: string): string[] {
         // 模块名为self则是当前文档self:test()这种用法
-        if ("self" === base || "_G" === base) {
+        if ('self' === base || '_G' === base) {
             return [base];
         }
 
@@ -1400,8 +1468,8 @@ export class SymbolEx {
     public toUriFormat(path: string): string {
         // 这个路径，可能是 a.b.c a/b/c a\b\c 这三种形式
         // uri总是使用a/b/c这种形式
-        path = path.replace(/\\/g, "/");
-        path = path.replace(/\./g, "/");
+        path = path.replace(/\\/g, '/');
+        path = path.replace(/\./g, '/');
 
         return path;
     }
@@ -1417,13 +1485,13 @@ export class SymbolEx {
             if (uri.endsWith(endUri)) {
                 // make sure bbb do not match conf/aaabbb
                 const offset = uri.length - endUri.length;
-                if (0 === offset || "/" === uri[offset - 1]) {
+                if (0 === offset || '/' === uri[offset - 1]) {
                     return uri;
                 }
             }
         }
 
-        return "";
+        return '';
     }
 
     // 解析大文件
@@ -1438,7 +1506,7 @@ export class SymbolEx {
             wait: true, // 是否等待显示调用end函数
             comments: false, // 是否记录注释
             ranges: true, // 记录语法节点的字符位置(第几个字符开始，第几个结束)
-            luaVersion: Setting.instance().getLuaVersion()
+            luaVersion: Setting.instance().getLuaVersion(),
         });
 
         let token;
@@ -1449,8 +1517,7 @@ export class SymbolEx {
                 return false;
             }
 
-            if (token.type === LTT.Keyword
-                && token.value === "return") {
+            if (token.type === LTT.Keyword && token.value === 'return') {
                 return false;
             }
 
@@ -1460,28 +1527,29 @@ export class SymbolEx {
         } while (token.type !== LTT.EOF);
 
         const node: AssignmentStatement = {
-            "type": "AssignmentStatement",
-            "variables": [
+            type: 'AssignmentStatement',
+            variables: [
                 {
-                    type: "Identifier",
-                    "name": token.value,
-                    "loc": {
-                        "start": {
-                            "line": token.line,
-                            "column": token.range[0] - token.lineStart
+                    type: 'Identifier',
+                    name: token.value,
+                    loc: {
+                        start: {
+                            line: token.line,
+                            column: token.range[0] - token.lineStart,
                         },
-                        "end": {
-                            "line": token.line,
-                            "column": token.range[1] - token.lineStart
-                        }
-                    }
-                }],
+                        end: {
+                            line: token.line,
+                            column: token.range[1] - token.lineStart,
+                        },
+                    },
+                },
+            ],
             init: [
                 {
-                    type: "TableConstructorExpression",
-                    fields: []
-                }
-            ]
+                    type: 'TableConstructorExpression',
+                    fields: [],
+                },
+            ],
         };
 
         this.parseNodeList.push(node);
@@ -1493,8 +1561,8 @@ export class SymbolEx {
      * 获取符号所在的文件路径，展示用。目前只展示文件名
      */
     public static getSymbolPath(sym: SymInfoEx): string | null {
-        if ("" === sym.location.uri) {
-            return "Lua Standard Libraries";
+        if ('' === sym.location.uri) {
+            return 'Lua Standard Libraries';
         }
         const match = sym.location.uri.match(/\/(\w+.\w+)$/);
         return match ? match[1] : null;
@@ -1506,36 +1574,39 @@ export class SymbolEx {
     public static getPathPrefix(sym: SymInfoEx, uri?: string) {
         // 不在当前文件的符号中显示文件名
         if (uri && sym.location.uri === uri) {
-            return "";
+            return '';
         }
 
         const file = SymbolEx.getSymbolPath(sym);
 
         // 加上markdown的换行，两个空格加\n
-        return file ? `${file}  \n` : "";
+        return file ? `${file}  \n` : '';
     }
 
     // 获取符号的local类型，展示用
     public static getLocalTypePrefix(local?: LocalType) {
         if (!local) {
-            return "";
+            return '';
         }
 
         switch (local) {
-            case LocalType.LT_LOCAL: return "local ";
-            case LocalType.LT_PARAMETER: return "(parameter) ";
-            default: return "";
+            case LocalType.LT_LOCAL:
+                return 'local ';
+            case LocalType.LT_PARAMETER:
+                return '(parameter) ';
+            default:
+                return '';
         }
     }
 
     // 获取符号的base，如 E = { FAIL = 1 } 中 E.FAIL中E.为base
     public static getBasePrefix(sym: SymInfoEx) {
         if (!sym.base) {
-            return "";
+            return '';
         }
 
         // table field like: local tbl = { a = false } have no index
-        const indexer = sym.indexer ? sym.indexer : ".";
+        const indexer = sym.indexer ? sym.indexer : '.';
         return `${sym.base}${indexer}`;
     }
 
@@ -1592,18 +1663,23 @@ export class SymbolEx {
     }
 
     private AppendOneComment(
-        symList: SymInfoEx[], comments: Comment[], begIndex: number,
-        index: number, continueIndex: number, codeLine: number[]) {
+        symList: SymInfoEx[],
+        comments: Comment[],
+        begIndex: number,
+        index: number,
+        continueIndex: number,
+        codeLine: number[],
+    ) {
         const comment = comments[index];
         if (!comment.loc) {
             return {
-                index: begIndex, reset: false
+                index: begIndex,
+                reset: false,
             };
         }
 
         let reset = false;
-        for (let symIndex = begIndex;
-            symIndex < symList.length; symIndex++) {
+        for (let symIndex = begIndex; symIndex < symList.length; symIndex++) {
             const sym = symList[symIndex];
             const comp = this.compPos(sym.location, comment.loc);
             // 注释在当前符号之后了，当前符号之前的都不需要再查找
@@ -1650,7 +1726,7 @@ export class SymbolEx {
                         // 多行注释有对齐，不要去掉空格
                         symComment.push(this.getCommentValue(comments[idx]));
                     }
-                    sym.comment = symComment.join("\n");
+                    sym.comment = symComment.join('\n');
                 }
                 continue;
             }
@@ -1668,7 +1744,8 @@ export class SymbolEx {
         }
 
         return {
-            index: begIndex, reset: reset
+            index: begIndex,
+            reset: reset,
         };
     }
 
@@ -1680,8 +1757,11 @@ export class SymbolEx {
      * -- 这是上面的注释2
      * local sym = false -- 这是行尾的注释
      */
-    public appendComment(comments: Comment[],
-        symList: SymInfoEx[], codeLine: number[]) {
+    public appendComment(
+        comments: Comment[],
+        symList: SymInfoEx[],
+        codeLine: number[],
+    ) {
         let lastSymIndex = 0;
 
         let continueLine = -1;
@@ -1693,15 +1773,23 @@ export class SymbolEx {
             }
 
             // 记录连续多行的注释
-            if (-1 !== continueIndex
-                && continueLine + 1 === comment.loc.start.line) {
+            if (
+                -1 !== continueIndex &&
+                continueLine + 1 === comment.loc.start.line
+            ) {
                 continueLine = comment.loc.end.line;
             } else {
                 continueIndex = -1;
             }
 
-            const ok = this.AppendOneComment(symList,
-                comments, lastSymIndex, index, continueIndex, codeLine);
+            const ok = this.AppendOneComment(
+                symList,
+                comments,
+                lastSymIndex,
+                index,
+                continueIndex,
+                codeLine,
+            );
 
             lastSymIndex = ok.index;
             if (ok.reset) {
@@ -1721,35 +1809,35 @@ export class SymbolEx {
     // local M = X.Y.Z 提示为 local M = X.Y.Z = 5
     public getRefValue(sym: SymInfoEx) {
         if (!sym.refType) {
-            return "";
+            return '';
         }
 
         const refSym = this.getRefSym(sym, sym.location.uri);
         if (!refSym) {
-            return "";
+            return '';
         }
 
         // 如果引用的是一个常量，那显示常量
-        let val = "";
-        let prefix = "";
+        let val = '';
+        let prefix = '';
         if (refSym.value) {
             val = ` = ${refSym.value}`;
         } else if (refSym.kind === SymbolKind.Function) {
-            prefix = "function ";
+            prefix = 'function ';
 
-            let parameters = "";
+            let parameters = '';
             if (refSym.parameters) {
-                parameters = refSym.parameters.join(", ");
+                parameters = refSym.parameters.join(', ');
             }
             val = `(${parameters})`;
 
             // 如果原符号无注释，这里在后面显示注释
             if (refSym.comment && !sym.comment) {
-                val += "\n" + refSym.comment;
+                val += '\n' + refSym.comment;
             }
         }
 
-        return ` ${SymbolEx.refMark} ${prefix}${sym.refType.join(".")}${val}`;
+        return ` ${SymbolEx.refMark} ${prefix}${sym.refType.join('.')}${val}`;
     }
 
     /**
@@ -1791,7 +1879,7 @@ export class SymbolEx {
                 location: SymbolEx.invalidLoc,
                 scope: 0,
                 comment: v.comment,
-                ctType: CommentType.CT_HTML
+                ctType: CommentType.CT_HTML,
             };
 
             stlModule.set(v.name, sym);
@@ -1811,7 +1899,7 @@ export class SymbolEx {
                 location: SymbolEx.invalidLoc,
                 scope: v.base ? 1 : 0,
                 comment: v.comment,
-                ctType: CommentType.CT_HTML
+                ctType: CommentType.CT_HTML,
             };
 
             this.stlSymbol.push(sym);
@@ -1820,7 +1908,8 @@ export class SymbolEx {
                 const baseSym = stlModule.get(v.base);
                 if (!baseSym) {
                     Utils.instance().error(
-                        `load stl no module found: ${v.base}`);
+                        `load stl no module found: ${v.base}`,
+                    );
                     return;
                 }
 
@@ -1837,18 +1926,17 @@ export class SymbolEx {
      */
     public loadStl() {
         const ver = Setting.instance().getLuaVersion();
-        const uri = path.resolve(
-            __dirname, `../../stl/stl_${ver}.json`);
+        const uri = path.resolve(__dirname, `../../stl/stl_${ver}.json`);
 
-        Utils.instance().log(`load stl from ${uri}`);
+        Utils.instance().debug(`load stl from ${uri}`);
         fs.readFile(uri, 'utf8', (err, data) => {
             if (err) {
-                Utils.instance().log(`${JSON.stringify(err)}`);
+                Utils.instance().debug(`${JSON.stringify(err)}`);
                 return;
             }
             const symbols = JSON.parse(data.toString());
             if (!symbols) {
-                Utils.instance().log(`json parse stl for lua ${ver} error`);
+                Utils.instance().debug(`json parse stl for lua ${ver} error`);
                 return;
             }
 

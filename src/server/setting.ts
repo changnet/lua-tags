@@ -1,11 +1,12 @@
 // 插件配置
 
-import * as path from "path";
+import * as path from 'path';
 import { URI } from 'vscode-uri';
+import { Utils } from './utils';
 
 // let ver:string = "5.1"
 // luaVersion = ver as Version
-export type Version = "5.1" | "5.2" | "5.3" | "LuaJIT";
+export type Version = '5.1' | '5.2' | '5.3' | 'LuaJIT';
 
 // 按位(1是否需要解析 2是否超大 3是否工程文件)
 export enum FileParseType {
@@ -18,35 +19,32 @@ export enum FileParseType {
 export class Setting {
     private static ins: Setting;
 
-    private luaVersion: Version = "5.3";
+    private luaVersion: Version = '5.3';
 
     // 大于100kb的文件不解析，大概在2000代码以上了，取决于你写了啥
     private maxFileSize: number = 100 * 1024;
 
     private excludeDir: string[] = []; // 排除的目录
-    private rootDir: string = ""; // 工程根目录
+    private rootDir: string = ''; // 工程根目录
     private excludeDotDir: boolean = true; // 排除.开头的文件夹(.svn .git .vscode)
 
-    private rawRootUri: string = ""; // vs code打开的根目录uri
-    private rootUri: string = ""; // 完整的工程根目录uri
+    private rawRootUri: string = ''; // vs code打开的根目录uri
+    private rootUri: string = ''; // 完整的工程根目录uri
 
     // luacheck setting
     private luaCheck = true; // enable or disable luacheck
     private checkOnInit = true; // run luacheck on init
-    private checkHow = "save"; // run luacheck on file save or typing
+    private checkHow = 'save'; // run luacheck on file save or typing
     private checkDelay = 1000; // delay run luacheck
-    private luaCheckPath = ""; // luacheck path
-    private luaCheckRc = ""; // .luacheckrc path
+    private luaCheckPath = ''; // luacheck path
+    private luaCheckRc = ''; // .luacheckrc path
     private checkExclude: string[] = []; // luacheck exclude dir
     private checkOnFileOpen = false; // run luacheck when open a lua file
 
     // export global symbol
-    private static readonly defPath = "lua-tags-global-symbols";
-    private exportInterval = 0;
-    private exportPath = Setting.defPath;
+    private exportPath = '';
 
-    private constructor() {
-    }
+    private constructor() {}
 
     public static instance() {
         if (!Setting.ins) {
@@ -63,63 +61,57 @@ export class Setting {
 
     public setConfiguration(conf: any) {
         if (conf.luaVersion) {
-            this.luaVersion = <Version>(conf.luaVersion) || "5.3";
+            this.luaVersion = <Version>conf.luaVersion || '5.3';
         }
 
         if (conf.excludeDir) {
-            this.excludeDir = <string[]>(conf.excludeDir) || [];
+            this.excludeDir = <string[]>conf.excludeDir || [];
         }
 
         if (conf.maxFileSize) {
-            this.maxFileSize = <number>(conf.maxFileSize) || 100 * 1024;
+            this.maxFileSize = <number>conf.maxFileSize || 100 * 1024;
         }
 
         // boolean类型不用if判断
-        this.excludeDotDir = <boolean>(conf.excludeDotDir);
+        this.excludeDotDir = <boolean>conf.excludeDotDir;
 
         if (conf.rootDir) {
-            this.rootDir = <string>(conf.rootDir) || "";
+            this.rootDir = <string>conf.rootDir || '';
         }
 
-
-        this.luaCheck = <boolean>(conf.luacheck);
-        this.checkOnInit = <boolean>(conf.checkOnInit);
-        this.checkOnFileOpen = <boolean>(conf.checkOnFileOpen);
+        this.luaCheck = <boolean>conf.luacheck;
+        this.checkOnInit = <boolean>conf.checkOnInit;
+        this.checkOnFileOpen = <boolean>conf.checkOnFileOpen;
 
         if (conf.checkHow) {
-            this.checkHow = <string>(conf.checkHow) || "save";
+            this.checkHow = <string>conf.checkHow || 'save';
         }
 
         if (conf.checkDelay) {
-            this.checkDelay = <number>(conf.checkDelay) || 1000;
+            this.checkDelay = <number>conf.checkDelay || 1000;
         }
 
         if (conf.luaCheckPath) {
-            this.luaCheckPath = <string>(conf.luaCheckPath) || "";
+            this.luaCheckPath = <string>conf.luaCheckPath || '';
         }
 
         if (conf.luaCheckRc) {
-            this.luaCheckRc = <string>(conf.luaCheckRc) || "";
+            this.luaCheckRc = <string>conf.luaCheckRc || '';
         }
 
         if (conf.checkExclude) {
-            this.checkExclude = <string[]>(conf.checkExclude) || [];
-        }
-
-        if (conf.exportInterval) {
-            this.exportInterval = <number>(conf.exportInterval) || 0;
+            this.checkExclude = <string[]>conf.checkExclude || [];
         }
 
         if (conf.exportPath) {
-            this.exportPath = <string>(conf.exportPath);
-            if (!this.exportPath || this.exportPath.length === 0) {
-                this.exportPath = Setting.defPath;
-            }
+            this.exportPath = <string>conf.exportPath || '';
         }
 
-        if ("" !== this.rawRootUri) {
+        if ('' !== this.rawRootUri) {
             this.rootUri = this.parseRootPath(
-                URI.parse(this.rawRootUri).fsPath, true);
+                URI.parse(this.rawRootUri).fsPath,
+                true,
+            );
         }
     }
 
@@ -135,13 +127,13 @@ export class Setting {
         }
         const dirName = path.parse(pathNnme).name;
 
-        return dirName.startsWith(".");
+        return dirName.startsWith('.');
     }
 
     /**
      * 解析某个目录在根目录的位置，得到一个完整的路径
      * @param dir 子目录名
-     * @param uriFmt 是否格式化为通用的字符串 
+     * @param uriFmt 是否格式化为通用的字符串
      */
     public parseRootPath(dir: string, uriFmt: boolean = false) {
         const newPath = path.join(dir, this.rootDir);
@@ -160,7 +152,7 @@ export class Setting {
 
     private isUriExclude(uri: string, excludes: string[]): boolean {
         for (const dir of excludes) {
-            const re = new RegExp(`${this.rootDir}/${dir}`, "g");
+            const re = new RegExp(`${this.rootDir}/${dir}`, 'g');
             if (uri.match(re)) {
                 return true;
             }
@@ -177,7 +169,7 @@ export class Setting {
         }
 
         let isInRoot = false; // 是否在工程目录
-        if (this.rootUri !== "" && uri.startsWith(this.rootUri)) {
+        if (this.rootUri !== '' && uri.startsWith(this.rootUri)) {
             isInRoot = true;
         }
 
@@ -186,6 +178,13 @@ export class Setting {
 
         if (!isInRoot || isExclude) {
             ft = ft | FileParseType.FPT_SINGLE;
+        }
+
+        // 如果是导出的符号文件，不要解析，否则写入文件，触发文件变动，触发解析，再触发文件写入就死循环了
+        // file:///d%3A/dev/MServer/server/__globals.lua __globals.lua
+        const exportPath = Setting.instance().getExportPath();
+        if (exportPath && uri.endsWith(exportPath)) {
+            return FileParseType.FPT_NONE;
         }
 
         return ft;
@@ -200,11 +199,11 @@ export class Setting {
     }
 
     public isCheckOnTyping() {
-        return this.luaCheck && "typing" === this.checkHow;
+        return this.luaCheck && 'typing' === this.checkHow;
     }
 
     public isCheckOnSave() {
-        return this.luaCheck && "save" === this.checkHow;
+        return this.luaCheck && 'save' === this.checkHow;
     }
 
     public getCheckDelay() {
@@ -226,11 +225,6 @@ export class Setting {
     // 是否在打开文件时运行luacheck，仅打开工程不运行luacheck时有效
     public isCheckOnFileOpen() {
         return this.luaCheck && this.checkOnFileOpen && !this.checkOnInit;
-    }
-
-    /** 获取定时保存全局符号间隔(秒) */
-    public getExportInterval() {
-        return this.exportInterval;
     }
 
     /** 获取保存全局符号路径 */

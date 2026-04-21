@@ -1,16 +1,13 @@
 // lint 代码检查
 
-import * as path from "path";
+import * as path from 'path';
 import { URI } from 'vscode-uri';
 import { Utils } from './utils';
+import { tryExportGlobalSymbol } from './exportSymbol';
 
-import { execFile } from "child_process";
+import { execFile } from 'child_process';
 
-
-import {
-    Diagnostic,
-    DiagnosticSeverity
-} from 'vscode-languageserver';
+import { Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
 import { Setting } from './setting';
 
 // 对应child_process.execFile的Option字段
@@ -24,7 +21,7 @@ interface ProcOption {
 
 export enum CheckHow {
     DEFAULT = 0,
-    INITIALIZE = 1
+    INITIALIZE = 1,
 }
 
 interface PendingTask {
@@ -44,7 +41,7 @@ export class DiagnosticProvider {
 
     // node.js child_process参数
     private option: ProcOption;
-    private cmd: string = "";
+    private cmd: string = '';
     private args: string[] = [];
     private abort: boolean = false;
 
@@ -55,7 +52,7 @@ export class DiagnosticProvider {
         this.option = {
             // it take some time to check large file
             timeout: 15000,
-            maxBuffer: 1024 * 1024
+            maxBuffer: 1024 * 1024,
         };
 
         // https://luacheck.readthedocs.io/en/stable/config.html
@@ -73,7 +70,7 @@ export class DiagnosticProvider {
     }
 
     private toDiagnostic(msg: string | null) {
-        if (!msg || msg === "") {
+        if (!msg || msg === '') {
             return [];
         }
 
@@ -81,7 +78,7 @@ export class DiagnosticProvider {
         const lines = msg.split(/\r?\n/g);
         for (const line of lines) {
             // empty line at end of stdout
-            if (line === "") {
+            if (line === '') {
                 continue;
             }
 
@@ -98,17 +95,21 @@ export class DiagnosticProvider {
 
             let severity: DiagnosticSeverity = DiagnosticSeverity.Information;
             switch (matchs[4]) {
-                case "E": severity = DiagnosticSeverity.Error; break;
-                case "W": severity = DiagnosticSeverity.Warning; break;
+                case 'E':
+                    severity = DiagnosticSeverity.Error;
+                    break;
+                case 'W':
+                    severity = DiagnosticSeverity.Warning;
+                    break;
             }
 
             diags.push({
                 range: {
                     start: { line: ln, character: col },
-                    end: { line: ln, character: endCol }
+                    end: { line: ln, character: endCol },
                 },
                 severity: severity,
-                message: msg
+                message: msg,
             });
         }
 
@@ -116,10 +117,16 @@ export class DiagnosticProvider {
     }
 
     private runCheck(cmd: string, args: string[], ctx: string): Thenable<any> {
+        // ensure server exports global symbols if needed before running luacheck
+        tryExportGlobalSymbol();
+
         return new Promise((resolve, reject) => {
             try {
                 const child = execFile(
-                    cmd, args, this.option, (error, stdout) => {
+                    cmd,
+                    args,
+                    this.option,
+                    (error, stdout) => {
                         /* luacheck chooses exit code as follows:
                          * Exit code is 0 if no warnings or errors occurred.
                          * Exit code is 1 if some warnings occurred but there were no syntax errors or invalid inline options.
@@ -129,7 +136,7 @@ export class DiagnosticProvider {
                          */
                         if (!error) {
                             // no warnings or errors occurred
-                            resolve("");
+                            resolve('');
                             return;
                         }
                         const code: number = (error as any).code;
@@ -139,7 +146,8 @@ export class DiagnosticProvider {
                         } else {
                             reject(error);
                         }
-                    });
+                    },
+                );
 
                 /* execFile is async
                  * child.on("error") or child.on("exit") does not work here.
@@ -153,10 +161,12 @@ export class DiagnosticProvider {
 
                 // try catch 捕获不到stdin的错误，不太清楚为啥
                 let stop = false;
-                child.stdin.on("error", (e) => {
+                child.stdin.on('error', (e) => {
                     stop = true;
                     Utils.instance().error(`luacheck fail ${args}`);
-                    Utils.instance().log(`write to luacheck stdin error ${e}`);
+                    Utils.instance().debug(
+                        `write to luacheck stdin error ${e}`,
+                    );
                 });
 
                 // 这个值大概是16384
@@ -172,8 +182,7 @@ export class DiagnosticProvider {
                  */
                 for (let index = 0; index < ctx.length; index += OnceSize) {
                     if (stop) break;
-                    child.stdin.write(
-                        ctx.substring(index, index + OnceSize));
+                    child.stdin.write(ctx.substring(index, index + OnceSize));
                 }
                 child.stdin.end();
             } catch (e) {
@@ -190,22 +199,21 @@ export class DiagnosticProvider {
 
     private getLuaCheckCmd() {
         const checkPath = Setting.instance().getLuaCheckPath();
-        if (checkPath !== "") {
+        if (checkPath !== '') {
             return checkPath;
         }
 
         // https://nodejs.org/api/process.html#process_process_platform
         // 其他平台默认要把luacheck添加到path
-        let cmd = "luackeck";
+        let cmd = 'luackeck';
         const platform = process.platform;
 
-        if (platform === "win32") {
-            cmd = path.resolve(
-                __dirname, "../../luacheck/luacheck.exe");
-        } else if (platform === "linux") {
+        if (platform === 'win32') {
+            cmd = path.resolve(__dirname, '../../luacheck/luacheck.exe');
+        } else if (platform === 'linux') {
             // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
-            cmd = path.resolve(__dirname, "../../luacheck/luacheck_x64");
+            cmd = path.resolve(__dirname, '../../luacheck/luacheck_x64');
             //Utils.instance().setExec(cmd);
         }
 
@@ -218,16 +226,18 @@ export class DiagnosticProvider {
             '--ranges', // 日志里显示有问题的范围
 
             // 日志格式，plain表示一个警告一个错误一行
-            '--formatter', 'plain',
+            '--formatter',
+            'plain',
 
             // 文件名，由于是从stdin输入
             // 需要指定一个文件名，这样在输入日志的时候才有文件名
-            '--filename', "__placeholder",
+            '--filename',
+            '__placeholder',
         ];
 
         const setting = Setting.instance();
         const rc = setting.getLuaCheckRc();
-        if (rc !== "") {
+        if (rc !== '') {
             args.push('--config');
             args.push(rc);
         }
@@ -293,9 +303,12 @@ export class DiagnosticProvider {
             } else {
                 this.pendingTask.splice(0, index);
 
-                setTimeout(() => {
-                    this.timeoutCheck();
-                }, (now - task.timeout) * 1000);
+                setTimeout(
+                    () => {
+                        this.timeoutCheck();
+                    },
+                    (now - task.timeout) * 1000,
+                );
 
                 return;
             }
@@ -334,7 +347,9 @@ export class DiagnosticProvider {
 
         this.pendingCtx.set(uri, ctx);
         this.pendingTask.push({
-            uri: uri, how: how, timeout: Date.now() + delay / 1000
+            uri: uri,
+            how: how,
+            timeout: Date.now() + delay / 1000,
         });
 
         // already have a pending task, do NOT spawn massive child process
