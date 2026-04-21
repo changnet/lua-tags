@@ -5,6 +5,16 @@
 1. 安装node.js
 2. 安装`ESLint`和`Prettier - Code formatter`插件
 3. 安装依赖`cd lua-tag && npm install`
+4. 用vs code打开项目
+   已经预告配置好了npm watch，在run或者debug中运行插件，都应该能够编译代码并运行。否则就是有问题，比如
+
+powershell无法运行npm
+
+```
+npm : 无法加载文件 D:\Program Files\nodejs\npm.ps1，因为在此系统上禁止运行脚本。有关详细信息，请参阅 https:/go.microsoft.com/fwlink/?LinkID=135170 中的 about_Execution_Policies。
+```
+
+以管理员运行powershell，执行`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine`
 
 ## 检测package是否最新
 

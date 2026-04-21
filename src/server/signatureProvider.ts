@@ -1,6 +1,5 @@
 // 参数填充辅助
 
-
 import {
     SymbolKind,
     Position,
@@ -8,7 +7,7 @@ import {
     SignatureInformation,
     ParameterInformation,
     MarkupContent,
-    MarkupKind
+    MarkupKind,
 } from 'vscode-languageserver';
 import { Server } from './server';
 import { SymbolEx, SymInfoEx, CommentType } from './symbol';
@@ -19,8 +18,7 @@ import { Search } from './search';
  */
 export class SignatureProvider {
     private static ins: SignatureProvider;
-    private constructor() {
-    }
+    private constructor() {}
 
     public static instance() {
         if (!SignatureProvider.ins) {
@@ -30,39 +28,42 @@ export class SignatureProvider {
         return SignatureProvider.ins;
     }
 
-    private toSignature(sym: SymInfoEx,
-        uri: string): SignatureInformation | null {
-
+    private toSignature(
+        sym: SymInfoEx,
+        uri: string,
+    ): SignatureInformation | null {
         /**
          * local comp = string_comp
          * 当string_comp是函数时，需要显示string_comp的参数
          */
         const refSym = SymbolEx.instance().getRefSym(sym, sym.location.uri);
-        if (sym.kind !== SymbolKind.Function
-            && (!refSym || refSym.kind !== SymbolKind.Function)) {
+        if (
+            sym.kind !== SymbolKind.Function &&
+            (!refSym || refSym.kind !== SymbolKind.Function)
+        ) {
             return null;
         }
 
         /**
          * 拼接的参数
          */
-        let funcParam = "";
+        let funcParam = '';
         let symParam = sym.parameters;
         let funcName = `function ${sym.name}`;
         if (refSym && sym.refType) {
             symParam = refSym.parameters;
             const mark = SymbolEx.refMark;
-            funcName = `${funcName} ${mark} ${sym.refType.join(".")}`;
+            funcName = `${funcName} ${mark} ${sym.refType.join('.')}`;
         }
         const parameters: ParameterInformation[] = [];
         if (symParam) {
-            funcParam = symParam.join(", ");
+            funcParam = symParam.join(', ');
 
             // +1是因为函数名和参数之间有个左括号
             let offset = funcName.length + 1;
             for (const param of symParam) {
                 parameters.push({
-                    label: [offset, offset + param.length]
+                    label: [offset, offset + param.length],
                 });
                 // test(a, b, c)每个参数的位置中包含一个逗号和上空格，所以加2
                 offset += param.length + 2;
@@ -83,19 +84,21 @@ export class SignatureProvider {
         if (comment || file) {
             let value = file;
             if (comment) {
-                value += ctType === CommentType.CT_HTML
-                    ? comment : `\`\`\`lua\n${comment}\n\`\`\``;
+                value +=
+                    ctType === CommentType.CT_HTML
+                        ? comment
+                        : `\`\`\`lua\n${comment}\n\`\`\``;
             }
             doc = {
                 kind: MarkupKind.Markdown,
-                value: value
+                value: value,
             } as MarkupContent;
         }
 
         return {
             label: `${funcName}(${funcParam})`,
             parameters: parameters,
-            documentation: doc
+            documentation: doc,
         };
     }
 
@@ -120,15 +123,15 @@ export class SignatureProvider {
         for (let pos = offset; pos >= minOffset; pos--) {
             const char = text.charAt(pos);
             // 换行时，\r\n和\n都只用\n来判断
-            if ("\n" === char) {
+            if ('\n' === char) {
                 line++;
                 continue;
             }
-            if (0 === scope && "," === char) {
+            if (0 === scope && ',' === char) {
                 index++;
-            } else if (")" === char || "}" === char) {
+            } else if (')' === char || '}' === char) {
                 scope++;
-            } else if ("(" === char || "{" === char) {
+            } else if ('(' === char || '{' === char) {
                 scope--;
                 if (scope < 0) {
                     symOffset = pos;
@@ -141,30 +144,32 @@ export class SignatureProvider {
         let character = 0;
         minOffset = Math.max(offset - 256, 0);
         for (let pos = symOffset; pos >= minOffset; pos--) {
-            if ("\n" === text.charAt(pos)) {
+            if ('\n' === text.charAt(pos)) {
                 break;
             }
             character++;
         }
-        const lineText = -1 === symOffset ?
-            "" : text.substring(symOffset - character, symOffset);
+        const lineText =
+            -1 === symOffset
+                ? ''
+                : text.substring(symOffset - character, symOffset);
 
         return {
             line: line,
             index: index,
             offset: symOffset,
             character: character,
-            lineText: lineText
+            lineText: lineText,
         };
     }
 
     private calcActivieParam(sym: SymInfoEx, index: number, indexer?: string) {
         // 以.声明的函数通过:调用，则参数会相差一个self
-        if (sym.indexer === "." && indexer === ":") {
+        if (sym.indexer === '.' && indexer === ':') {
             index += 1;
         }
 
-        if (sym.indexer === ":" && indexer === ".") {
+        if (sym.indexer === ':' && indexer === '.') {
             index -= 1;
         }
 
@@ -174,11 +179,16 @@ export class SignatureProvider {
             return index;
         }
 
-        return null;
+        return undefined;
     }
 
-    public doSignature(srv: Server, uri: string,
-        pos: Position, text: string, offset: number): SignatureHelp | null {
+    public doSignature(
+        srv: Server,
+        uri: string,
+        pos: Position,
+        text: string,
+        offset: number,
+    ): SignatureHelp | null {
         const info = this.scanSym(text, offset);
         if (-1 === info.offset) {
             return null;
@@ -186,7 +196,8 @@ export class SignatureProvider {
 
         const line = pos.line - info.line;
         const query = srv.getQuerySymbol(uri, info.lineText, {
-            line: line, character: info.character
+            line: line,
+            character: info.character,
         });
         if (!query) {
             return null;
@@ -197,23 +208,28 @@ export class SignatureProvider {
             return null;
         }
 
-        let activeIndex: number | null = null;
-        let activeParam: number | null = null; // 为null则vs code不选中参数
+        let activeIndex: number | undefined = undefined;
+        let activeParam: number | undefined = undefined; // undefined则vs code不选中参数
         const signatureList: SignatureInformation[] = [];
         symList.forEach((sym, index) => {
             // when define a function, do signature itself
-            if (uri === sym.location.uri
-                && line === sym.location.range.start.line) {
+            if (
+                uri === sym.location.uri &&
+                line === sym.location.range.start.line
+            ) {
                 return;
             }
             const sig = this.toSignature(sym, uri);
             if (sig) {
                 signatureList.push(sig);
                 // 如果有多个函数，输入的参数超过了第一个，尝试下一个函数
-                if (null === activeIndex) {
+                if (activeIndex === undefined) {
                     const idx = this.calcActivieParam(
-                        sym, info.index, query.indexer);
-                    if (idx) {
+                        sym,
+                        info.index,
+                        query.indexer,
+                    );
+                    if (idx !== undefined) {
                         activeIndex = index;
                         activeParam = idx;
                     }
@@ -224,7 +240,7 @@ export class SignatureProvider {
         return {
             signatures: signatureList,
             activeSignature: activeIndex,
-            activeParameter: activeParam
+            activeParameter: activeParam,
         };
     }
 }

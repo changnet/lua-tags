@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { Connection, Diagnostic } from 'vscode-languageserver';
 
 import * as fs from 'fs';
@@ -110,7 +111,10 @@ export class Utils {
     // 导出全局符号，不常用，直接用同步写入就可以了
     public writeGlobalSymbols(symList: SymInfoEx[]) {
         const fileName = Setting.instance().getExportPath();
-        const option: fs.WriteFileOptions = { encoding: 'utf8', flag: 'a' };
+        const option: { encoding?: BufferEncoding | null; flag?: string } = {
+            encoding: 'utf8',
+            flag: 'a',
+        };
 
         const rootUri = Setting.instance().getRoot();
 

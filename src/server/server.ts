@@ -1,4 +1,3 @@
-
 import {
     Hover,
     Definition,
@@ -19,28 +18,23 @@ import {
     InitializeResult,
     SignatureHelp,
     DidChangeConfigurationParams,
-    TextDocumentSyncKind
-} from 'vscode-languageserver';
+    TextDocumentSyncKind,
+} from 'vscode-languageserver/node';
 
-import {
-    TextDocument
-} from 'vscode-languageserver-textdocument';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 
-import {
-    SymbolEx,
-    SymbolQuery
-} from "./symbol";
+import { SymbolEx, SymbolQuery } from './symbol';
 
 // can only be default-imported using the 'esModuleInterop' flag
 // import assert from "assert";
 
 import { URI } from 'vscode-uri';
-import { Utils, DirWalker } from "./utils";
-import { HoverProvider } from "./hoverProvider";
-import { AutoCompletion } from "./autoCompletion";
-import { GoToDefinition } from "./goToDefinition";
-import { SignatureProvider } from "./signatureProvider";
-import { DiagnosticProvider, CheckHow } from "./diagnosticProvider";
+import { Utils, DirWalker } from './utils';
+import { HoverProvider } from './hoverProvider';
+import { AutoCompletion } from './autoCompletion';
+import { GoToDefinition } from './goToDefinition';
+import { SignatureProvider } from './signatureProvider';
+import { DiagnosticProvider, CheckHow } from './diagnosticProvider';
 import { Setting, FileParseType } from './setting';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
@@ -68,7 +62,7 @@ export class Server {
         // TODO: wrap all function in try catch and send error to client
         // I didn't find a better way to do this. It is any ?
 
-        conn.onInitialize(handler => this.onInitialize(handler));
+        conn.onInitialize((handler) => this.onInitialize(handler));
         conn.onInitialized(async () => {
             try {
                 // 阻塞初始一些必须的参数
@@ -79,7 +73,7 @@ export class Server {
                 Utils.instance().anyError(e);
             }
         });
-        conn.onCompletion(handler => {
+        conn.onCompletion((handler) => {
             try {
                 return this.onCompletion(handler);
             } catch (e) {
@@ -87,7 +81,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onDocumentSymbol(handler => {
+        conn.onDocumentSymbol((handler) => {
             try {
                 return this.onDocumentSymbol(handler);
             } catch (e) {
@@ -95,7 +89,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onWorkspaceSymbol(handler => {
+        conn.onWorkspaceSymbol((handler) => {
             try {
                 return this.onWorkspaceSymbol(handler);
             } catch (e) {
@@ -103,7 +97,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onDefinition(handler => {
+        conn.onDefinition((handler) => {
             try {
                 return this.onDefinition(handler);
             } catch (e) {
@@ -114,7 +108,7 @@ export class Server {
 
         // TODO 这个貌似没有用了，没有触发
         // 使用下面doc.onDidOpen之类的事件
-        conn.onDidChangeWatchedFiles(handler => {
+        conn.onDidChangeWatchedFiles((handler) => {
             try {
                 return this.onFilesChange(handler);
             } catch (e) {
@@ -122,7 +116,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onHover(handler => {
+        conn.onHover((handler) => {
             try {
                 return this.onHover(handler);
             } catch (e) {
@@ -130,7 +124,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onSignatureHelp(handler => {
+        conn.onSignatureHelp((handler) => {
             try {
                 return this.onSignature(handler);
             } catch (e) {
@@ -138,7 +132,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onDidChangeConfiguration(handler => {
+        conn.onDidChangeConfiguration((handler) => {
             try {
                 return this.onConfiguration(handler);
             } catch (e) {
@@ -146,7 +140,7 @@ export class Server {
                 return null;
             }
         });
-        conn.onNotification("__export", () => {
+        conn.onNotification('__export', () => {
             try {
                 const symList = SymbolEx.instance().getGlobalSymbolList();
                 Utils.instance().writeGlobalSymbols(symList);
@@ -157,7 +151,7 @@ export class Server {
         });
 
         const doc = this.documents;
-        doc.onDidSave(handler => {
+        doc.onDidSave((handler) => {
             try {
                 return this.onSaveDocument(handler);
             } catch (e) {
@@ -165,7 +159,7 @@ export class Server {
                 return null;
             }
         });
-        doc.onDidChangeContent(async handler => {
+        doc.onDidChangeContent(async (handler) => {
             try {
                 await this.waitForPreInit();
                 return this.onDocumentChange(handler);
@@ -176,7 +170,7 @@ export class Server {
         });
 
         // doc触发的文件类型在 documentSelector 中设置，比如只有lua类型才会触发
-        doc.onDidClose(async handler => {
+        doc.onDidClose(async (handler) => {
             // if a file is not in workspace, make sure clear it's diagnostic
             // message after it close
             try {
@@ -190,12 +184,14 @@ export class Server {
                 return null;
             }
         });
-        doc.onDidOpen(async handler => {
+        doc.onDidOpen(async (handler) => {
             try {
                 await this.waitForPreInit();
                 if (Setting.instance().isCheckOnFileOpen()) {
                     DiagnosticProvider.instance().check(
-                        handler.document.uri, handler.document.getText());
+                        handler.document.uri,
+                        handler.document.getText(),
+                    );
                 }
             } catch (e) {
                 Utils.instance().anyError(e);
@@ -216,9 +212,11 @@ export class Server {
 
         // could not find a better way to wait...
         for (let ts = 0; ts < 32; ts++) {
-            const ok = await new Promise((resolve) => setTimeout(() => {
-                resolve(this.isPreInit);
-            }, 100));
+            const ok = await new Promise((resolve) =>
+                setTimeout(() => {
+                    resolve(this.isPreInit);
+                }, 100),
+            );
 
             if (ok) {
                 return ok;
@@ -245,23 +243,24 @@ export class Server {
                 documentSymbolProvider: true,
                 workspaceSymbolProvider: true, // 整个工程符号 CTRL + T
                 definitionProvider: true, // go to definition
-                completionProvider: { // 打.或者:时列出可自动完成的函数
+                completionProvider: {
+                    // 打.或者:时列出可自动完成的函数
                     // resolve是命中哪个函数后，有一个回调回来，现在用不到
                     resolveProvider: false,
                     // 哪些字符触发函数提示
                     // 默认情况下，vs code是代码部分都会请求自动补全
                     // 但在字符串里，只有这些特殊字符才会触发，比如做路径补全时用到
-                    triggerCharacters: ['.', ':']
+                    triggerCharacters: ['.', ':'],
                 },
                 hoverProvider: true, // 鼠标放上去的提示信息
 
                 // 函数调用参数辅助
                 signatureHelpProvider: {
-                    triggerCharacters: ["(", ","]
+                    triggerCharacters: ['(', ','],
                 },
                 //documentFormattingProvider: true, // 格式化整个文档
                 //documentRangeFormattingProvider: true // 格式化选中部分
-            }
+            },
         };
     }
 
@@ -274,7 +273,7 @@ export class Server {
         setting.setRawRootUri(this.rootUri);
 
         const conf =
-            await this.connection.workspace.getConfiguration("lua-tags");
+            await this.connection.workspace.getConfiguration('lua-tags');
         setting.setConfiguration(conf);
 
         const diagnostic = DiagnosticProvider.instance();
@@ -297,19 +296,22 @@ export class Server {
 
         const checkOnInit = Setting.instance().isCheckOnInit();
         const files = await DirWalker.instance().walk(
-            uri.fsPath, (uri, ctx) => {
+            uri.fsPath,
+            (uri, ctx) => {
                 symbol.parse(uri, ctx, true);
                 if (checkOnInit) {
                     diagnostic.check(uri, ctx, CheckHow.INITIALIZE);
                 }
-            });
+            },
+        );
         symbol.setCacheOpen();
         symbol.loadStl();
 
         const end = Date.now();
         Utils.instance().log(
             // eslint-disable-next-line max-len
-            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`);
+            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`,
+        );
 
         const interval = Setting.instance().getExportInterval();
         if (interval > 0) {
@@ -357,7 +359,8 @@ export class Server {
 
     // 返回当前文档的符号
     private onDocumentSymbol(
-        handler: DocumentSymbolParams): SymbolInformation[] {
+        handler: DocumentSymbolParams,
+    ): SymbolInformation[] {
         const uri = handler.textDocument.uri;
 
         // return [
@@ -390,15 +393,20 @@ export class Server {
 
     // 返回工作目录的符号(全局符号列表)
     private onWorkspaceSymbol(
-        handler: WorkspaceSymbolParams): SymbolInformation[] | null {
+        handler: WorkspaceSymbolParams,
+    ): SymbolInformation[] | null {
         const query = handler.query.trim();
-        if (query === "") {
+        if (query === '') {
             return null;
         }
 
-        return SymbolEx.instance().getAnySymbol(true, sym => {
-            return SymbolEx.checkMatch(query, sym.name) > -500;
-        }, 128);
+        return SymbolEx.instance().getAnySymbol(
+            true,
+            (sym) => {
+                return SymbolEx.checkMatch(query, sym.name) > -500;
+            },
+            128,
+        );
     }
 
     // 获取查询符号所在行的文本内容
@@ -414,19 +422,22 @@ export class Server {
         // 获取所在行的字符，因为不知道行的长度，直接传一个很大的数字
         return document.getText({
             start: { line: pos.line, character: 0 },
-            end: { line: pos.line, character: 10240000 }
+            end: { line: pos.line, character: 10240000 },
         });
     }
 
     // 根据光标位置分解出要查询的符号信息
     public getQuerySymbol(
-        uri: string, text: string, pos: Position): SymbolQuery | null {
+        uri: string,
+        text: string,
+        pos: Position,
+    ): SymbolQuery | null {
         // vs code发过来的只是光标的位置，并不是要查询的符号，我们需要分解出来
         const leftText = text.substring(0, pos.character);
         const rightText = text.substring(pos.character);
 
         // let module = null;
-        let name: string = "";
+        let name: string = '';
         let kind: SymbolKind = SymbolKind.Variable;
 
         // 模块名，即m:test()中的m
@@ -482,13 +493,13 @@ export class Server {
             }
         }
 
-        const dotPos = text.lastIndexOf(".", beg);
+        const dotPos = text.lastIndexOf('.', beg);
         if (dotPos > 0) {
-            indexer = ".";
+            indexer = '.';
         }
-        const colonPos = text.lastIndexOf(":", beg);
+        const colonPos = text.lastIndexOf(':', beg);
         if (colonPos > dotPos) {
-            indexer = ":";
+            indexer = ':';
         }
 
         return {
@@ -499,7 +510,7 @@ export class Server {
             extBase: extBase,
             position: { line: pos.line, beg: beg, end: end },
             text: text,
-            indexer: indexer
+            indexer: indexer,
         };
     }
 
@@ -519,16 +530,23 @@ export class Server {
     // go to definetion
     private onDefinition(handler: TextDocumentPositionParams): Definition {
         return GoToDefinition.instance().doDefinition(
-            this, handler.textDocument.uri, handler.position);
+            this,
+            handler.textDocument.uri,
+            handler.position,
+        );
     }
 
     // 代码自动补全
     private onCompletion(
-        handler: TextDocumentPositionParams): CompletionItem[] | null {
+        handler: TextDocumentPositionParams,
+    ): CompletionItem[] | null {
         const uri = handler.textDocument.uri;
 
         return AutoCompletion.instance().doCompletion(
-            this, uri, handler.position);
+            this,
+            uri,
+            handler.position,
+        );
     }
 
     // 已打开的文档内容变化，注意是已打开的
@@ -546,21 +564,23 @@ export class Server {
     // 这里处理因第三方软件直接修改文件造成的文件变化
     private doFileChange(uri: string, doSym: boolean) {
         const path = URI.parse(uri);
-        DirWalker.instance().walkFile(path.fsPath, (fileUri, ctx) => {
-            if (doSym) {
-                SymbolEx.instance().parse(fileUri, ctx);
-            }
-            if (Setting.instance().isLuaCheckOpen()) {
-                DiagnosticProvider.instance().check(fileUri, ctx);
-            }
-        }, uri
+        DirWalker.instance().walkFile(
+            path.fsPath,
+            (fileUri, ctx) => {
+                if (doSym) {
+                    SymbolEx.instance().parse(fileUri, ctx);
+                }
+                if (Setting.instance().isLuaCheckOpen()) {
+                    DiagnosticProvider.instance().check(fileUri, ctx);
+                }
+            },
+            uri,
         );
     }
 
     // 文件增删
     private onFilesChange(handler: DidChangeWatchedFilesParams) {
         for (const event of handler.changes) {
-
             const uri = event.uri;
             const type = event.type;
             switch (type) {
@@ -603,13 +623,16 @@ export class Server {
         // };
 
         return HoverProvider.instance().doHover(
-            srv, handler.textDocument.uri, handler.position);
+            srv,
+            handler.textDocument.uri,
+            handler.position,
+        );
     }
 
     // 函数调用，参数辅助
     private onSignature(
-        handler: TextDocumentPositionParams): SignatureHelp | null {
-
+        handler: TextDocumentPositionParams,
+    ): SignatureHelp | null {
         const pos = handler.position;
         const uri = handler.textDocument.uri;
         const doc = this.documents.get(uri);
@@ -618,7 +641,12 @@ export class Server {
             return null;
         }
         return SignatureProvider.instance().doSignature(
-            this, uri, pos, doc.getText(), doc.offsetAt(pos));
+            this,
+            uri,
+            pos,
+            doc.getText(),
+            doc.offsetAt(pos),
+        );
     }
 
     // 配置变化，现在并没有做热更处理，需要重启vs code
@@ -639,4 +667,3 @@ export class Server {
 
 const srv = new Server();
 srv.init();
-
