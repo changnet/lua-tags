@@ -10,7 +10,8 @@ import {
     MarkupKind,
 } from 'vscode-languageserver';
 import { Server } from './server';
-import { SymbolEx, SymInfoEx, CommentType } from './symbol';
+import { SymbolEx } from './symbol';
+import { SymInfoEx, CommentType } from './parseSymbol';
 import { Search } from './search';
 
 /**

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { Setting } from './setting';
-import { SymInfoEx, SymbolEx } from './symbol';
+import { SymbolEx } from './symbol';
+import { SymInfoEx } from './parseSymbol';
 import { Utils } from './utils';
 
 let exportVer: number = 0;
