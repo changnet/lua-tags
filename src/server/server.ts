@@ -37,6 +37,8 @@ import { GoToDefinition } from './goToDefinition';
 import { SignatureProvider } from './signatureProvider';
 import { DiagnosticProvider, CheckHow } from './diagnosticProvider';
 import { Setting, FileParseType } from './setting';
+import { CacheSymbol } from './cacheSymbol';
+import { ParseSymbol } from './parseSymbol';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 export class Server {
@@ -303,8 +305,8 @@ export class Server {
                 }
             },
         );
-        symbol.setCacheOpen();
-        symbol.loadStl();
+        CacheSymbol.instance().setCacheOpen();
+        symbol.loadFromStl();
 
         const end = Date.now();
         Utils.instance().debug(
@@ -472,7 +474,7 @@ export class Server {
 
     // 确定有当前符号的缓存，没有则解析
     public ensureSymbolCache(uri: string) {
-        if (SymbolEx.instance().getCache(uri)) {
+        if (CacheSymbol.instance().getCache(uri)) {
             return;
         }
         const document = this.documents.get(uri);
@@ -480,7 +482,11 @@ export class Server {
             return;
         }
 
-        SymbolEx.instance().rawParse(uri, document.getText());
+        let text = document.getText();
+        const ft = Setting.instance().getFileType(uri, text.length);
+
+        let parser = new ParseSymbol();
+        parser.rawParse(uri, text, ft);
     }
 
     // go to definetion

@@ -7,13 +7,9 @@ import {
     SymbolKind,
 } from 'vscode-languageserver';
 
-import {
-    SymbolEx,
-    SymInfoEx,
-    SymbolQuery,
-    CommentType,
-    LocalType
-} from "./symbol";
+import { SymbolEx, SymbolQuery } from './symbol';
+
+import { ParseSymbol, SymInfoEx, CommentType, LocalType } from './parseSymbol';
 
 import { Server } from './server';
 import { Search, Filter } from './search';
@@ -22,8 +18,7 @@ export class AutoCompletion {
     private static accurate = -500;
     private static ins: AutoCompletion;
 
-    private constructor() {
-    }
+    private constructor() {}
 
     public static instance() {
         if (!AutoCompletion.ins) {
@@ -39,14 +34,20 @@ export class AutoCompletion {
         // 所以我们默认使用variable类型，与text区分
         let kind: CompletionItemKind = CompletionItemKind.Variable;
         switch (sym.kind) {
-            case SymbolKind.Function: kind = CompletionItemKind.Function; break;
-            case SymbolKind.Namespace: kind = CompletionItemKind.Module; break;
-            case SymbolKind.Module: kind = CompletionItemKind.Module; break;
+            case SymbolKind.Function:
+                kind = CompletionItemKind.Function;
+                break;
+            case SymbolKind.Namespace:
+                kind = CompletionItemKind.Module;
+                break;
+            case SymbolKind.Module:
+                kind = CompletionItemKind.Module;
+                break;
         }
 
         const item: CompletionItem = {
             label: sym.name,
-            kind: kind
+            kind: kind,
         };
 
         if (sym.location.uri !== uri) {
@@ -56,12 +57,12 @@ export class AutoCompletion {
             }
         }
 
-        let doc = "";
+        let doc = '';
         if (sym.comment && sym.ctType === CommentType.CT_HTML) {
-            doc = sym.comment + "\n";
+            doc = sym.comment + '\n';
         }
 
-        let mdDoc = ""; // markdown documentation
+        let mdDoc = ''; // markdown documentation
         // 显示上方的注释
         if (sym.comment && sym.ctType === CommentType.CT_ABOVE) {
             mdDoc += `${sym.comment}\n`;
@@ -72,12 +73,12 @@ export class AutoCompletion {
         } else if (sym.kind === SymbolKind.Function) {
             // 如果是函数，显示参数: test.lua: function(a, b, c)
             const local = SymbolEx.getLocalTypePrefix(sym.local);
-            const base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
-            const parameters = sym.parameters ? sym.parameters.join(", ") : "";
+            const base = sym.base && sym.indexer ? sym.base + sym.indexer : '';
+            const parameters = sym.parameters ? sym.parameters.join(', ') : '';
             mdDoc += `${local}function ${base}${sym.name}(${parameters})`;
         } else {
             const local = SymbolEx.getLocalTypePrefix(sym.local);
-            const base = sym.base && sym.indexer ? sym.base + sym.indexer : "";
+            const base = sym.base && sym.indexer ? sym.base + sym.indexer : '';
             mdDoc += `${local}${base}${sym.name}`;
         }
 
@@ -92,8 +93,8 @@ export class AutoCompletion {
         }
         if (doc.length > 0 || mdDoc.length > 0) {
             item.documentation = {
-                kind: "markdown",
-                value: doc
+                kind: 'markdown',
+                value: doc,
             };
 
             if (mdDoc.length > 0) {
@@ -139,9 +140,9 @@ export class AutoCompletion {
         }
 
         // 得到没有后缘的文件路径
-        const endPath = end.substring(0, end.length - ".lua".length);
+        const endPath = end.substring(0, end.length - '.lua'.length);
         // 把uri中的/替换为.
-        return endPath.replace(/\//g, ".");
+        return endPath.replace(/\//g, '.');
     }
 
     // require "a.b.c" 自动补全后面的路径
@@ -170,7 +171,7 @@ export class AutoCompletion {
         const itemFilter = new Map<string, boolean>();
         const items: CompletionItem[] = [];
 
-        symbol.eachUri(uri => {
+        symbol.eachUri((uri) => {
             const index = uri.indexOf(path);
             if (index < 0) {
                 return;
@@ -194,7 +195,9 @@ export class AutoCompletion {
             }
         });
 
-        if (items.length <= 0) { return null; }
+        if (items.length <= 0) {
+            return null;
+        }
         return items;
     }
 
@@ -208,7 +211,9 @@ export class AutoCompletion {
         const symName = query.name;
         const emptyName = 0 === symName.length;
         const symbol = SymbolEx.instance();
-        Search.instance().rawSearchLocal(query.uri, query.position,
+        Search.instance().rawSearchLocal(
+            query.uri,
+            query.position,
             (node, local, name, base, init) => {
                 // 搜索局部变量时，如果存在模块名则模块名必须准确匹配
                 if (base !== baseName) {
@@ -226,14 +231,20 @@ export class AutoCompletion {
                     return;
                 }
                 if (emptyName || SymbolEx.checkMatch(symName, name) > -100) {
-                    const sym = symbol.toSym(
-                        { name: name, base: base }, node, init, local);
+                    const sym = ParseSymbol.toSym(
+                        { name: name, base: base },
+                        node,
+                        0,
+                        query.uri,
+                        init,
+                        local,
+                    );
                     if (sym) {
                         duplicateSym.set(name, true);
                         symList.push(sym);
                     }
                 }
-            }
+            },
         );
 
         return symList.length > 0 ? symList : null;
@@ -246,13 +257,16 @@ export class AutoCompletion {
      * 所以这里特殊处理
      */
     private searchModuleName(
-        name: string, items: CompletionItem[] | null, base?: string) {
+        name: string,
+        items: CompletionItem[] | null,
+        base?: string,
+    ) {
         if (base) {
             return items;
         }
 
         const newItems = items || [];
-        SymbolEx.instance().eachModuleName(mdName => {
+        SymbolEx.instance().eachModuleName((mdName) => {
             if (SymbolEx.checkMatch(name, mdName) < AutoCompletion.accurate) {
                 return;
             }
@@ -268,7 +282,7 @@ export class AutoCompletion {
 
             newItems.push({
                 label: mdName,
-                kind: CompletionItemKind.Module
+                kind: CompletionItemKind.Module,
             });
         });
 
@@ -280,18 +294,20 @@ export class AutoCompletion {
 
         let found = false;
         const symName = query.name;
-        const filter: Filter = symList => {
+        const filter: Filter = (symList) => {
             if (!symList) {
                 return null;
             }
-            return symList.filter(sym => {
+            return symList.filter((sym) => {
                 if (sym.name.startsWith(symName)) {
                     found = true;
                     return true;
                 }
-                return 0 === symName.length
-                    || SymbolEx.checkMatch(symName, sym.name)
-                    > AutoCompletion.accurate;
+                return (
+                    0 === symName.length ||
+                    SymbolEx.checkMatch(symName, sym.name) >
+                        AutoCompletion.accurate
+                );
             });
         };
 
@@ -342,8 +358,9 @@ export class AutoCompletion {
         }
 
         // 忽略模块名，直接查找全局符号
-        tmps = filter(symbol.getAnySymbol(
-            false, sym => sym.location.uri !== uri));
+        tmps = filter(
+            symbol.getAnySymbol(false, (sym) => sym.location.uri !== uri),
+        );
         if (tmps) {
             const symList = search.filterLocalSym(tmps, query);
             if (symList.length > 0) {
@@ -357,15 +374,23 @@ export class AutoCompletion {
 
     public doCompletion(srv: Server, uri: string, pos: Position) {
         const line = srv.getQueryText(uri, pos);
-        if (!line) { return []; }
+        if (!line) {
+            return [];
+        }
 
         // require("a.b.c") 跳转到对应的文件
-        let items: CompletionItem[] | null =
-            this.getRequireCompletion(line, pos.character);
-        if (items) { return items; }
+        let items: CompletionItem[] | null = this.getRequireCompletion(
+            line,
+            pos.character,
+        );
+        if (items) {
+            return items;
+        }
 
         const query = srv.getQuerySymbol(uri, line, pos);
-        if (!query) { return []; }
+        if (!query) {
+            return [];
+        }
 
         const list = this.doSearch(srv, query);
         if (!list) {

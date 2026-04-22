@@ -5,7 +5,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { URI } from 'vscode-uri';
 import { Setting } from './setting';
-import { SymInfoEx } from './symbol';
 
 type WalkerCallBack = (uri: string, ctx: string) => void;
 

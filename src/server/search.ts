@@ -19,6 +19,7 @@ import { ParseSymbol, SymInfoEx, LocalType } from './parseSymbol';
 import { SymbolEx, QueryPos, SymbolQuery } from './symbol';
 import { Server } from './server';
 import { Location } from 'vscode-languageserver';
+import { CacheSymbol } from './cacheSymbol';
 
 export interface SearchResult {
     // name: string; // 名字，暂时不记，在SymbolQuery中有
@@ -380,9 +381,7 @@ export class Search {
     // 搜索局部符号
     // @callBack: 过滤函数，主要用于回调
     public rawSearchLocal(uri: string, pos: QueryPos, callBack: CallBack) {
-        const symbol = SymbolEx.instance();
-
-        const cache = symbol.getCache(uri);
+        const cache = CacheSymbol.instance().getCache(uri);
         if (!cache) {
             return null;
         }
@@ -440,14 +439,15 @@ export class Search {
         // 赋值的，而typescript无法保证这个lambda什么时候会被调用，因此要用!
         // https://github.com/Microsoft/TypeScript/issues/15631
 
-        const symbol = SymbolEx.instance();
         let found: SymInfoEx | null = null;
         const re = foundLocal || foundGlobal;
         if (re) {
             const r: SearchResult = re!;
-            found = symbol.toSym(
+            found = ParseSymbol.toSym(
                 { name: query.name, base: r.base },
                 r.node,
+                0,
+                query.uri,
                 r.init,
                 r.local,
             );
@@ -458,7 +458,7 @@ export class Search {
             return null;
         }
 
-        const cache = symbol.getCache(query.uri);
+        const cache = CacheSymbol.instance().getCache(query.uri);
         if (!cache) {
             return symList;
         }

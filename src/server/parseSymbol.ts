@@ -25,6 +25,7 @@ import {
     StringLiteral,
 } from 'luaparse';
 
+import { CacheSymbol } from './cacheSymbol';
 import { Location, SymbolKind, SymbolInformation } from 'vscode-languageserver';
 
 // luaParser.lex()
@@ -111,25 +112,6 @@ export class ParseSymbol {
 
     private options: Options;
 
-    // 全局符号缓存（即_G中的符号），符号名为k，v为数组(可能存在同名全局符号)
-    private globalSymbol = new Map<string, SymInfoEx[]>();
-
-    // 全局模块缓存，符号名为k，方便快速查询符号 identifier
-    private globalModule = new Map<string, SymInfoEx>();
-
-    /**
-     * 各个文档的符号缓存，uri为key
-     * 注意每个文档的符号是全部存到一个数组里，不是以树形结构存的
-     * 必要时根据scope判断是否为自己所需要符号
-     */
-    private documentSymbol = new Map<string, SymInfoEx[]>();
-
-    // 各个文档的符号缓存，第一层uri为key，第二层模块名为key
-    // 下面这种写法，M就会被认为是一个documentModule
-    // local M = MM
-    // M.a = ...
-    private documentModule = new Map<string, Map<string, SymInfoEx>>();
-
     // 下面是一些解析当前文档的辅助变量
     private parseUri: string = '';
     private parseScopeDeepth: number = 0;
@@ -141,7 +123,7 @@ export class ParseSymbol {
     private parseCodeLine: number[] = [];
     private parseModuleName: string | null = null;
 
-    private constructor() {
+    public constructor() {
         this.options = {
             locations: true, // 是否记录语法节点的位置(node)
             scope: true, // 是否记录作用域
@@ -225,7 +207,7 @@ export class ParseSymbol {
             return null;
         }
 
-        return this.stringLiteralValue(argument);
+        return ParseSymbol.stringLiteralValue(argument);
     }
 
     // 解析节点
@@ -287,7 +269,7 @@ export class ParseSymbol {
     }
 
     // 创建一个不存在的外部模块符号
-    private createModuleSym(name: string, scope: number = 0): SymInfoEx {
+    public static createModuleSym(name: string, scope: number = 0): SymInfoEx {
         return {
             name: name,
             kind: SymbolKind.Namespace,
@@ -339,7 +321,7 @@ export class ParseSymbol {
         // 可能是扩展标准库或者C++中定义，又或者是同一个模块，分成多个文件
         // key为模块名，Value为uri
         if (!moduleSym) {
-            moduleSym = this.createModuleSym(name);
+            moduleSym = ParseSymbol.createModuleSym(name);
             this.parseModule.set(name, moduleSym);
         }
 
@@ -417,7 +399,7 @@ export class ParseSymbol {
         if (expr.isLocal) {
             local = LocalType.LT_LOCAL;
         }
-        const sym = this.toSym(nameInfo, expr, undefined, local);
+        const sym = this.toParseSym(nameInfo, expr, undefined, local);
         if (!sym) {
             return [];
         }
@@ -445,7 +427,7 @@ export class ParseSymbol {
                 continue;
             }
 
-            const sym = this.toSym(
+            const sym = this.toParseSym(
                 {
                     name: field.key.name,
                     base: base,
@@ -505,7 +487,7 @@ export class ParseSymbol {
 
             const init = stat.init[index];
 
-            const sym = this.toSym(nameInfo, varNode, init, local);
+            const sym = this.toParseSym(nameInfo, varNode, init, local);
             if (!sym) {
                 continue;
             }
@@ -546,7 +528,7 @@ export class ParseSymbol {
     }
 
     // 记录local MAX = M.X.Y 这种引用
-    private toRefVallue(node: MemberExpression) {
+    private static toRefVallue(node: MemberExpression) {
         const refVal: string[] = [];
 
         let init = node;
@@ -581,7 +563,7 @@ export class ParseSymbol {
      * luaparse 0.3.0后，根据encodingMode来解析字符串，但是没有提供解析utf8的方式？
      * x-user-defined pseudo-latin1都无法解析出中文
      */
-    private stringLiteralValue(val: StringLiteral) {
+    private static stringLiteralValue(val: StringLiteral) {
         if (val.value) {
             return val.value;
         }
@@ -595,12 +577,12 @@ export class ParseSymbol {
         return raw.substring(2, raw.length - 2);
     }
 
-    private toConst(expr: Node): string | null {
+    private static toConst(expr: Node): string | null {
         switch (expr.type) {
             case 'UnaryExpression':
-                return this.toConstUnaryVal(expr);
+                return ParseSymbol.toConstUnaryVal(expr);
             case 'BinaryExpression':
-                return this.toConstBinaryVal(expr);
+                return ParseSymbol.toConstBinaryVal(expr);
             case 'StringLiteral':
                 return expr.raw;
             case 'NumericLiteral':
@@ -611,10 +593,10 @@ export class ParseSymbol {
     }
 
     // 把 local a = -1中的-1表达式转换成常量显示
-    private toConstUnaryVal(expr: UnaryExpression) {
+    private static toConstUnaryVal(expr: UnaryExpression) {
         const arg = expr.argument;
         if (arg.type === 'StringLiteral') {
-            return expr.operator + this.stringLiteralValue(arg);
+            return expr.operator + ParseSymbol.stringLiteralValue(arg);
         }
 
         if (arg.type === 'NumericLiteral') {
@@ -625,11 +607,11 @@ export class ParseSymbol {
     }
 
     // 把 local a = 1 << 32中的 1 << 32表达式转换成常量显示
-    private toConstBinaryVal(expr: BinaryExpression) {
+    private static toConstBinaryVal(expr: BinaryExpression) {
         // TODO: 这里的字符串格式化可能有问题，AST后，括号去掉了，简单地按左右拼接可能
         // 导致优先级错误
-        const left = this.toConst(expr.left);
-        const right = this.toConst(expr.right);
+        const left = ParseSymbol.toConst(expr.left);
+        const right = ParseSymbol.toConst(expr.right);
 
         if (left && right) {
             return `${left} ${expr.operator} ${right}`;
@@ -638,11 +620,29 @@ export class ParseSymbol {
         return null;
     }
 
-    // 构建一个vs code的符号
-    // @loc: luaparse中的loc位置结构
-    public toSym(
+    public toParseSym(
         nameInfo: NameInfo,
         node: Statement | Expression,
+        init?: Statement | Expression,
+        local?: LocalType,
+    ): VSCodeSymbol {
+        return ParseSymbol.toSym(
+            nameInfo,
+            node,
+            this.parseScopeDeepth,
+            this.parseUri,
+            init,
+            local,
+        );
+    }
+
+    // 构建一个vs code的符号
+    // @loc: luaparse中的loc位置结构
+    public static toSym(
+        nameInfo: NameInfo,
+        node: Statement | Expression,
+        scope: number,
+        uri: string,
         init?: Statement | Expression,
         local?: LocalType,
     ): VSCodeSymbol {
@@ -653,7 +653,6 @@ export class ParseSymbol {
 
         // T.t = 99 这种写法，t属于T，故t的作用域不应该为0，但解析时parseScope是为0
         // 只有 T = { t = 99 } 这种写法parseScore才不为0
-        let scope = this.parseScopeDeepth;
         if (0 === scope && nameInfo.base) {
             scope = 1;
         }
@@ -663,7 +662,7 @@ export class ParseSymbol {
             indexer: nameInfo.indexer,
             scope: scope,
             kind: SymbolKind.Variable,
-            location: ParseSymbol.toLocation(this.parseUri, loc),
+            location: ParseSymbol.toLocation(uri, loc),
         };
 
         const initNode = init || node;
@@ -679,7 +678,7 @@ export class ParseSymbol {
             }
             case 'MemberExpression': {
                 if (sym.scope >= 0 && sym.scope <= 2 && init) {
-                    sym.refType = this.toRefVallue(initNode);
+                    sym.refType = ParseSymbol.toRefVallue(initNode);
                 }
                 break;
             }
@@ -700,7 +699,7 @@ export class ParseSymbol {
             }
             case 'UnaryExpression': {
                 // local a = -1
-                const val = this.toConstUnaryVal(initNode);
+                const val = ParseSymbol.toConstUnaryVal(initNode);
                 if (val) {
                     sym.value = val;
                     sym.kind = SymbolKind.Number;
@@ -709,7 +708,7 @@ export class ParseSymbol {
             }
             case 'BinaryExpression': {
                 // local a = 1 << 2
-                const val = this.toConstBinaryVal(initNode);
+                const val = ParseSymbol.toConstBinaryVal(initNode);
                 if (val) {
                     sym.value = val;
                     sym.kind = SymbolKind.Number;
@@ -738,7 +737,7 @@ export class ParseSymbol {
                 if ('Identifier' === base.type && 'require' === base.name) {
                     const arg = initNode.arguments[0];
                     if (arg.type === 'StringLiteral') {
-                        sym.refUri = this.stringLiteralValue(arg);
+                        sym.refUri = ParseSymbol.stringLiteralValue(arg);
                     }
                 }
                 break;
@@ -749,7 +748,7 @@ export class ParseSymbol {
                 if ('Identifier' === base.type && 'require' === base.name) {
                     const arg = initNode.argument;
                     if (arg.type === 'StringLiteral') {
-                        sym.refUri = this.stringLiteralValue(arg);
+                        sym.refUri = ParseSymbol.stringLiteralValue(arg);
                     }
                 }
                 break;
@@ -798,31 +797,8 @@ export class ParseSymbol {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(
-        uri: string,
-        text: string,
-        isLog: boolean = false,
-    ): SymInfoEx[] {
-        const ft = Setting.instance().getFileType(uri, text.length);
-        if (FileParseType.FPT_NONE === ft) {
-            Utils.instance().debug(`${uri} being ignore`);
-            return [];
-        }
-
-        if (isLog) {
-            if (0 !== (FileParseType.FPT_LARGE & ft)) {
-                Utils.instance().debug(`${uri} parse in large mode`);
-            }
-            if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-                Utils.instance().debug(`${uri} parse in single mode`);
-            }
-        }
-
-        // 不能用clear，这里的数据会直接存到this.documentModule
-        this.parseModule = new Map<string, SymInfoEx>();
-        this.parseSymList = [];
-
-        const nodeList = this.rawParse(uri, text);
+    public parse(uri: string, text: string, ft: FileParseType): SymInfoEx[] {
+        const nodeList = this.rawParse(uri, text, ft);
         if (!nodeList) {
             return [];
         }
@@ -837,37 +813,21 @@ export class ParseSymbol {
             this.parseCodeLine,
         );
 
-        // 不是工程文件，不要把符号添加到工程里
-        if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-            return this.parseSymList;
-        }
-
-        // 解析成功，更新缓存，否则使用旧的
-        this.documentSymbol.set(uri, this.parseSymList);
-        this.documentModule.set(uri, this.parseModule);
-
-        // 符号有变化，清空全局符号缓存，下次请求时生成
-        this.globalModule.clear();
-        this.globalSymbol.clear();
-
         return this.parseSymList;
     }
 
-    // 解析一段代码并查找局部变量
-    public rawParse(uri: string, text: string): Node[] | null {
-        const ft = Setting.instance().getFileType(uri, text.length);
-        if (FileParseType.FPT_NONE === ft) {
-            return null;
-        }
-        // Utils.instance().debug(`parse file ${uri}`);
+    // 获取已经解析好的模块信息
+    public getParseModule() {
+        return this.parseModule;
+    }
 
-        this.parseUri = uri;
-        this.parseScopeDeepth = 0;
-        this.parseNodeList = [];
-        this.parseCacheList = [];
-        this.parseComments = [];
-        this.parseCodeLine = [];
-        this.parseModuleName = null;
+    // 解析一段代码并查找局部变量
+    public rawParse(
+        uri: string,
+        text: string,
+        ft: FileParseType,
+    ): Node[] | null {
+        // Utils.instance().debug(`parse file ${uri}`);
 
         try {
             const ok =
@@ -882,6 +842,13 @@ export class ParseSymbol {
             Utils.instance().anyError(e);
             Utils.instance().error(uri);
         }
+
+        CacheSymbol.instance().updateCache(
+            uri,
+            this.parseCacheList,
+            this.parseComments,
+            this.parseCodeLine,
+        );
 
         return this.parseNodeList;
     }

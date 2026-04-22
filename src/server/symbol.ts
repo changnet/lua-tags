@@ -3,7 +3,7 @@
 import { Utils } from './utils';
 import * as fuzzysort from 'fuzzysort';
 import { Setting, FileParseType } from './setting';
-import { SymInfoEx } from './parseSymbol';
+import { ParseSymbol, SymInfoEx, VSCodeSymbol, LocalType } from './parseSymbol';
 import { Location, SymbolKind } from 'vscode-languageserver';
 import { loadStl } from './stlSymbol';
 
@@ -30,13 +30,6 @@ export interface NameInfo {
     name: string;
     base?: string;
     indexer?: string;
-}
-
-interface NodeCache {
-    uri: string;
-    nodes: Node[];
-    codeLine: number[];
-    comments: Comment[];
 }
 
 export class SymbolEx {
@@ -76,10 +69,6 @@ export class SymbolEx {
     // local M = MM
     // M.a = ...
     private documentModule = new Map<string, Map<string, SymInfoEx>>();
-
-    private openCache = false;
-    // 缓存8个文档的符号数据，用于本地符号的查找等
-    private docNodeCache = new Array<NodeCache>();
 
     private constructor() {}
 
@@ -155,7 +144,7 @@ export class SymbolEx {
                 // 合并时不能修改原符号，只能重新创建一个
                 if (-1 !== moduleSym.scope) {
                     // let newSym: SymInfoEx = Object.assign(moduleSym);
-                    const newSym = this.createModuleSym(name, -1);
+                    const newSym = ParseSymbol.createModuleSym(name, -1);
 
                     newSym.location = moduleSym.location;
                     if (!newSym.subSymList) {
@@ -316,33 +305,17 @@ export class SymbolEx {
             }
         }
 
-        // 不能用clear，这里的数据会直接存到this.documentModule
-        this.parseModule = new Map<string, SymInfoEx>();
-        this.parseSymList = [];
-
-        const nodeList = this.rawParse(uri, text);
-        if (!nodeList) {
-            return [];
-        }
-
-        this.parseScopeDeepth = 0;
-        for (const node of nodeList) {
-            this.parseNode(node);
-        }
-        this.appendComment(
-            this.parseComments,
-            this.parseSymList,
-            this.parseCodeLine,
-        );
+        let parser = new ParseSymbol();
+        let parseSymList = parser.parse(uri, text, ft);
 
         // 不是工程文件，不要把符号添加到工程里
         if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-            return this.parseSymList;
+            return parseSymList;
         }
 
         // 解析成功，更新缓存，否则使用旧的
-        this.documentSymbol.set(uri, this.parseSymList);
-        this.documentModule.set(uri, this.parseModule);
+        this.documentSymbol.set(uri, parseSymList);
+        this.documentModule.set(uri, parser.getParseModule());
 
         // 符号有变化，清空全局符号缓存，下次请求时生成
         this.globalModule.clear();
@@ -353,89 +326,11 @@ export class SymbolEx {
             this.updateVer = 1;
         }
 
-        return this.parseSymList;
-    }
-
-    public setCacheOpen() {
-        this.openCache = true;
+        return parseSymList;
     }
 
     public getUpdateVersion() {
         return this.updateVer;
-    }
-
-    public getCache(uri: string): NodeCache | null {
-        for (const cache of this.docNodeCache) {
-            if (uri === cache.uri) {
-                return cache;
-            }
-        }
-
-        return null;
-    }
-
-    // 更新文档缓存
-    private updateCache(
-        uri: string,
-        nodes: Node[],
-        comments: Comment[],
-        codeLine: number[],
-    ) {
-        if (!this.openCache) {
-            return;
-        }
-
-        let index = -1;
-        for (const e of this.docNodeCache) {
-            index++;
-            if (e.uri === uri) {
-                break;
-            }
-        }
-        if (index >= 0) {
-            this.docNodeCache.splice(index, 1);
-        }
-        if (this.docNodeCache.length >= 8) {
-            this.docNodeCache.splice(0, 1);
-        }
-        this.docNodeCache.push({
-            uri: uri,
-            nodes: nodes,
-            comments: comments,
-            codeLine: codeLine,
-        });
-    }
-
-    // 解析一段代码并查找局部变量
-    public rawParse(uri: string, text: string): Node[] | null {
-        const ft = Setting.instance().getFileType(uri, text.length);
-        if (FileParseType.FPT_NONE === ft) {
-            return null;
-        }
-        // Utils.instance().debug(`parse file ${uri}`);
-
-        try {
-            const ok =
-                0 === (ft & FileParseType.FPT_LARGE)
-                    ? this.parseText(uri, text)
-                    : this.parseLarge(text);
-
-            if (!ok) {
-                return null;
-            }
-        } catch (e) {
-            Utils.instance().anyError(e);
-            Utils.instance().error(uri);
-        }
-
-        this.updateCache(
-            uri,
-            this.parseCacheList,
-            this.parseComments,
-            this.parseCodeLine,
-        );
-
-        return this.parseNodeList;
     }
 
     // 遍历所有文档的uri

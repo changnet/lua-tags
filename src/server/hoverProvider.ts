@@ -1,32 +1,19 @@
 // 处理鼠标悬浮提示
 
+import { Hover, Position, MarkupKind, SymbolKind } from 'vscode-languageserver';
 
-import {
-    Hover,
-    Position,
-    MarkupKind,
-    SymbolKind,
-} from 'vscode-languageserver';
+import { SymbolEx } from './symbol';
 
-import {
-    SymbolEx,
-    SymInfoEx,
-    CommentType
-} from "./symbol";
+import { SymInfoEx, CommentType } from './parseSymbol';
 
-import {
-    Search
-} from "./search";
+import { Search } from './search';
 
-import {
-    Server
-} from "./server";
+import { Server } from './server';
 
 export class HoverProvider {
     private static ins: HoverProvider;
 
-    private constructor() {
-    }
+    private constructor() {}
 
     public static instance() {
         if (!HoverProvider.ins) {
@@ -38,14 +25,20 @@ export class HoverProvider {
 
     private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
         const path = SymbolEx.getPathPrefix(sym, uri);
-        let above = "";
-        let lineEnd = "";
-        let prefix = "";
+        let above = '';
+        let lineEnd = '';
+        let prefix = '';
         if (sym.comment) {
             switch (sym.ctType) {
-                case CommentType.CT_ABOVE: above = sym.comment + "\n"; break;
-                case CommentType.CT_LINEEND: lineEnd = " " + sym.comment; break;
-                case CommentType.CT_HTML: prefix = sym.comment + "\n"; break;
+                case CommentType.CT_ABOVE:
+                    above = sym.comment + '\n';
+                    break;
+                case CommentType.CT_LINEEND:
+                    lineEnd = ' ' + sym.comment;
+                    break;
+                case CommentType.CT_HTML:
+                    prefix = sym.comment + '\n';
+                    break;
             }
         }
 
@@ -57,8 +50,11 @@ export class HoverProvider {
     private defaultTips(sym: SymInfoEx, uri: string) {
         if (sym.value) {
             const prefix = SymbolEx.getLocalTypePrefix(sym.local);
-            return this.toLuaMarkdown(sym,
-                `${prefix}${sym.name} = ${sym.value}`, uri);
+            return this.toLuaMarkdown(
+                sym,
+                `${prefix}${sym.name} = ${sym.value}`,
+                uri,
+            );
         }
 
         if (sym.local || sym.refType) {
@@ -78,21 +74,27 @@ export class HoverProvider {
         let tips: string | null = null;
         switch (sym.kind) {
             case SymbolKind.Function: {
-                const local = sym.local ? "local " : "";
-                let parameters = "";
+                const local = sym.local ? 'local ' : '';
+                let parameters = '';
                 if (sym.parameters) {
-                    parameters = sym.parameters.join(", ");
+                    parameters = sym.parameters.join(', ');
                 }
                 const base = SymbolEx.getBasePrefix(sym);
 
-                tips = this.toLuaMarkdown(sym,
-                    `${local}function ${base}${sym.name}(${parameters})`, uri);
+                tips = this.toLuaMarkdown(
+                    sym,
+                    `${local}function ${base}${sym.name}(${parameters})`,
+                    uri,
+                );
                 break;
             }
             case SymbolKind.Namespace: {
-                const local = sym.local ? "local " : "";
-                tips = this.toLuaMarkdown(sym,
-                    `(table) ${local}${sym.name}`, uri);
+                const local = sym.local ? 'local ' : '';
+                tips = this.toLuaMarkdown(
+                    sym,
+                    `(table) ${local}${sym.name}`,
+                    uri,
+                );
                 break;
             }
             case SymbolKind.Module: {
@@ -102,7 +104,6 @@ export class HoverProvider {
             default: {
                 return this.defaultTips(sym, uri);
             }
-
         }
         return tips;
     }
@@ -116,7 +117,7 @@ export class HoverProvider {
             }
         }
 
-        return list.join("\n---\n");
+        return list.join('\n---\n');
     }
 
     /* 搜索模块名
@@ -134,25 +135,30 @@ export class HoverProvider {
 
     public doHover(srv: Server, uri: string, pos: Position): Hover | null {
         const line = srv.getQueryText(uri, pos);
-        if (!line) { return null; }
+        if (!line) {
+            return null;
+        }
 
         const query = srv.getQuerySymbol(uri, line, pos);
-        if (!query || query.name === "") { return null; }
+        if (!query || query.name === '') {
+            return null;
+        }
 
         const list = Search.instance().search(srv, query);
 
-        const value = list ?
-            this.toMarkdown(list, uri) : this.searchModuleName(query.name);
+        const value = list
+            ? this.toMarkdown(list, uri)
+            : this.searchModuleName(query.name);
 
-        if (!value || value === "") {
+        if (!value || value === '') {
             return null;
         }
 
         return {
             contents: {
                 kind: MarkupKind.Markdown,
-                value: value
-            }
+                value: value,
+            },
         };
     }
 }
