@@ -232,7 +232,7 @@ export class Server {
         const folders = params.workspaceFolders;
         if (folders && folders.length > 0) {
             this.rootUri = folders[0].uri;
-            Utils.instance().debug(`using ${this.rootUri} as root`);
+            Utils.instance().Info(`using ${this.rootUri} as root`);
         }
 
         return {
@@ -309,7 +309,7 @@ export class Server {
         symbol.loadFromStl();
 
         const end = Date.now();
-        Utils.instance().debug(
+        Utils.instance().Info(
             // eslint-disable-next-line max-len
             `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`,
         );
@@ -485,8 +485,11 @@ export class Server {
         let text = document.getText();
         const ft = Setting.instance().getFileType(uri, text.length);
 
-        let parser = new ParseSymbol();
-        parser.rawParse(uri, text, ft);
+        // Ensure parsed symbols are stored in SymbolEx.documentSymbol so
+        // later lookup (e.g. searchDocumentSymbol) can find them.
+        // Previously we only called `rawParse` which updates CacheSymbol
+        // but doesn't populate the global `documentSymbol` map.
+        SymbolEx.instance().parse(uri, text);
     }
 
     // go to definetion

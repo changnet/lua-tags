@@ -68,15 +68,15 @@ export function loadStl(stlSymbol: SymInfoEx[]) {
     const ver = Setting.instance().getLuaVersion();
     const uri = path.resolve(__dirname, `../../stl/stl_${ver}.json`);
 
-    Utils.instance().debug(`load stl from ${uri}`);
+    Utils.instance().Info(`load stl from ${uri}`);
     fs.readFile(uri, 'utf8', (err, data) => {
         if (err) {
-            Utils.instance().debug(`${JSON.stringify(err)}`);
+            Utils.instance().Info(`${JSON.stringify(err)}`);
             return;
         }
         const symbols = JSON.parse(data.toString());
         if (!symbols) {
-            Utils.instance().debug(`json parse stl for lua ${ver} error`);
+            Utils.instance().Info(`json parse stl for lua ${ver} error`);
             return;
         }
 

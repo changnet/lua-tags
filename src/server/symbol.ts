@@ -292,16 +292,16 @@ export class SymbolEx {
     ): SymInfoEx[] {
         const ft = Setting.instance().getFileType(uri, text.length);
         if (FileParseType.FPT_NONE === ft) {
-            Utils.instance().debug(`${uri} being ignore`);
+            Utils.instance().Info(`${uri} being ignore`);
             return [];
         }
 
         if (isLog) {
             if (0 !== (FileParseType.FPT_LARGE & ft)) {
-                Utils.instance().debug(`${uri} parse in large mode`);
+                Utils.instance().Info(`${uri} parse in large mode`);
             }
             if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-                Utils.instance().debug(`${uri} parse in single mode`);
+                Utils.instance().Info(`${uri} parse in single mode`);
             }
         }
 

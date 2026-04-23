@@ -717,7 +717,7 @@ export class Search {
         // 无法搜索到时，备选的数据
         const possibleSym: SymInfoEx[] = [];
 
-        // 查找局部变量(不包含顶层局部变量)
+        // 查找局部变量(是指函数内的upvalue，不包含文档级别的local函数和模块)
         let items = this.searchlocal(query);
         if (items) {
             const symList = this.localizationFilter(query, items);
@@ -745,7 +745,7 @@ export class Search {
             return items;
         }
 
-        // 当前文档查找不带模块名符号
+        // 当前文档查找不带模块名符号，比如文档级别的local函数
         items = this.searchDocumentSymbol(query, filter);
         if (items) {
             const symList = this.filterLocalSym(items, query);

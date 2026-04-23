@@ -29,8 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 用F5打开插件后，创建对应的文件激活插件，然后在左边栏切换到Debug View
     // 在Debug选项里选择Attach，即可连接到服务器，这时就可以断点调试server了
     // 如果断点显示Unverified breakpoint，应该是当前调试session不对，在debug界面应该
-    // 能看到两个session，一个Run Extension，一个Attack，选中Attack即可
-    const debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
+    // 能看到两个session，一个Run Extension，一个Attach，选中Attach即可
 
     console.log(`LSP server path:${serverModule}`);
 
@@ -41,7 +40,11 @@ export function activate(context: vscode.ExtensionContext) {
         debug: {
             module: serverModule,
             transport: TransportKind.ipc,
-            options: debugOptions,
+            options: {
+                execArgv: ['--nolazy', '--inspect=6009'],
+                // execArgv: ['--nolazy', '--inspect-brk=6009'],
+                env: { LSP_DEBUG_MODE: 'true' },
+            },
         },
     };
 

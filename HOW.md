@@ -16,6 +16,13 @@ npm : 无法加载文件 D:\Program Files\nodejs\npm.ps1，因为在此系统上
 
 以管理员运行powershell，执行`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine`
 
+## 断点调试
+
+1. `extention.ts`和`lanuch.json`中应该是已经配置好了调试端口的
+2. 在`Debug`界面选中`Run Extention`并按F5启动调试
+3. 在`Debug`界面选中`Attach`并按F5启动，这时候应该能连接刚刚启动的另一个vs code断点调试
+4. 注意在`extention.ts`中，默认使用`--inspect=6009`参数，它会直接启动插件，不等待调试器链接。如果要调试启动过程中的代码，则需要`--inspect-brk=6009`，这个会等待调试器连上才会启动插件
+
 ## 检测package是否最新
 
 ```bash

@@ -765,10 +765,11 @@ export class ParseSymbol {
 
     // 正常解析
     private parseText(uri: string, text: string) {
+        this.parseUri = uri;
         try {
             const chunk = luaParse(text, this.options);
             this.parseComments = chunk.comments as any as Comment[];
-        } catch (e) {
+        } catch (e: any) {
             // 这个会导致在写代码写一半的时候频繁报错，暂时不启用
             // 后面在保存文件的时候lint一下就好了
             /*
@@ -790,6 +791,7 @@ export class ParseSymbol {
 
             Utils.instance().diagnostics(uri, [diagnostic]);
             */
+            Utils.instance().Debug(`${uri} ${e.message}`);
             return false;
         }
 
@@ -822,12 +824,12 @@ export class ParseSymbol {
     }
 
     // 解析一段代码并查找局部变量
-    public rawParse(
+    private rawParse(
         uri: string,
         text: string,
         ft: FileParseType,
     ): Node[] | null {
-        // Utils.instance().debug(`parse file ${uri}`);
+        // Utils.instance().debug(`rawparse file ${uri}`);
 
         try {
             const ok =

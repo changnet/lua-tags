@@ -105,7 +105,15 @@ export class Utils {
     // 写日志到终端，设置了lua-tags.trace: verbose就可以在OUTPUT看到
     // 默认情况下，vscode的日志是trace，如：[Trace - 2:39:21 PM] Received response 'textDocument/hover
     // 为了方便，自己的日志可加前缀
-    public debug(str: string) {
+    public Info(str: string) {
+        const text = `[Info ${Utils.formatTime()}] ${str}`;
+        this.conn!.console.log(text);
+    }
+
+    public Debug(str: string) {
+        if (process.env.LSP_DEBUG_MODE === 'true') {
+            return;
+        }
         const text = `[Debug ${Utils.formatTime()}] ${str}`;
         this.conn!.console.log(text);
     }

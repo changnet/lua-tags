@@ -164,9 +164,7 @@ export class DiagnosticProvider {
                 child.stdin.on('error', (e) => {
                     stop = true;
                     Utils.instance().error(`luacheck fail ${args}`);
-                    Utils.instance().debug(
-                        `write to luacheck stdin error ${e}`,
-                    );
+                    Utils.instance().Info(`write to luacheck stdin error ${e}`);
                 });
 
                 // 这个值大概是16384
