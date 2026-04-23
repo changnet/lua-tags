@@ -9,6 +9,7 @@ import { execFile } from 'child_process';
 
 import { Diagnostic, DiagnosticSeverity } from 'vscode-languageserver';
 import { Setting } from './setting';
+import { srv } from './server';
 
 // 对应child_process.execFile的Option字段
 interface ProcOption {
@@ -69,7 +70,36 @@ export class DiagnosticProvider {
         return DiagnosticProvider.ins;
     }
 
-    private toDiagnostic(msg: string | null) {
+    private luaparserToDianostic(uri: string, text: string, e: any) {
+        const lines = text.split(/\r?\n/g);
+        const line = lines[e.line - 1];
+
+        // Strip out the row and column from the message
+        const message = e.message.match(/\[\d+:\d+\] (.*)/)[1];
+
+        const diagnostic: Diagnostic = {
+            range: {
+                start: { line: e.line - 1, character: e.column },
+                end: { line: e.line - 1, character: line.length },
+            },
+            message,
+            severity: DiagnosticSeverity.Error,
+            source: 'luaparse',
+        };
+
+        return diagnostic;
+    }
+
+    public luaparserError(uri: string, text: string, e: any) {
+        // 平时检测的话会导致写代码写一半的时候频繁报错，所以仅在启动时检测
+        // 后面在保存文件的时候lint一下就好了
+        if (srv.isInitDone()) return;
+
+        const diagnostic = this.luaparserToDianostic(uri, text, e);
+        Utils.instance().diagnostics(uri, [diagnostic]);
+    }
+
+    private luacheckToDiagnostic(msg: string | null) {
         if (!msg || msg === '') {
             return [];
         }
@@ -264,8 +294,9 @@ export class DiagnosticProvider {
                 return;
             }
 
-            const diags = this.toDiagnostic(msg);
-            // no need to send a message to vs code if no error
+            const diags = this.luacheckToDiagnostic(msg);
+            // 如果是插件启动时检查所有文件，没有错误则不需要发送
+            // 否则即使没有错误，也要发送，不然vs code不会清掉上一次的错误信息
             if (how !== CheckHow.INITIALIZE || diags.length > 0) {
                 Utils.instance().diagnostics(rawUri, diags);
             }

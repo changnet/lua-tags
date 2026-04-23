@@ -52,7 +52,9 @@ export class Server {
 
     private rootUri: string | null = null;
 
-    private isPreInit = false;
+    private isPreInit = false; // preInitialized()函数是否执行完
+    private preInitResolvers: Array<(ok?: boolean) => void> = [];
+    private isInited = false; // onInitialized()是否执行完
 
     public constructor() {
         const conn = this.connection;
@@ -206,25 +208,37 @@ export class Server {
         this.connection.listen();
     }
 
+    // 是否已初始化完成
+    public isInitDone() {
+        return this.isInited;
+    }
+
     private async waitForPreInit() {
         if (this.isPreInit) {
             return true;
         }
+        // Use Promise signaling instead of polling. A fallback timeout
+        // ensures we don't wait forever.
+        return await new Promise<boolean>((resolve) => {
+            let timeout: any;
+            const wrapped = (ok?: boolean) => {
+                if (timeout) {
+                    clearTimeout(timeout);
+                }
+                resolve(!!ok);
+            };
 
-        // could not find a better way to wait...
-        for (let ts = 0; ts < 32; ts++) {
-            const ok = await new Promise((resolve) =>
-                setTimeout(() => {
-                    resolve(this.isPreInit);
-                }, 100),
-            );
+            timeout = setTimeout(() => {
+                Utils.instance().error('wait pre init fail');
+                const idx = this.preInitResolvers.indexOf(wrapped);
+                if (idx >= 0) {
+                    this.preInitResolvers.splice(idx, 1);
+                }
+                resolve(true);
+            }, 3200);
 
-            if (ok) {
-                return ok;
-            }
-        }
-
-        return true;
+            this.preInitResolvers.push(wrapped);
+        });
     }
 
     private onInitialize(params: InitializeParams): InitializeResult {
@@ -281,6 +295,18 @@ export class Server {
         diagnostic.updateCmdArgs();
 
         this.isPreInit = true;
+        // Notify any waiters that pre-initialization is complete.
+        try {
+            for (const r of this.preInitResolvers) {
+                try {
+                    r(true);
+                } catch (e) {
+                    /* ignore resolver errors */
+                }
+            }
+        } finally {
+            this.preInitResolvers.length = 0;
+        }
     }
 
     private async onInitialized() {
@@ -308,6 +334,7 @@ export class Server {
         CacheSymbol.instance().setCacheOpen();
         symbol.loadFromStl();
 
+        this.isInited = true;
         const end = Date.now();
         Utils.instance().Info(
             // eslint-disable-next-line max-len
@@ -630,5 +657,5 @@ export class Server {
     }
 }
 
-const srv = new Server();
+export const srv = new Server();
 srv.init();

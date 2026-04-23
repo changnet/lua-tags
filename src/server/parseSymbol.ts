@@ -27,6 +27,7 @@ import {
 
 import { CacheSymbol } from './cacheSymbol';
 import { Location, SymbolKind, SymbolInformation } from 'vscode-languageserver';
+import { DiagnosticProvider } from './diagnosticProvider';
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -770,28 +771,8 @@ export class ParseSymbol {
             const chunk = luaParse(text, this.options);
             this.parseComments = chunk.comments as any as Comment[];
         } catch (e: any) {
-            // 这个会导致在写代码写一半的时候频繁报错，暂时不启用
-            // 后面在保存文件的时候lint一下就好了
-            /*
-            const lines = text.split(/\r?\n/g);
-            const line = lines[e.line - 1];
-
-            const range = Range.create(e.line - 1, e.column,
-                e.line - 1, line.length);
-
-            // Strip out the row and column from the message
-            const message = e.message.match(/\[\d+:\d+\] (.*)/)[1];
-
-            const diagnostic: Diagnostic = {
-                range,
-                message,
-                severity: DiagnosticSeverity.Error,
-                source: 'luaparse'
-            };
-
-            Utils.instance().diagnostics(uri, [diagnostic]);
-            */
-            Utils.instance().Debug(`${uri} ${e.message}`);
+            Utils.instance().Debug(`luaparse error ${uri} ${e.message}`);
+            DiagnosticProvider.instance().luaparserError(uri, text, e);
             return false;
         }
 
