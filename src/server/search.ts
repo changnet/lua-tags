@@ -18,8 +18,9 @@ import { ParseSymbol, SymInfoEx, LocalType } from './parseSymbol';
 
 import { SymbolEx, QueryPos, SymbolQuery } from './symbol';
 import { Server } from './server';
-import { Location } from 'vscode-languageserver';
+import { Location, SymbolKind } from 'vscode-languageserver';
 import { CacheSymbol } from './cacheSymbol';
+import { AnnotationRegistry } from './annotation';
 
 export interface SearchResult {
     // name: string; // 名字，暂时不记，在SymbolQuery中有
@@ -688,6 +689,104 @@ export class Search {
     }
 
     /**
+     * 根据注解类型解析搜索符号
+     * 例如: local f = test()  -- @return Foo
+     *       f.a  ->  通过Foo的@a注解找到类型
+     *
+     * 当query有base时（如Tbl.A），解析Tbl的类型注解，然后查找字段A
+     * 当query无base时，查找变量本身的@type注解
+     */
+    public searchAnnotation(query: SymbolQuery): SymInfoEx[] | null {
+        const symbol = SymbolEx.instance();
+        const registry = AnnotationRegistry.instance();
+        const uri = query.uri;
+
+        if (query.base) {
+            // 有base时，需要解析base的类型
+            // 先查找base变量
+            const baseSymList = this.findBaseSymbol(uri, query.base);
+            if (!baseSymList || baseSymList.length === 0) {
+                return null;
+            }
+
+            // 尝试从每个base符号解析类型
+            for (const baseSym of baseSymList) {
+                const field = symbol.resolveMemberType(uri, baseSym, query.name);
+                if (field) {
+                    const sym = registry.fieldToSym(
+                        field,
+                        query.base,
+                        baseSym.location.uri,
+                    );
+                    return [sym];
+                }
+            }
+
+            return null;
+        }
+
+        // 无base时，查找变量本身的@type注解
+        const lineType = registry.getLineType(uri, query.position.line);
+        if (!lineType) {
+            return null;
+        }
+
+        // 创建一个表示该类型的符号
+        const typeName = lineType.type.name;
+        const cls = registry.resolveType(uri, lineType.type);
+        if (cls) {
+            return [{
+                name: typeName,
+                kind: SymbolKind.Namespace,
+                location: {
+                    uri: cls.uri,
+                    range: {
+                        start: { line: cls.line, character: 0 },
+                        end: { line: cls.line, character: typeName.length },
+                    },
+                },
+                scope: 0,
+                comment: cls.description,
+            }];
+        }
+
+        return null;
+    }
+
+    /**
+     * 查找base变量的符号
+     */
+    private findBaseSymbol(uri: string, baseName: string): SymInfoEx[] | null {
+        const symbol = SymbolEx.instance();
+        const results: SymInfoEx[] = [];
+
+        // 在当前文档符号中查找
+        const docSymList = symbol.getDocumentSymbol(uri);
+        if (docSymList) {
+            for (const sym of docSymList) {
+                if (sym.name === baseName && !sym.base) {
+                    results.push(sym);
+                }
+            }
+        }
+
+        if (results.length > 0) {
+            return results;
+        }
+
+        // 在全局符号中查找
+        const globalSymList = symbol.getGlobalSymbol(
+            false,
+            (sym) => sym.name === baseName,
+        );
+        if (globalSymList.length > 0) {
+            return globalSymList;
+        }
+
+        return null;
+    }
+
+    /**
      * 搜索符号
      * @param srv
      * @param query 需要搜索的符号信息
@@ -741,6 +840,12 @@ export class Search {
 
         // 优先根据模块名匹配全局符号
         items = this.searchGlobalModule(query, filter);
+        if (items) {
+            return items;
+        }
+
+        // 根据注解类型解析（优先级仅次于明确存在的模块）
+        items = this.searchAnnotation(query);
         if (items) {
             return items;
         }

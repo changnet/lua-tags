@@ -28,6 +28,8 @@ import {
 import { CacheSymbol } from './cacheSymbol';
 import { Location, SymbolKind, SymbolInformation } from 'vscode-languageserver';
 import { DiagnosticProvider } from './diagnosticProvider';
+import { parseAnnotations } from './parseAnnotation';
+import { AnnotationRegistry } from './annotation';
 
 // luaParser.lex()
 // https://github.com/fstirlitz/luaparse
@@ -794,6 +796,20 @@ export class ParseSymbol {
             this.parseComments,
             this.parseSymList,
             this.parseCodeLine,
+        );
+
+        // 解析注解并存储到注解注册表
+        const annotations = parseAnnotations(
+            this.parseComments,
+            this.parseSymList,
+            uri,
+        );
+        AnnotationRegistry.instance().setDocumentAnnotations(
+            uri,
+            annotations.classes,
+            annotations.aliases,
+            annotations.types,
+            annotations.functions,
         );
 
         return this.parseSymList;

@@ -13,6 +13,7 @@ import { Server } from './server';
 import { SymbolEx } from './symbol';
 import { SymInfoEx, CommentType } from './parseSymbol';
 import { Search } from './search';
+import { AnnotationRegistry } from './annotation';
 
 /**
  * 处理函数特征(参数)显示
@@ -45,6 +46,13 @@ export class SignatureProvider {
             return null;
         }
 
+        // 检查函数注解
+        const registry = AnnotationRegistry.instance();
+        const funcAnnotation = registry.getLineFunction(
+            sym.location.uri,
+            sym.location.range.start.line,
+        );
+
         /**
          * 拼接的参数
          */
@@ -56,13 +64,20 @@ export class SignatureProvider {
             const mark = SymbolEx.refMark;
             funcName = `${funcName} ${mark} ${sym.refType.join('.')}`;
         }
+
+        // 如果有注解参数，使用注解参数
+        const useAnnotation = funcAnnotation && funcAnnotation.params.length > 0;
+        const paramNames = useAnnotation
+            ? funcAnnotation!.params.map(p => p.name)
+            : (symParam || []);
+
         const parameters: ParameterInformation[] = [];
-        if (symParam) {
-            funcParam = symParam.join(', ');
+        if (paramNames.length > 0) {
+            funcParam = paramNames.join(', ');
 
             // +1是因为函数名和参数之间有个左括号
             let offset = funcName.length + 1;
-            for (const param of symParam) {
+            for (const param of paramNames) {
                 parameters.push({
                     label: [offset, offset + param.length],
                 });
@@ -82,7 +97,7 @@ export class SignatureProvider {
         const file = SymbolEx.getPathPrefix(sym, uri);
 
         let doc;
-        if (comment || file) {
+        if (comment || file || useAnnotation) {
             let value = file;
             if (comment) {
                 value +=
@@ -90,6 +105,22 @@ export class SignatureProvider {
                         ? comment
                         : `\`\`\`lua\n${comment}\n\`\`\``;
             }
+
+            // 添加@return信息
+            if (funcAnnotation?.returns) {
+                const returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
+                value += `\n@return ${returnDesc}`;
+            }
+
+            // 添加@param描述
+            if (useAnnotation && funcAnnotation!.params.length > 0) {
+                for (const param of funcAnnotation!.params) {
+                    if (param.description) {
+                        value += `\n@param ${param.name}: ${param.description}`;
+                    }
+                }
+            }
+
             doc = {
                 kind: MarkupKind.Markdown,
                 value: value,

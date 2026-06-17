@@ -8,6 +8,8 @@ import { Search } from './search';
 
 import { Server } from './server';
 
+import { AnnotationRegistry } from './annotation';
+
 export class GoToDefinition {
     private static ins: GoToDefinition;
 

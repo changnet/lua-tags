@@ -6,6 +6,12 @@ import { Setting, FileParseType } from './setting';
 import { ParseSymbol, SymInfoEx, VSCodeSymbol, LocalType } from './parseSymbol';
 import { Location, SymbolKind } from 'vscode-languageserver';
 import { loadStl } from './stlSymbol';
+import {
+    AnnotationRegistry,
+    AnnotationType,
+    ClassAnnotation,
+    FieldAnnotation,
+} from './annotation';
 
 //符号位置
 export interface QueryPos {
@@ -733,5 +739,99 @@ export class SymbolEx {
     // 加载stl符号
     public loadFromStl() {
         loadStl(this.stlSymbol);
+    }
+
+    // ============ 注解类型解析 ============
+
+    /**
+     * 解析变量的类型注解
+     * 检查变量是否有@type注解，或者是否从函数调用返回（检查函数的@return）
+     */
+    public resolveVariableType(
+        uri: string,
+        sym: SymInfoEx,
+    ): AnnotationType | null {
+        const registry = AnnotationRegistry.instance();
+
+        // 1. 检查变量本身的@type注解
+        const lineType = registry.getLineType(uri, sym.location.range.start.line);
+        if (lineType) {
+            return lineType.type;
+        }
+
+        // 2. 如果变量是从函数调用返回的，检查函数的@return注解
+        if (sym.refType) {
+            const funcSym = this.getRefSym(sym, uri);
+            if (funcSym && funcSym.kind === SymbolKind.Function) {
+                const funcAnnotation = registry.getLineFunction(
+                    funcSym.location.uri,
+                    funcSym.location.range.start.line,
+                );
+                if (funcAnnotation?.returns) {
+                    return funcAnnotation.returns;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 解析成员访问的类型
+     * 例如: local f = test()  -- @return Foo
+     *       f.a  ->  通过Foo的@a注解找到类型
+     */
+    public resolveMemberType(
+        uri: string,
+        baseSym: SymInfoEx,
+        memberName: string,
+    ): FieldAnnotation | null {
+        const baseType = this.resolveVariableType(uri, baseSym);
+        if (!baseType) {
+            return null;
+        }
+
+        const registry = AnnotationRegistry.instance();
+        return registry.resolveField(uri, baseType, memberName);
+    }
+
+    /**
+     * 获取变量的类型描述（用于hover显示）
+     */
+    public getVariableTypeDesc(
+        uri: string,
+        sym: SymInfoEx,
+    ): string {
+        const type = this.resolveVariableType(uri, sym);
+        if (!type) {
+            return '';
+        }
+
+        return this.formatType(type);
+    }
+
+    /**
+     * 格式化类型为字符串
+     */
+    public formatType(type: AnnotationType): string {
+        if (type.func) {
+            const params = type.func.params
+                .map(p => `${p.name}: ${this.formatType(p.type)}`)
+                .join(', ');
+            const returns = type.func.returns
+                ? `:${this.formatType(type.func.returns)}`
+                : '';
+            return `func(${params})${returns}`;
+        }
+
+        if (type.generics) {
+            return `${type.name}<${this.formatType(type.generics.key)}, ${this.formatType(type.generics.value)}>`;
+        }
+
+        if (type.isArray) {
+            return `${type.name}[]`;
+        }
+
+        return type.name;
     }
 }

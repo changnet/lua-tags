@@ -10,6 +10,8 @@ import { Search } from './search';
 
 import { Server } from './server';
 
+import { AnnotationRegistry } from './annotation';
+
 export class HoverProvider {
     private static ins: HoverProvider;
 
@@ -42,9 +44,13 @@ export class HoverProvider {
             }
         }
 
+        // 添加注解类型信息
+        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym);
+        const typeLine = typeDesc ? `@type ${typeDesc}\n` : '';
+
         const ref = SymbolEx.instance().getRefValue(sym);
         // eslint-disable-next-line max-len
-        return `${path}${prefix}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
+        return `${path}${prefix}\`\`\`lua\n${typeLine}${above}${ctx}${ref}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
@@ -81,11 +87,41 @@ export class HoverProvider {
                 }
                 const base = SymbolEx.getBasePrefix(sym);
 
+                // 检查函数注解
+                const registry = AnnotationRegistry.instance();
+                const funcAnnotation = registry.getLineFunction(
+                    sym.location.uri,
+                    sym.location.range.start.line,
+                );
+
+                // 如果有注解参数，使用注解参数
+                let displayParams = parameters;
+                if (funcAnnotation && funcAnnotation.params.length > 0) {
+                    displayParams = funcAnnotation.params
+                        .map(p => `${p.name}: ${SymbolEx.instance().formatType(p.type)}`)
+                        .join(', ');
+                }
+
                 tips = this.toLuaMarkdown(
                     sym,
-                    `${local}function ${base}${sym.name}(${parameters})`,
+                    `${local}function ${base}${sym.name}(${displayParams})`,
                     uri,
                 );
+
+                // 添加@return信息
+                if (funcAnnotation?.returns) {
+                    const returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
+                    tips += `\n@return ${returnDesc}`;
+                }
+
+                // 添加@param描述
+                if (funcAnnotation && funcAnnotation.params.length > 0) {
+                    for (const param of funcAnnotation.params) {
+                        if (param.description) {
+                            tips += `\n@param ${param.name}: ${param.description}`;
+                        }
+                    }
+                }
                 break;
             }
             case SymbolKind.Namespace: {

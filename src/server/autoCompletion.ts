@@ -13,6 +13,7 @@ import { ParseSymbol, SymInfoEx, CommentType, LocalType } from './parseSymbol';
 
 import { Server } from './server';
 import { Search, Filter } from './search';
+import { AnnotationRegistry } from './annotation';
 
 export class AutoCompletion {
     private static accurate = -500;
@@ -57,6 +58,14 @@ export class AutoCompletion {
             }
         }
 
+        // 添加注解类型信息到detail
+        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym);
+        if (typeDesc) {
+            item.detail = item.detail
+                ? `${item.detail} (${typeDesc})`
+                : typeDesc;
+        }
+
         let doc = '';
         if (sym.comment && sym.ctType === CommentType.CT_HTML) {
             doc = sym.comment + '\n';
@@ -74,12 +83,38 @@ export class AutoCompletion {
             // 如果是函数，显示参数: test.lua: function(a, b, c)
             const local = SymbolEx.getLocalTypePrefix(sym.local);
             const base = sym.base && sym.indexer ? sym.base + sym.indexer : '';
-            const parameters = sym.parameters ? sym.parameters.join(', ') : '';
+
+            // 检查函数注解
+            const registry = AnnotationRegistry.instance();
+            const funcAnnotation = registry.getLineFunction(
+                sym.location.uri,
+                sym.location.range.start.line,
+            );
+
+            // 如果有注解参数，使用注解参数
+            let parameters = sym.parameters ? sym.parameters.join(', ') : '';
+            if (funcAnnotation && funcAnnotation.params.length > 0) {
+                parameters = funcAnnotation.params
+                    .map(p => `${p.name}: ${SymbolEx.instance().formatType(p.type)}`)
+                    .join(', ');
+            }
+
             mdDoc += `${local}function ${base}${sym.name}(${parameters})`;
+
+            // 添加@return信息
+            if (funcAnnotation?.returns) {
+                const returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
+                mdDoc += `\n@return ${returnDesc}`;
+            }
         } else {
             const local = SymbolEx.getLocalTypePrefix(sym.local);
             const base = sym.base && sym.indexer ? sym.base + sym.indexer : '';
             mdDoc += `${local}${base}${sym.name}`;
+
+            // 添加注解类型信息
+            if (typeDesc) {
+                mdDoc += `: ${typeDesc}`;
+            }
         }
 
         // 显示引用的变量

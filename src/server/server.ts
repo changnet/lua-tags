@@ -39,6 +39,7 @@ import { DiagnosticProvider, CheckHow } from './diagnosticProvider';
 import { Setting, FileParseType } from './setting';
 import { CacheSymbol } from './cacheSymbol';
 import { ParseSymbol } from './parseSymbol';
+import { AnnotationRegistry } from './annotation';
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 export class Server {
@@ -560,6 +561,8 @@ export class Server {
             path.fsPath,
             (fileUri, ctx) => {
                 if (doSym) {
+                    // 先清除旧的注解缓存
+                    AnnotationRegistry.instance().clearDocument(fileUri);
                     SymbolEx.instance().parse(fileUri, ctx);
                 }
                 if (Setting.instance().isLuaCheckOpen()) {
@@ -594,6 +597,7 @@ export class Server {
                 }
                 case FileChangeType.Deleted: {
                     SymbolEx.instance().delDocumentSymbol(uri);
+                    AnnotationRegistry.instance().clearDocument(uri);
                     DiagnosticProvider.instance().deleteChecking(uri);
                     break;
                 }
