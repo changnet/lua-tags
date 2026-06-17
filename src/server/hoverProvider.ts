@@ -25,7 +25,7 @@ export class HoverProvider {
         return HoverProvider.ins;
     }
 
-    private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string): string {
+    private toLuaMarkdown(sym: SymInfoEx, ctx: string, uri: string, annotationInfo?: string): string {
         const path = SymbolEx.getPathPrefix(sym, uri);
         let above = '';
         let lineEnd = '';
@@ -44,33 +44,36 @@ export class HoverProvider {
             }
         }
 
-        // 添加注解类型信息
-        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym);
-        const typeLine = typeDesc ? `@type ${typeDesc}\n` : '';
-
         const ref = SymbolEx.instance().getRefValue(sym);
+        // 注解信息放在代码块外部，这样markdown格式可以正确渲染
+        const annInfo = annotationInfo ? annotationInfo + '\n' : '';
         // eslint-disable-next-line max-len
-        return `${path}${prefix}\`\`\`lua\n${typeLine}${above}${ctx}${ref}${lineEnd}\n\`\`\``;
+        return `${path}${annInfo}${prefix}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
+        // 获取注解类型信息
+        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym);
+        const annotationInfo = typeDesc ? `@type ${typeDesc}` : undefined;
+
         if (sym.value) {
             const prefix = SymbolEx.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(
                 sym,
                 `${prefix}${sym.name} = ${sym.value}`,
                 uri,
+                annotationInfo,
             );
         }
 
         if (sym.local || sym.refType) {
             const local = SymbolEx.getLocalTypePrefix(sym.local);
             const base = SymbolEx.getBasePrefix(sym);
-            return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri);
+            return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri, annotationInfo);
         }
 
         if (sym.location.uri !== uri) {
-            return this.toLuaMarkdown(sym, sym.name, uri);
+            return this.toLuaMarkdown(sym, sym.name, uri, annotationInfo);
         }
 
         return null;
@@ -102,26 +105,26 @@ export class HoverProvider {
                         .join(', ');
                 }
 
+                // 构建注解信息（放在代码块外部）
+                let annotationInfo = '';
+                if (funcAnnotation?.returns) {
+                    const returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
+                    annotationInfo += `@return ${returnDesc}`;
+                }
+                if (funcAnnotation && funcAnnotation.params.length > 0) {
+                    for (const param of funcAnnotation.params) {
+                        if (param.description) {
+                            annotationInfo += `\n@param ${param.name}: ${param.description}`;
+                        }
+                    }
+                }
+
                 tips = this.toLuaMarkdown(
                     sym,
                     `${local}function ${base}${sym.name}(${displayParams})`,
                     uri,
+                    annotationInfo || undefined,
                 );
-
-                // 添加@return信息
-                if (funcAnnotation?.returns) {
-                    const returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
-                    tips += `\n@return ${returnDesc}`;
-                }
-
-                // 添加@param描述
-                if (funcAnnotation && funcAnnotation.params.length > 0) {
-                    for (const param of funcAnnotation.params) {
-                        if (param.description) {
-                            tips += `\n@param ${param.name}: ${param.description}`;
-                        }
-                    }
-                }
                 break;
             }
             case SymbolKind.Namespace: {

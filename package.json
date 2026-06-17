@@ -165,6 +165,7 @@
 		"pretest": "npm run compile",
 		"lint": "eslint . --ext .ts",
 		"test": "node ./out/test/runTest.js",
+		"test2": "node ./out/test/runTest2.js",
 		"stl": "node ./out/tools/autoSTL.js"
 	},
 	"devDependencies": {
