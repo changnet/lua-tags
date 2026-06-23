@@ -38,8 +38,11 @@ import { SignatureProvider } from './signatureProvider';
 import { DiagnosticProvider, CheckHow } from './diagnosticProvider';
 import { Setting, FileParseType } from './setting';
 import { CacheSymbol } from './cacheSymbol';
-import { ParseSymbol } from './parseSymbol';
 import { AnnotationRegistry } from './annotation';
+
+interface CustomOptions {
+    version: string; // package.json中的version
+}
 
 // https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
 export class Server {
@@ -56,6 +59,7 @@ export class Server {
     private isPreInit = false; // preInitialized()函数是否执行完
     private preInitResolvers: Array<(ok?: boolean) => void> = [];
     private isInited = false; // onInitialized()是否执行完
+    private customOptions: CustomOptions = { version: '' };
 
     public constructor() {
         const conn = this.connection;
@@ -250,6 +254,11 @@ export class Server {
             Utils.instance().Info(`using ${this.rootUri} as root`);
         }
 
+        const options = params.initializationOptions;
+        if (options) {
+            this.customOptions = options;
+        }
+
         return {
             capabilities: {
                 // Use full sync mode for now.
@@ -339,7 +348,8 @@ export class Server {
         const end = Date.now();
         Utils.instance().Info(
             // eslint-disable-next-line max-len
-            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, files:${files}`,
+            `Lua-tags LSP initialized done:${this.rootUri}, msec:${end - beg}, \
+files:${files}, version:${this.customOptions.version}`,
         );
     }
 

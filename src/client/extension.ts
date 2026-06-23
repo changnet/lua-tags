@@ -31,7 +31,10 @@ export function activate(context: vscode.ExtensionContext) {
     // 如果断点显示Unverified breakpoint，应该是当前调试session不对，在debug界面应该
     // 能看到两个session，一个Run Extension，一个Attach，选中Attach即可
 
-    console.log(`LSP server path:${serverModule}`);
+    const version = context.extension.packageJSON.version;
+
+    // 这个日志只有debug模式，在主窗口（不是打开插件的那个vscode）的console看到
+    console.log(`LSP server path:${serverModule}, version:${version}`);
 
     // If the extension is launched in debug mode then the debug server options
     // are used Otherwise the run options are used
@@ -61,6 +64,10 @@ export function activate(context: vscode.ExtensionContext) {
             configurationSection: ['lua'],
             // 检测文件变动，onDidChangeWatchedFiles事件才会触发
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.lua'),
+        },
+        // 这里可以传任意自定义数据到server
+        initializationOptions: {
+            version: version,
         },
     };
 
