@@ -742,6 +742,16 @@ export class ParseSymbol {
                     if (arg.type === 'StringLiteral') {
                         sym.refUri = ParseSymbol.stringLiteralValue(arg);
                     }
+                } else if ('Identifier' === base.type) {
+                    // local result = func() - 记录函数名用于@return推断
+                    if (sym.scope >= 0 && sym.scope <= 2 && init) {
+                        sym.refType = [base.name];
+                    }
+                } else if ('MemberExpression' === base.type) {
+                    // local result = mod.func() - 记录成员表达式用于@return推断
+                    if (sym.scope >= 0 && sym.scope <= 2 && init) {
+                        sym.refType = ParseSymbol.toRefVallue(base);
+                    }
                 }
                 break;
             }

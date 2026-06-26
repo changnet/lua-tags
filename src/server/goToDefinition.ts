@@ -10,6 +10,9 @@ import { Server } from './server';
 
 import { AnnotationRegistry } from './annotation';
 
+// 注解类型模式 - 支持 ---@ 和 -- @ 两种格式（匹配原始行文本）
+const ANNOTATION_TYPE_PATTERN = /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?(\w+)/;
+
 export class GoToDefinition {
     private static ins: GoToDefinition;
 
@@ -54,6 +57,63 @@ export class GoToDefinition {
         };
     }
 
+    /**
+     * 获取注解中类型名的跳转定义
+     * 例如: ---@type Dog 中的Dog，跳转到Dog类的定义
+     */
+    private getAnnotationTypeDefinition(
+        text: string,
+        pos: Position,
+        uri: string,
+    ): Definition | null {
+        // 检查是否是注解行（支持 ---@ 和 -- @ 格式）
+        const trimmedLine = text.trim();
+        if (!/^--\s*-?@/.test(trimmedLine)) {
+            return null;
+        }
+
+        // 提取类型名
+        const match = trimmedLine.match(ANNOTATION_TYPE_PATTERN);
+        if (!match || !match[1]) {
+            return null;
+        }
+
+        const typeName = match[1];
+
+        // 检查光标是否在类型名范围内
+        const typeStart = text.indexOf(typeName);
+        if (typeStart < 0 || pos.character < typeStart || pos.character > typeStart + typeName.length) {
+            return null;
+        }
+
+        // 查找类定义
+        const registry = AnnotationRegistry.instance();
+        const cls = registry.getGlobalClass(typeName);
+        if (cls) {
+            return {
+                uri: cls.uri,
+                range: {
+                    start: { line: cls.line, character: 0 },
+                    end: { line: cls.line, character: cls.name.length },
+                },
+            };
+        }
+
+        // 查找别名定义
+        const alias = registry.getGlobalAlias(typeName);
+        if (alias) {
+            return {
+                uri: alias.uri,
+                range: {
+                    start: { line: alias.line, character: 0 },
+                    end: { line: alias.line, character: alias.name.length },
+                },
+            };
+        }
+
+        return null;
+    }
+
     public doDefinition(srv: Server, uri: string, pos: Position) {
         const line = srv.getQueryText(uri, pos);
         if (!line) {
@@ -62,6 +122,12 @@ export class GoToDefinition {
 
         // require("a.b.c") 跳转到对应的文件
         let loc: Definition | null = this.getRequireDefinition(line, pos);
+        if (loc) {
+            return loc;
+        }
+
+        // 尝试从注解中跳转到类型定义
+        loc = this.getAnnotationTypeDefinition(line, pos, uri);
         if (loc) {
             return loc;
         }

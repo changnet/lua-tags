@@ -1,11 +1,11 @@
 -- 注解测试文件 - 类型推断
 
--- @class Player 玩家类
--- @field name string 玩家名称
--- @field level number 玩家等级
--- @field health number 生命值
+-- @class Player - 玩家类
+-- @field name string - 玩家名称
+-- @field level number - 玩家等级
+-- @field health number - 生命值
 
--- @return Player 返回玩家对象
+-- @return Player - 返回玩家对象
 function create_player()
     return { name = "hero", level = 1, health = 100 }
 end

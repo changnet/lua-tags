@@ -81,7 +81,7 @@ export class AutoCompletion {
         const base = sym.base && sym.indexer ? sym.base + sym.indexer : '';
             
         if (sym.value) {
-            mdDoc += `${local}${sym.name} = ${sym.value} : ${typeDesc}`;
+            mdDoc += `${local}${base}${sym.name} = ${sym.value} : ${typeDesc}`;
         } else if (sym.kind === SymbolKind.Function) {
             // 如果是函数，显示参数: test.lua: function(a, b, c)
             // 检查函数注解

@@ -108,6 +108,8 @@ suite('Extension Completion Test Suite', () => {
     test('test external module completion', async () => {
         await testCompletion(testUri, new vscode.Position(33, 7), {
             items: [
+                { label: 'getmetatable', kind: CMP_KIND.Function },
+                { label: 'setmetatable', kind: CMP_KIND.Function },
                 { label: 'table', kind: CMP_KIND.Module },
             ]
         });
@@ -117,6 +119,9 @@ suite('Extension Completion Test Suite', () => {
         await testCompletion(testUri, new vscode.Position(34, 10), {
             items: [
                 { label: 'empty', kind: CMP_KIND.Function },
+                { label: 'insert', kind: CMP_KIND.Function },
+                { label: 'move', kind: CMP_KIND.Function },
+                { label: 'remove', kind: CMP_KIND.Function },
             ]
         });
     });
@@ -202,11 +207,14 @@ suite('Extension Completion Test Suite', () => {
                     documentation: "```lua\n-- test ref value\nlocal scene : any == BattleConf.scene = 1000\n```",
                     kind: CMP_KIND.Variable
                 },
-                // 实际运行时，这里会有下面这个提示，但在测试时没有，暂时不知什么原因
-                // {
-                // 	label: 'support_comment',
-                // 	kind: CMP_KIND.Variable
-                // },
+                {
+                    label: 'support_comment',
+                    kind: CMP_KIND.Variable
+                },
+                {
+                    label: 'test_local_document_sym',
+                    kind: CMP_KIND.Function
+                },
             ]
         });
     });
@@ -271,10 +279,18 @@ suite('Extension Completion Test Suite', () => {
         await testCompletion(testUri, new vscode.Position(153, 18), {
             items: [
                 {
+                    label: 'empty',
+                    kind: CMP_KIND.Function,
+                },
+                {
                     label: 'pack',
                     kind: CMP_KIND.Function,
-                    detail: "Lua Standard Libraries",
-                    documentation: "Returns a new table with all arguments stored into keys 1, 2, etc. and with a field \"**n**\" with the total number of arguments. Note that the resulting table may not be a sequence.\n```lua\nfunction pack(...)\n```"
+                    detail: "Lua Standard Libraries (function)",
+                    documentation: "Returns a new table with all arguments stored into keys 1, 2, etc. and with a field \"**n**\" with the total number of arguments. Note that the resulting table may not be a sequence.\n```lua\nfunction pack(...) : any\n```"
+                },
+                {
+                    label: 'unpack',
+                    kind: CMP_KIND.Function,
                 },
             ]
         });

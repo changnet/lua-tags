@@ -11,6 +11,7 @@ import {
     AnnotationType,
     ClassAnnotation,
     FieldAnnotation,
+    createSimpleType,
 } from './annotation';
 
 //符号位置
@@ -689,6 +690,18 @@ export class SymbolEx {
             return '';
         }
 
+        // 如果引用的是函数且有@return注解，类型已通过注解解析，无需显示ref
+        if (refSym.kind === SymbolKind.Function) {
+            const registry = AnnotationRegistry.instance();
+            const funcAnnotation = registry.getLineFunction(
+                refSym.location.uri,
+                refSym.location.range.start.line,
+            );
+            if (funcAnnotation?.returns) {
+                return '';
+            }
+        }
+
         // 如果引用的是一个常量，那显示常量
         let val = '';
         let prefix = '';
@@ -744,6 +757,44 @@ export class SymbolEx {
     // ============ 注解类型解析 ============
 
     /**
+     * 从字面量值推导类型
+     */
+    private inferTypeFromValue(sym: SymInfoEx): AnnotationType | null {
+        // 根据SymbolKind推导基本类型
+        switch (sym.kind) {
+            case SymbolKind.Number:
+                return createSimpleType('number');
+            case SymbolKind.String:
+                return createSimpleType('string');
+            case SymbolKind.Boolean:
+                return createSimpleType('boolean');
+            case SymbolKind.Function:
+                return createSimpleType('function');
+            case SymbolKind.Namespace:
+                return createSimpleType('table');
+        }
+
+        // 根据value字段推导
+        if (sym.value !== undefined) {
+            const val = sym.value;
+            if (/^-?\d+$/.test(val) || /^-?\d+\.\d+$/.test(val)) {
+                return createSimpleType('number');
+            }
+            if (/^['"]/.test(val) || /^\[\[/.test(val)) {
+                return createSimpleType('string');
+            }
+            if (val === 'true' || val === 'false') {
+                return createSimpleType('boolean');
+            }
+            if (val === 'nil') {
+                return createSimpleType('nil');
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * 解析变量的类型注解
      * 检查变量是否有@type注解，或者是否从函数调用返回（检查函数的@return）
      */
@@ -771,6 +822,12 @@ export class SymbolEx {
                     return funcAnnotation.returns;
                 }
             }
+        }
+
+        // 3. 从赋值自动推导类型
+        const inferredType = this.inferTypeFromValue(sym);
+        if (inferredType) {
+            return inferredType;
         }
 
         return null;

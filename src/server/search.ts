@@ -709,17 +709,40 @@ export class Search {
                 return null;
             }
 
-            // 尝试从每个base符号解析类型
-            for (const baseSym of baseSymList) {
-                const field = symbol.resolveMemberType(uri, baseSym, query.name);
-                if (field) {
-                    const sym = registry.fieldToSym(
-                        field,
-                        query.base,
-                        baseSym.location.uri,
-                    );
-                    return [sym];
+            // 如果有具体的字段名，查找特定字段
+            if (query.name) {
+                for (const baseSym of baseSymList) {
+                    const field = symbol.resolveMemberType(uri, baseSym, query.name);
+                    if (field) {
+                        const sym = registry.fieldToSym(
+                            field,
+                            query.base,
+                            baseSym.location.uri,
+                        );
+                        return [sym];
+                    }
                 }
+                return null;
+            }
+
+            // 字段名为空时（如 my_dog.），返回类的所有字段
+            for (const baseSym of baseSymList) {
+                const baseType = symbol.resolveVariableType(uri, baseSym);
+                if (!baseType) {
+                    continue;
+                }
+
+                const cls = registry.resolveType(uri, baseType);
+                if (!cls) {
+                    continue;
+                }
+
+                // 返回所有字段
+                const results: SymInfoEx[] = [];
+                cls.fields.forEach((field) => {
+                    results.push(registry.fieldToSym(field, query.base!, cls.uri));
+                });
+                return results.length > 0 ? results : null;
             }
 
             return null;

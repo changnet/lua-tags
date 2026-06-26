@@ -130,8 +130,16 @@ suite('Extension Test Suite', () => {
 		const uri4 = vscode.Uri.file(path.join(samplePath, "monster.lua"));
 		await testWorkspaceSymbol("mon", [
 			{
-				name: "monster", kind: 0, containerName: "",
-				location: { uri: uri0, range: range }
+				name: "Monster", kind: 0, containerName: "",
+				location: { uri: uri4, range: range }
+			},
+			{
+				name: "Monster", kind: 0, containerName: "",
+				location: { uri: uri3, range: range }
+			},
+			{
+				name: "Monster:on_kill", kind: 0, containerName: "",
+				location: { uri: uri4, range: range }
 			},
 			{
 				name: "MonsterConf", kind: 0, containerName: "",
@@ -142,12 +150,8 @@ suite('Extension Test Suite', () => {
 				location: { uri: uri2, range: range }
 			},
 			{
-				name: "Monster", kind: 0, containerName: "",
-				location: { uri: uri4, range: range }
-			},
-			{
-				name: "Monster", kind: 0, containerName: "",
-				location: { uri: uri3, range: range }
+				name: "monster", kind: 0, containerName: "",
+				location: { uri: uri0, range: range }
 			},
 		]);
 	});

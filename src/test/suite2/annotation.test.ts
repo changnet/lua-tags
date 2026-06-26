@@ -16,7 +16,7 @@ async function testHover(uri: vscode.Uri,
         uri,
         position
     )) as vscode.Hover[];
-    console.log(">>>>>>>> ACTUAL\n", JSON.stringify(actualList, null, 2), "\n<<<<<<<<");
+
     assert.strictEqual(actualList.length, expectList.length);
     expectList.forEach((expectedItem, index) => {
         const actualItem = actualList[index];
@@ -28,55 +28,64 @@ async function testHover(uri: vscode.Uri,
     });
 }
 
+// test go-to-definition
+async function testDefinition(uri: vscode.Uri,
+    position: vscode.Position, expectList: vscode.LocationLink[]) {
+
+    const actualList = (await vscode.commands.executeCommand(
+        'vscode.executeDefinitionProvider',
+        uri,
+        position
+    )) as vscode.LocationLink[];
+
+    assert.strictEqual(actualList.length, expectList.length);
+    if (expectList.length > 0) {
+        for (let i = 0; i < expectList.length; i++) {
+            const actual = actualList[i];
+            const expected = expectList[i];
+            assert.strictEqual(actual.targetUri.fsPath, expected.targetUri.fsPath);
+            assert.strictEqual(actual.targetRange.start.line, expected.targetRange.start.line);
+        }
+    }
+}
+
 suite('Annotation Test Suite', () => {
 
     // 测试@type注解的hover显示
     test("test @type annotation hover", async () => {
         const uri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
-        const val = "placeholder"; // We just want to see actual output
         await testHover(uri, new vscode.Position(8, 9), [{
-            contents: [{ value: val } as vscode.MarkdownString],
-        }
-        ]);
+            contents: [{ value: "```lua\nlocal my_dog : Dog\n-- @type Dog - 狗\n```" } as vscode.MarkdownString],
+        }]);
     });
 
-    // 测试@alias注解的hover显示（别名本身没有类型注解，只有原始定义）
+    // 测试@alias注解的hover显示（注释行没有hover）
     test("test @alias annotation hover", async () => {
         const uri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
-        const val = "placeholder";
-        await testHover(uri, new vscode.Position(2, 10), [{
-            contents: [{ value: val } as vscode.MarkdownString],
-        }
-        ]);
+        await testHover(uri, new vscode.Position(2, 10), []);
     });
 
-    // 测试类型推断的hover显示
+    // 测试类型推断的hover显示（从@return推断）
     test("test type inference hover", async () => {
         const uri = vscode.Uri.file(path.join(samplePath, "annotation_infer.lua"));
-        const val = "placeholder";
         await testHover(uri, new vscode.Position(13, 8), [{
-            contents: [{ value: val } as vscode.MarkdownString],
-        }
-        ]);
+            contents: [{ value: "```lua\nlocal player : Player\n-- 类型推断：player的类型应为Player\n```" } as vscode.MarkdownString],
+        }]);
     });
 
     // 测试数据和注解合并的hover显示
     test("test data and annotation merge hover", async () => {
         const uri = vscode.Uri.file(path.join(samplePath, "annotation_merge.lua"));
-        const val = "placeholder";
         await testHover(uri, new vscode.Position(6, 4), [{
-            contents: [{ value: val } as vscode.MarkdownString],
-        }
-        ]);
+            contents: [{ value: "```lua\nclass EXAMPLE {\n    a : number -- 变量a\n    b : string -- 变量b\n}\n\n-- 示例类\n```" } as vscode.MarkdownString],
+        }]);
     });
 
     // 测试@param注解的函数hover显示
     test("test @param annotation function hover", async () => {
         const uri = vscode.Uri.file(path.join(samplePath, "annotation_function.lua"));
-        const val = "placeholder";
         await testHover(uri, new vscode.Position(5, 12), [{
-            contents: [{ value: val } as vscode.MarkdownString],
-        }
-        ]);
+            contents: [{ value: "```lua\nfunction test_func(a: number, b: boolean) : string\n-- @param a number - 参数a\n-- @param b boolean - 参数b\n-- @return string - 返回字符串\n```" } as vscode.MarkdownString],
+        }]);
     });
 });

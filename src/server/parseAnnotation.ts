@@ -17,18 +17,19 @@ import {
 } from './annotation';
 
 // 注解正则表达式
+// extractCommentText 已经去掉了 -- 或 --- 前缀，所以直接匹配 @annotation
 // @class ClassName [description]
-const CLASS_PATTERN = /^---@class\s+(\w+)\s*(.*)$/;
+const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s+-\s*(.*))?$/;
 // @field fieldName typeName [description]
-const FIELD_PATTERN = /^---@field\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
+const FIELD_PATTERN = /^-?@field\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
 // @param paramName typeName [description]
-const PARAM_PATTERN = /^---@param\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
+const PARAM_PATTERN = /^-?@param\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
 // @return typeName [description]
-const RETURN_PATTERN = /^---@return\s+(.+?)(?:\s+-\s*(.*))?$/;
+const RETURN_PATTERN = /^-?@return\s+(.+?)(?:\s+-\s*(.*))?$/;
 // @type typeName [description]
-const TYPE_PATTERN = /^---@type\s+(.+?)(?:\s+-\s*(.*))?$/;
+const TYPE_PATTERN = /^-?@type\s+(.+?)(?:\s+-\s*(.*))?$/;
 // @alias AliasName typeName [description]
-const ALIAS_PATTERN = /^---@alias\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
+const ALIAS_PATTERN = /^-?@alias\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
 
 // 注解解析结果
 export interface AnnotationResult {
@@ -220,7 +221,7 @@ function extractCommentText(comment: string): string {
     } else if (text.startsWith('--')) {
         text = text.substring(2);
     }
-    return text;
+    return text.trim();
 }
 
 /**
@@ -414,8 +415,8 @@ function processCommentBlock(
         result.classes.set(currentClass.name, currentClass);
     }
 
-    // 保存函数注解
-    if (currentFunction && currentFunction.params.length > 0) {
+    // 保存函数注解（有@param或@return即可）
+    if (currentFunction && (currentFunction.params.length > 0 || currentFunction.returns)) {
         const line = targetSym ? targetSym.location.range.start.line : blockStartLine + block.length;
         result.functions.set(line, currentFunction);
     }

@@ -10,7 +10,7 @@ import { Search } from './search';
 
 import { Server } from './server';
 
-import { AnnotationRegistry } from './annotation';
+import { AnnotationRegistry, ClassAnnotation } from './annotation';
 
 export class HoverProvider {
     private static ins: HoverProvider;
@@ -58,23 +58,47 @@ export class HoverProvider {
         return `${path}${prefix}\`\`\`lua\n${luaBody}\n\`\`\``;
     }
 
+    /**
+     * 格式化类的hover显示
+     * 格式: class ClassName { field : type -- description }
+     */
+    private formatClassMarkdown(cls: ClassAnnotation, uri: string): string {
+        const lines: string[] = [];
+        lines.push(`class ${cls.name} {`);
+
+        for (const [fieldName, field] of cls.fields) {
+            const typeDesc = SymbolEx.instance().formatType(field.type);
+            const desc = field.description ? ` -- ${field.description}` : '';
+            lines.push(`    ${fieldName} : ${typeDesc}${desc}`);
+        }
+
+        lines.push('}');
+
+        // 添加类描述
+        if (cls.description) {
+            lines.push('');
+            lines.push(`-- ${cls.description}`);
+        }
+
+        return `\`\`\`lua\n${lines.join('\n')}\n\`\`\``;
+    }
+
     private defaultTips(sym: SymInfoEx, uri: string) {
         // 获取注解类型信息
         const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym) || 'any';
+        const prefix = SymbolEx.getLocalTypePrefix(sym.local);
+        const base = SymbolEx.getBasePrefix(sym);
 
         if (sym.value) {
-            const prefix = SymbolEx.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(
                 sym,
-                `${prefix}${sym.name} = ${sym.value} : ${typeDesc}`,
+                `${prefix}${base}${sym.name} = ${sym.value} : ${typeDesc}`,
                 uri
             );
         }
 
         if (sym.local || sym.refType) {
-            const local = SymbolEx.getLocalTypePrefix(sym.local);
-            const base = SymbolEx.getBasePrefix(sym);
-            return this.toLuaMarkdown(sym, `${local}${base}${sym.name} : ${typeDesc}`, uri);
+            return this.toLuaMarkdown(sym, `${prefix}${base}${sym.name} : ${typeDesc}`, uri);
         }
 
         if (sym.location.uri !== uri) {
@@ -114,32 +138,11 @@ export class HoverProvider {
                 if (funcAnnotation?.returns) {
                     returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
                 }
-                
-                // 将注解放在内部注释的形式
-                let annotationInfo = '';
-                if (funcAnnotation && funcAnnotation.params.length > 0) {
-                    for (const param of funcAnnotation.params) {
-                        if (param.description) {
-                            annotationInfo += `-- @param ${param.name} ${SymbolEx.instance().formatType(param.type)} ${param.description}\n`;
-                        } else {
-                            annotationInfo += `-- @param ${param.name} ${SymbolEx.instance().formatType(param.type)}\n`;
-                        }
-                    }
-                }
-                if (funcAnnotation?.returns) {
-                    annotationInfo += `-- @return ${returnDesc}`;
-                }
-
-                // 移除结尾可能的换行
-                if (annotationInfo.endsWith('\n')) {
-                    annotationInfo = annotationInfo.slice(0, -1);
-                }
 
                 tips = this.toLuaMarkdown(
                     sym,
                     `${local}function ${base}${sym.name}(${displayParams}) : ${returnDesc}`,
                     uri,
-                    annotationInfo || undefined,
                 );
                 break;
             }
@@ -174,7 +177,18 @@ export class HoverProvider {
 
     private toMarkdown(symList: SymInfoEx[], uri: string): string {
         const list: string[] = [];
+        const registry = AnnotationRegistry.instance();
+
         for (const sym of symList) {
+            // 检查是否是类定义
+            if (sym.kind === SymbolKind.Class) {
+                const cls = registry.getGlobalClass(sym.name);
+                if (cls) {
+                    list.push(this.formatClassMarkdown(cls, uri));
+                    continue;
+                }
+            }
+
             const markdown = this.toOneMarkdown(sym, uri);
             if (markdown) {
                 list.push(markdown);

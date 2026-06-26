@@ -1,8 +1,8 @@
 -- 注解测试文件 - 数据和注解合并
 
--- @class EXAMPLE 示例类
--- @field a number 变量a
--- @field b string 变量b
+-- @class EXAMPLE - 示例类
+-- @field a number - 变量a
+-- @field b string - 变量b
 
 EXAMPLE = {
     a = 1,
