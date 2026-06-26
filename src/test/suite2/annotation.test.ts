@@ -30,21 +30,21 @@ async function testHover(uri: vscode.Uri,
 
 // test go-to-definition
 async function testDefinition(uri: vscode.Uri,
-    position: vscode.Position, expectList: vscode.LocationLink[]) {
+    position: vscode.Position, expectList: vscode.Location[]) {
 
     const actualList = (await vscode.commands.executeCommand(
         'vscode.executeDefinitionProvider',
         uri,
         position
-    )) as vscode.LocationLink[];
+    )) as vscode.Location[];
 
     assert.strictEqual(actualList.length, expectList.length);
     if (expectList.length > 0) {
         for (let i = 0; i < expectList.length; i++) {
             const actual = actualList[i];
             const expected = expectList[i];
-            assert.strictEqual(actual.targetUri.fsPath, expected.targetUri.fsPath);
-            assert.strictEqual(actual.targetRange.start.line, expected.targetRange.start.line);
+            assert.strictEqual(actual.uri.fsPath, expected.uri.fsPath);
+            assert.strictEqual(actual.range.start.line, expected.range.start.line);
         }
     }
 }
@@ -87,5 +87,39 @@ suite('Annotation Test Suite', () => {
         await testHover(uri, new vscode.Position(5, 12), [{
             contents: [{ value: "```lua\nfunction test_func(a: number, b: boolean) : string\n-- @param a number - 参数a\n-- @param b boolean - 参数b\n-- @return string - 返回字符串\n```" } as vscode.MarkdownString],
         }]);
+    });
+
+    // 测试在@type注解行hover类型名，显示类定义
+    test("test hover on type name in @type annotation", async () => {
+        const uri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
+        // line 7: -- @type Dog - 狗, hover on "Dog" (char 9)
+        await testHover(uri, new vscode.Position(7, 9), [{
+            contents: [{ value: "```lua\nclass Dog {\n    breed : string -- 品种\n    owner : string -- 主人\n}\n\n-- 狗类\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    // 测试ctrl+click注解类型名跳转到类定义
+    test("test go to definition on type name in @type annotation", async () => {
+        const classUri = vscode.Uri.file(path.join(samplePath, "annotation_class.lua"));
+        const typeUri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
+        // line 7: -- @type Dog - 狗, click on "Dog" (char 9)
+        await testDefinition(typeUri, new vscode.Position(7, 9), [{
+            uri: classUri,
+            range: new vscode.Range(9, 0, 9, 3),
+        }]);
+    });
+
+    // 测试@type变量的成员补全
+    test("test @type variable member completion", async () => {
+        const uri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
+        const actualList = (await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider',
+            uri,
+            new vscode.Position(16, 27),
+        )) as vscode.CompletionList;
+
+        const names = actualList.items.map(i => i.label as string).sort();
+        assert.ok(names.includes('breed'), `should include 'breed', got: ${names}`);
+        assert.ok(names.includes('owner'), `should include 'owner', got: ${names}`);
     });
 });

@@ -13,3 +13,5 @@ local name_map = {}
 
 -- @type string[] - 名称列表
 local name_list = {}
+
+-- completion test: my_dog.

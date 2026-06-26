@@ -54,9 +54,9 @@ async function testWorkspaceSymbol(query: string,
 	actualList.sort((src, dst) => {
 		if (src.name === dst.name) {
 			return src.location.uri.toString() > dst.location.uri.toString()
-				? 1 : 0;
+				? 1 : -1;
 		}
-		return src.name > dst.name ? 1 : 0;
+		return src.name > dst.name ? 1 : -1;
 	});
 
 	//console.log(`check ${JSON.stringify(actualList)}`);
@@ -138,20 +138,20 @@ suite('Extension Test Suite', () => {
 				location: { uri: uri3, range: range }
 			},
 			{
-				name: "Monster:on_kill", kind: 0, containerName: "",
-				location: { uri: uri4, range: range }
-			},
-			{
 				name: "MonsterConf", kind: 0, containerName: "",
 				location: { uri: uri1, range: range }
+			},
+			{
+				name: "monster", kind: 0, containerName: "",
+				location: { uri: uri0, range: range }
 			},
 			{
 				name: "monster", kind: 0, containerName: "",
 				location: { uri: uri2, range: range }
 			},
 			{
-				name: "monster", kind: 0, containerName: "",
-				location: { uri: uri0, range: range }
+				name: "multi_comment", kind: 0, containerName: "",
+				location: { uri: uri3, range: range }
 			},
 		]);
 	});

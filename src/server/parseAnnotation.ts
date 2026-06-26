@@ -239,7 +239,7 @@ export function parseAnnotations(
         functions: new Map(),
     };
 
-    if (comments.length === 0 || symList.length === 0) {
+    if (comments.length === 0) {
         return result;
     }
 
