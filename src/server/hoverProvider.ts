@@ -33,7 +33,7 @@ export class HoverProvider {
         if (sym.comment) {
             switch (sym.ctType) {
                 case CommentType.CT_ABOVE:
-                    above = sym.comment + '\n';
+                    above = '\n' + sym.comment;
                     break;
                 case CommentType.CT_LINEEND:
                     lineEnd = ' ' + sym.comment;
@@ -45,35 +45,40 @@ export class HoverProvider {
         }
 
         const ref = SymbolEx.instance().getRefValue(sym);
-        // 注解信息放在代码块外部，这样markdown格式可以正确渲染
-        const annInfo = annotationInfo ? annotationInfo + '\n' : '';
         // eslint-disable-next-line max-len
-        return `${path}${annInfo}${prefix}\`\`\`lua\n${above}${ctx}${ref}${lineEnd}\n\`\`\``;
+        let extraInfo = '';
+        if (annotationInfo) {
+            extraInfo = '\n' + annotationInfo;
+        }
+
+        let luaBody = `${ctx}${ref}${lineEnd}`;
+        if (above || extraInfo) {
+            luaBody += `${above}${extraInfo}`;
+        }
+        return `${path}${prefix}\`\`\`lua\n${luaBody}\n\`\`\``;
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
         // 获取注解类型信息
-        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym);
-        const annotationInfo = typeDesc ? `@type ${typeDesc}` : undefined;
+        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym) || 'any';
 
         if (sym.value) {
             const prefix = SymbolEx.getLocalTypePrefix(sym.local);
             return this.toLuaMarkdown(
                 sym,
-                `${prefix}${sym.name} = ${sym.value}`,
-                uri,
-                annotationInfo,
+                `${prefix}${sym.name} = ${sym.value} : ${typeDesc}`,
+                uri
             );
         }
 
         if (sym.local || sym.refType) {
             const local = SymbolEx.getLocalTypePrefix(sym.local);
             const base = SymbolEx.getBasePrefix(sym);
-            return this.toLuaMarkdown(sym, `${local}${base}${sym.name}`, uri, annotationInfo);
+            return this.toLuaMarkdown(sym, `${local}${base}${sym.name} : ${typeDesc}`, uri);
         }
 
         if (sym.location.uri !== uri) {
-            return this.toLuaMarkdown(sym, sym.name, uri, annotationInfo);
+            return this.toLuaMarkdown(sym, `${sym.name} : ${typeDesc}`, uri);
         }
 
         return null;
@@ -105,23 +110,34 @@ export class HoverProvider {
                         .join(', ');
                 }
 
-                // 构建注解信息（放在代码块外部）
-                let annotationInfo = '';
+                let returnDesc = 'any';
                 if (funcAnnotation?.returns) {
-                    const returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
-                    annotationInfo += `@return ${returnDesc}`;
+                    returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
                 }
+                
+                // 将注解放在内部注释的形式
+                let annotationInfo = '';
                 if (funcAnnotation && funcAnnotation.params.length > 0) {
                     for (const param of funcAnnotation.params) {
                         if (param.description) {
-                            annotationInfo += `\n@param ${param.name}: ${param.description}`;
+                            annotationInfo += `-- @param ${param.name} ${SymbolEx.instance().formatType(param.type)} ${param.description}\n`;
+                        } else {
+                            annotationInfo += `-- @param ${param.name} ${SymbolEx.instance().formatType(param.type)}\n`;
                         }
                     }
+                }
+                if (funcAnnotation?.returns) {
+                    annotationInfo += `-- @return ${returnDesc}`;
+                }
+
+                // 移除结尾可能的换行
+                if (annotationInfo.endsWith('\n')) {
+                    annotationInfo = annotationInfo.slice(0, -1);
                 }
 
                 tips = this.toLuaMarkdown(
                     sym,
-                    `${local}function ${base}${sym.name}(${displayParams})`,
+                    `${local}function ${base}${sym.name}(${displayParams}) : ${returnDesc}`,
                     uri,
                     annotationInfo || undefined,
                 );
@@ -129,11 +145,20 @@ export class HoverProvider {
             }
             case SymbolKind.Namespace: {
                 const local = sym.local ? 'local ' : '';
-                tips = this.toLuaMarkdown(
-                    sym,
-                    `(table) ${local}${sym.name}`,
-                    uri,
-                );
+                const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym);
+                if (typeDesc) {
+                    tips = this.toLuaMarkdown(
+                        sym,
+                        `${local}${sym.name} : ${typeDesc}`,
+                        uri,
+                    );
+                } else {
+                    tips = this.toLuaMarkdown(
+                        sym,
+                        `(table) ${local}${sym.name}`,
+                        uri,
+                    );
+                }
                 break;
             }
             case SymbolKind.Module: {

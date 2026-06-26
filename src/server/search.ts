@@ -850,6 +850,46 @@ export class Search {
             return items;
         }
 
+        // 仅靠名字匹配全局类（例如注释中的光标可以找到对应的类）
+        if (!query.base) {
+            const cls = AnnotationRegistry.instance().getGlobalClass(query.name);
+            if (cls) {
+                const sym: SymInfoEx = {
+                    name: cls.name,
+                    kind: SymbolKind.Class,
+                    location: {
+                        uri: cls.uri,
+                        range: {
+                            start: { line: cls.line, character: 0 },
+                            end: { line: cls.line, character: cls.name.length }
+                        }
+                    },
+                    scope: 0,
+                    comment: cls.description,
+                };
+                // alias 也应当支持
+                return [sym];
+            }
+
+            const alias = AnnotationRegistry.instance().getGlobalAlias(query.name);
+            if (alias) {
+                const sym: SymInfoEx = {
+                    name: alias.name,
+                    kind: SymbolKind.Class,
+                    location: {
+                        uri: alias.uri,
+                        range: {
+                            start: { line: alias.line, character: 0 },
+                            end: { line: alias.line, character: alias.name.length }
+                        }
+                    },
+                    scope: 0,
+                    comment: alias.description,
+                };
+                return [sym];
+            }
+        }
+
         // 当前文档查找不带模块名符号，比如文档级别的local函数
         items = this.searchDocumentSymbol(query, filter);
         if (items) {

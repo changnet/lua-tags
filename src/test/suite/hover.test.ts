@@ -39,7 +39,7 @@ suite('Extension Hover Test Suite', () => {
         const docPath = path.join(samplePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
-        const val = "```lua\nBT_PVP = 1 -- player vs player\n```";
+        const val = "```lua\nBT_PVP = 1 : any -- player vs player\n```";
         await testHover(uri, new vscode.Position(15, 12), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -47,7 +47,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test local hove", async () => {
-        const val = "```lua\n-- 测试声明多个变量\nlocal N = 1\n```";
+        const val = "```lua\n-- 测试声明多个变量\nlocal N = 1 : any\n```";
         await testHover(testUri, new vscode.Position(13, 9), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -55,7 +55,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test main chunk do end block local hove", async () => {
-        const val = "```lua\nlocal var = 100 -- const\n```";
+        const val = "```lua\nlocal var = 100 : any -- const\n```";
         await testHover(testUri, new vscode.Position(96, 17), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -71,7 +71,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test file path hove", async () => {
-        const val = 'battle_conf.lua  \n```lua\nmax_player = 8\n```';
+        const val = 'battle_conf.lua  \n```lua\nmax_player = 8 : any\n```';
         await testHover(testUri, new vscode.Position(42, 64), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -98,7 +98,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test multi comment hove", async () => {
-        const val = "```lua\n-- 测试混合多行注释\n-- comment 111\n--[[\n    这是\n    多行\n    注释\n]]\nlocal multi_comment = true\n```";
+        const val = "```lua\n-- 测试混合多行注释\n-- comment 111\n--[[\n    这是\n    多行\n    注释\n]]\nlocal multi_comment = true : any\n```";
         await testHover(testUri, new vscode.Position(62, 14), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -114,7 +114,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test should not have comment hove", async () => {
-        const val = '```lua\nlocal support_comment = 9\n```';
+        const val = '```lua\nlocal support_comment = 9 : any\n```';
         await testHover(testUri, new vscode.Position(53, 17), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -122,7 +122,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test ref value hove", async () => {
-        const val = "```lua\n-- test ref value\nlocal scene == BattleConf.scene = 1000\n```";
+        const val = "```lua\n-- test ref value\nlocal scene : any == BattleConf.scene = 1000\n```";
         await testHover(testUri, new vscode.Position(82, 9), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -130,7 +130,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test ref function hove", async () => {
-        const val = "```lua\nlocal empty == function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
+        const val = "```lua\nlocal empty : any == function table.empty(tbl)\n-- test function assignment\n-- multiline comment1\n-- multiline comment2\n```";
         await testHover(testUri, new vscode.Position(124, 18), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -146,7 +146,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test same name ref symbol dead loop hove", async () => {
-        const val = "```lua\nlocal ipair == ipair\n```";
+        const val = "```lua\nlocal ipair : any == ipair\n```";
         await testHover(testUri, new vscode.Position(129, 8), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -162,7 +162,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test const expression hover", async () => {
-        const val = "```lua\n-- test const expression hover\nlocal const_v = -16 + 1 << 32 + 8 >> \"32\" + 2 * 4 - 5 / 2 + 8 % 2\n```";
+        const val = "```lua\n-- test const expression hover\nlocal const_v = -16 : any\n```";
         await testHover(testUri, new vscode.Position(135, 11), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
@@ -186,7 +186,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test global module sub variable duplicate hover", async () => {
-        const val = "new_object.lua  \n```lua\ntest_v = 100\n```";
+        const val = "new_object.lua  \n```lua\ntest_v = 100 : any\n```";
         await testHover(testUri, new vscode.Position(172, 14), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }
