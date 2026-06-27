@@ -19,17 +19,17 @@ import {
 // 注解正则表达式
 // extractCommentText 已经去掉了 -- 或 --- 前缀，所以直接匹配 @annotation
 // @class ClassName [description]
-const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s+-\s*(.*))?$/;
+const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s+(?:-\s*)?(.*))?$/;
 // @field fieldName typeName [description]
-const FIELD_PATTERN = /^-?@field\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
+const FIELD_PATTERN = /^-?@field\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
 // @param paramName typeName [description]
-const PARAM_PATTERN = /^-?@param\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
+const PARAM_PATTERN = /^-?@param\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
 // @return typeName [description]
-const RETURN_PATTERN = /^-?@return\s+(.+?)(?:\s+-\s*(.*))?$/;
+const RETURN_PATTERN = /^-?@return\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
 // @type typeName [description]
-const TYPE_PATTERN = /^-?@type\s+(.+?)(?:\s+-\s*(.*))?$/;
+const TYPE_PATTERN = /^-?@type\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
 // @alias AliasName typeName [description]
-const ALIAS_PATTERN = /^-?@alias\s+(\w+)\s+(.+?)(?:\s+-\s*(.*))?$/;
+const ALIAS_PATTERN = /^-?@alias\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
 
 // 注解解析结果
 export interface AnnotationResult {

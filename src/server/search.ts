@@ -704,7 +704,7 @@ export class Search {
         if (query.base) {
             // 有base时，需要解析base的类型
             // 先查找base变量
-            const baseSymList = this.findBaseSymbol(uri, query.base);
+            const baseSymList = this.findBaseSymbol(uri, query.base, query.position);
             if (!baseSymList || baseSymList.length === 0) {
                 return null;
             }
@@ -714,10 +714,12 @@ export class Search {
                 for (const baseSym of baseSymList) {
                     const field = symbol.resolveMemberType(uri, baseSym, query.name);
                     if (field) {
+                        const typeStr = symbol.formatType(field.type);
                         const sym = registry.fieldToSym(
                             field,
                             query.base,
                             baseSym.location.uri,
+                            typeStr,
                         );
                         return [sym];
                     }
@@ -740,7 +742,8 @@ export class Search {
                 // 返回所有字段
                 const results: SymInfoEx[] = [];
                 cls.fields.forEach((field) => {
-                    results.push(registry.fieldToSym(field, query.base!, cls.uri));
+                    const typeStr = symbol.formatType(field.type);
+                    results.push(registry.fieldToSym(field, query.base!, cls.uri, typeStr));
                 });
                 return results.length > 0 ? results : null;
             }
@@ -779,7 +782,7 @@ export class Search {
     /**
      * 查找base变量的符号
      */
-    private findBaseSymbol(uri: string, baseName: string): SymInfoEx[] | null {
+    private findBaseSymbol(uri: string, baseName: string, queryPos?: QueryPos): SymInfoEx[] | null {
         const symbol = SymbolEx.instance();
         const results: SymInfoEx[] = [];
 
@@ -804,6 +807,34 @@ export class Search {
         );
         if (globalSymList.length > 0) {
             return globalSymList;
+        }
+
+        // 在局部变量中查找（函数参数等不在documentSymbol中的变量）
+        if (queryPos) {
+            const localResults: SymInfoEx[] = [];
+            this.rawSearchLocal(uri, queryPos, (node, local, name, base, init) => {
+                if (name === baseName && !base) {
+                    const sym = ParseSymbol.toSym(
+                        { name },
+                        node,
+                        0,
+                        uri,
+                        init,
+                        local,
+                    );
+                    if (sym) {
+                        localResults.push(sym);
+                    }
+                }
+            });
+
+            if (localResults.length > 0) {
+                const cache = CacheSymbol.instance().getCache(uri);
+                if (cache) {
+                    ParseSymbol.appendComment(cache.comments, localResults, cache.codeLine);
+                }
+                return localResults;
+            }
         }
 
         return null;
@@ -855,6 +886,12 @@ export class Search {
             possibleSym.push(...items);
         }
 
+        // 根据注解类型解析（当base变量有类型注解时优先于模块查找）
+        items = this.searchAnnotation(query);
+        if (items) {
+            return items;
+        }
+
         // 根据模块名匹配文档符号
         items = this.searchDocumentModule(query, filter);
         if (items) {
@@ -863,12 +900,6 @@ export class Search {
 
         // 优先根据模块名匹配全局符号
         items = this.searchGlobalModule(query, filter);
-        if (items) {
-            return items;
-        }
-
-        // 根据注解类型解析（优先级仅次于明确存在的模块）
-        items = this.searchAnnotation(query);
         if (items) {
             return items;
         }

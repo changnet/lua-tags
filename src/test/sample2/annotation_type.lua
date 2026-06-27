@@ -17,3 +17,6 @@ local name_list = {}
 -- completion test: my_dog.
 
 local owner_name = my_dog.owner
+
+-- go-to-definition test: my_dog.age
+local animal_age = my_dog.age

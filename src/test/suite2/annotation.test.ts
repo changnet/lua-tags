@@ -94,7 +94,7 @@ suite('Annotation Test Suite', () => {
         const uri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
         // line 7: -- @type Dog - 狗, hover on "Dog" (char 9)
         await testHover(uri, new vscode.Position(7, 9), [{
-            contents: [{ value: "```lua\nclass Dog {\n    breed : string -- 品种\n    owner : string -- 主人\n}\n\n-- 狗类\n```" } as vscode.MarkdownString],
+            contents: [{ value: "```lua\nclass Dog {\n    breed : string -- 品种\n    owner : string -- 主人\n    age : number -- 年龄\n}\n\n-- 狗类\n```" } as vscode.MarkdownString],
         }]);
     });
 
@@ -131,6 +131,47 @@ suite('Annotation Test Suite', () => {
         await testDefinition(typeUri, new vscode.Position(18, 30), [{
             uri: classUri,
             range: new vscode.Range(8, 10, 8, 15),
+        }]);
+    });
+
+    // 测试跳转到my_dog.age到Dog类的age字段
+    test("test go to definition on my_dog.age", async () => {
+        const classUri = vscode.Uri.file(path.join(samplePath, "annotation_class.lua"));
+        const typeUri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
+        // line 22: local animal_age = my_dog.age, click on "age" (char 26)
+        await testDefinition(typeUri, new vscode.Position(21, 26), [{
+            uri: classUri,
+            range: new vscode.Range(9, 10, 9, 13),
+        }]);
+    });
+
+    // 测试my_dog.age的hover显示
+    test("test hover on my_dog.age", async () => {
+        const typeUri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
+        // line 22: local animal_age = my_dog.age, hover on "age" (char 27)
+        await testHover(typeUri, new vscode.Position(21, 27), [{
+            contents: [{ value: "annotation_class.lua  \n```lua\nage : number 年龄\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    // ============ variable_tracking.lua tests ============
+
+    // 测试跳转到Pet类的age字段
+    test("test go to definition on my_dog.age in variable_tracking", async () => {
+        const trackUri = vscode.Uri.file(path.join(samplePath, "variable_tracking.lua"));
+        // line 35: my_dog.age = 3, click on "age" (char 8)
+        await testDefinition(trackUri, new vscode.Position(34, 8), [{
+            uri: trackUri,
+            range: new vscode.Range(9, 10, 9, 13),
+        }]);
+    });
+
+    // 测试my_dog.age的hover显示从Pet类获取信息
+    test("test hover on my_dog.age in variable_tracking", async () => {
+        const trackUri = vscode.Uri.file(path.join(samplePath, "variable_tracking.lua"));
+        // line 35: my_dog.age = 3, hover on "age" (char 8)
+        await testHover(trackUri, new vscode.Position(34, 8), [{
+            contents: [{ value: "```lua\nage : number 动物年龄\n```" } as vscode.MarkdownString],
         }]);
     });
 });

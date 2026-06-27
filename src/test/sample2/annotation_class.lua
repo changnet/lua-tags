@@ -7,6 +7,7 @@
 -- @class Dog - 狗类
 -- @field breed string - 品种
 -- @field owner string - 主人
+-- @field age number - 年龄
 
 -- @class Cat - 猫类
 -- @field indoor boolean - 是否家养

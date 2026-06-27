@@ -1,7 +1,7 @@
 // 注解处理 - 存储和查询注解数据
 
 import { SymbolKind, Location } from 'vscode-languageserver';
-import { SymInfoEx, LocalType } from './parseSymbol';
+import { SymInfoEx, LocalType, CommentType } from './parseSymbol';
 
 // 解析后的类型表达式
 export interface AnnotationType {
@@ -333,15 +333,17 @@ export class AnnotationRegistry {
 
     /**
      * 将注解字段转换为SymInfoEx
+     * @param typeStr 格式化后的类型字符串（如 "number"），用于hover显示
      */
     public fieldToSym(
         field: FieldAnnotation,
         baseName: string,
         baseUri: string,
+        typeStr?: string,
     ): SymInfoEx {
         const kind = this.typeToSymbolKind(field.type);
         const ch = field.character || 0;
-        return {
+        const sym: SymInfoEx = {
             name: field.name,
             kind: kind,
             location: {
@@ -352,8 +354,15 @@ export class AnnotationRegistry {
                 },
             },
             scope: 0,
-            comment: field.description,
         };
+        if (typeStr) {
+            sym.annotationType = typeStr;
+        }
+        if (field.description) {
+            sym.comment = field.description;
+            sym.ctType = CommentType.CT_LINEEND;
+        }
+        return sym;
     }
 
     /**

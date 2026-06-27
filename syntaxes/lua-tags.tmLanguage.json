@@ -34,7 +34,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "(@param)\\s+(\\w+)(?:\\s+(\\S+))?"
+            "match": "\\s*-?(@param)\\s+(\\w+)(?:\\s+(\\S+))?"
         },
         "doc-return-support": {
             "captures": {
@@ -45,7 +45,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "(@return)\\s*(\\S+)?"
+            "match": "\\s*-?(@return)\\s*(\\S+)?"
         },
         "doc-type-support": {
             "captures": {
@@ -56,7 +56,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "(@type)\\s*(\\S+)?"
+            "match": "\\s*-?(@type)\\s*(\\S+)?"
         },
         "doc-field-support": {
             "captures": {
@@ -70,7 +70,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "(@field)\\s+(\\w+)(?:\\s+(\\S+))?"
+            "match": "\\s*-?(@field)\\s+(\\w+)(?:\\s+(\\S+))?"
         },
         "doc-class-support": {
             "captures": {
@@ -81,7 +81,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "(@class)\\s+(\\w+)"
+            "match": "\\s*-?(@class)\\s+(\\w+)"
         },
         "doc-alias-support": {
             "captures": {
@@ -95,7 +95,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "(@alias)\\s+(\\w+)(?:\\s+(\\S+))?"
+            "match": "\\s*-?(@alias)\\s+(\\w+)(?:\\s+(\\S+))?"
         }
     }
 }

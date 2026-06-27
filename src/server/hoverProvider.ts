@@ -84,10 +84,20 @@ export class HoverProvider {
     }
 
     private defaultTips(sym: SymInfoEx, uri: string) {
-        // 获取注解类型信息
-        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym) || 'any';
         const prefix = SymbolEx.getLocalTypePrefix(sym.local);
         const base = SymbolEx.getBasePrefix(sym);
+
+        // 注解字段（来自@field），使用annotationType显示类型
+        if (sym.annotationType) {
+            return this.toLuaMarkdown(
+                sym,
+                `${prefix}${base}${sym.name} : ${sym.annotationType}`,
+                uri,
+            );
+        }
+
+        // 获取注解类型信息
+        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym) || 'any';
 
         if (sym.value) {
             return this.toLuaMarkdown(

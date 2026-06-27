@@ -4,9 +4,10 @@
 -- @field name string 动物名称
 -- @field age number 动物年龄
 
--- @class Dog 狗类
+-- @class Pet 宠物类
 -- @field breed string 品种
 -- @field owner string 主人
+-- @field age number 动物年龄
 -- @field type number 类型常量
 
 -- 自动推导类型为number
@@ -18,19 +19,19 @@ local b = "hello"
 -- 自动推导类型为boolean
 local c = true
 
--- 根据注解判断为Dog
--- @type Dog
+-- 根据注解判断为Pet
+-- @type Pet
 local my_dog = {}
 
--- @return Dog
-local function get_dog()
+-- @return Pet
+local function get_pet()
 end
 
 -- 从函数返回值推断类型
-local dog1 = get_dog()
+local pet1 = get_pet()
 
 -- 成员变量访问测试
-my_dog.name = "Buddy"
+my_dog.owner = "Buddy"
 my_dog.age = 3
 
 -- 测试函数

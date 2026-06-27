@@ -106,6 +106,7 @@ export interface SymInfoEx extends SymbolInformation {
     comment?: string; // 注释
     ctType?: CommentType; // 注释类型
     baseModule?: string; // 用于处理module()
+    annotationType?: string; // 注解类型（用于@field成员访问时携带类型信息）
 }
 
 export type VSCodeSymbol = SymInfoEx | null;
