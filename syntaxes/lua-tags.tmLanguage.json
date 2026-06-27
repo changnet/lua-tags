@@ -7,23 +7,95 @@
         },
         {
             "include": "#doc-return-support"
+        },
+        {
+            "include": "#doc-type-support"
+        },
+        {
+            "include": "#doc-field-support"
+        },
+        {
+            "include": "#doc-class-support"
+        },
+        {
+            "include": "#doc-alias-support"
         }
     ],
     "repository": {
         "doc-param-support": {
             "captures": {
                 "1": {
-                    "name": "support.type.doc-param"
+                    "name": "keyword.other.doc-tag"
                 },
                 "2": {
                     "name": "variable.parameter.doc-variable"
+                },
+                "3": {
+                    "name": "entity.name.type"
                 }
             },
-            "match": "(@param)\\b([ \t]+[a-zA-Z_.][a-zA-Z0-9_.]*)?"
+            "match": "(@param)\\s+(\\w+)(?:\\s+(\\S+))?"
         },
         "doc-return-support": {
-            "match": "@return",
-            "name": "support.type.doc-return"
+            "captures": {
+                "1": {
+                    "name": "keyword.other.doc-tag"
+                },
+                "2": {
+                    "name": "entity.name.type"
+                }
+            },
+            "match": "(@return)\\s*(\\S+)?"
+        },
+        "doc-type-support": {
+            "captures": {
+                "1": {
+                    "name": "keyword.other.doc-tag"
+                },
+                "2": {
+                    "name": "entity.name.type"
+                }
+            },
+            "match": "(@type)\\s*(\\S+)?"
+        },
+        "doc-field-support": {
+            "captures": {
+                "1": {
+                    "name": "keyword.other.doc-tag"
+                },
+                "2": {
+                    "name": "variable.other.doc-field"
+                },
+                "3": {
+                    "name": "entity.name.type"
+                }
+            },
+            "match": "(@field)\\s+(\\w+)(?:\\s+(\\S+))?"
+        },
+        "doc-class-support": {
+            "captures": {
+                "1": {
+                    "name": "keyword.other.doc-tag"
+                },
+                "2": {
+                    "name": "entity.name.type"
+                }
+            },
+            "match": "(@class)\\s+(\\w+)"
+        },
+        "doc-alias-support": {
+            "captures": {
+                "1": {
+                    "name": "keyword.other.doc-tag"
+                },
+                "2": {
+                    "name": "entity.name.type"
+                },
+                "3": {
+                    "name": "entity.name.type"
+                }
+            },
+            "match": "(@alias)\\s+(\\w+)(?:\\s+(\\S+))?"
         }
     }
 }

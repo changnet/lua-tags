@@ -250,6 +250,14 @@ export function parseAnnotations(
         lineToSym.set(line, sym);
     }
 
+    // 构建行号到原始注释文本的映射，用于计算字符位置
+    const rawLineMap = new Map<number, string>();
+    for (const c of comments) {
+        if (c.loc) {
+            rawLineMap.set(c.loc.start.line - 1, c.raw);
+        }
+    }
+
     // 收集每个符号上方的注释块
     // 按行号排序注释
     const sortedComments = comments
@@ -275,7 +283,7 @@ export function parseAnnotations(
         } else {
             // 新的注释块，先处理之前的
             if (currentBlock.length > 0) {
-                processCommentBlock(result, currentBlock, currentBlockStartLine, lineToSym, uri);
+                processCommentBlock(result, currentBlock, currentBlockStartLine, lineToSym, uri, rawLineMap);
             }
             currentBlock = [text];
             currentBlockStartLine = commentLine;
@@ -284,10 +292,29 @@ export function parseAnnotations(
 
     // 处理最后一个注释块
     if (currentBlock.length > 0) {
-        processCommentBlock(result, currentBlock, currentBlockStartLine, lineToSym, uri);
+        processCommentBlock(result, currentBlock, currentBlockStartLine, lineToSym, uri, rawLineMap);
     }
 
     return result;
+}
+
+/**
+ * 计算注解中某个名字在原始行中的字符位置
+ */
+function calcAnnotationChar(rawLineMap: Map<number, string> | undefined, line: number, trimmed: string, name: string): number {
+    if (rawLineMap) {
+        const raw = rawLineMap.get(line);
+        if (raw) {
+            const atPos = raw.indexOf('@');
+            if (atPos >= 0) {
+                const namePosInTrimmed = trimmed.indexOf(name);
+                if (namePosInTrimmed >= 0) {
+                    return atPos + namePosInTrimmed;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 /**
@@ -299,6 +326,7 @@ function processCommentBlock(
     blockStartLine: number,
     lineToSym: Map<number, SymInfoEx>,
     uri: string,
+    rawLineMap?: Map<number, string>,
 ) {
     // 检查注释块中是否有注解
     const hasAnnotation = block.some(line => {
@@ -322,9 +350,11 @@ function processCommentBlock(
     // 解析注释块中的注解
     let currentClass: ClassAnnotation | null = null;
     let currentFunction: FunctionAnnotation | null = null;
+    let currentClassLine = -1;
     const classFields: FieldAnnotation[] = [];
 
-    for (const line of block) {
+    for (let lineIdx = 0; lineIdx < block.length; lineIdx++) {
+        const line = block[lineIdx];
         const trimmed = line.trim();
         const annotation = parseAnnotationLine(trimmed);
 
@@ -339,12 +369,14 @@ function processCommentBlock(
                     result.classes.set(currentClass.name, currentClass);
                 }
                 const data = annotation.data;
+                currentClassLine = blockStartLine + lineIdx;
                 currentClass = {
                     name: data.name,
                     description: data.description,
                     fields: new Map(),
                     uri: uri,
-                    line: targetSym ? targetSym.location.range.start.line : blockStartLine + block.length,
+                    line: currentClassLine,
+                    character: calcAnnotationChar(rawLineMap, currentClassLine, trimmed, data.name),
                 };
                 break;
             }
@@ -356,7 +388,8 @@ function processCommentBlock(
                         type: parseType(data.typeStr),
                         description: data.description,
                         uri: uri,
-                        line: targetSym ? targetSym.location.range.start.line : blockStartLine + block.length,
+                        line: blockStartLine + lineIdx,
+                        character: calcAnnotationChar(rawLineMap, blockStartLine + lineIdx, trimmed, data.name),
                     };
                     currentClass.fields.set(data.name, field);
                 }
@@ -402,7 +435,8 @@ function processCommentBlock(
                     type: parseType(data.typeStr),
                     description: data.description,
                     uri: uri,
-                    line: targetSym ? targetSym.location.range.start.line : blockStartLine + block.length,
+                    line: blockStartLine + lineIdx,
+                    character: calcAnnotationChar(rawLineMap, blockStartLine + lineIdx, trimmed, data.name),
                 };
                 result.aliases.set(data.name, alias);
                 break;

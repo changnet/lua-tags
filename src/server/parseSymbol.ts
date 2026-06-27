@@ -792,10 +792,10 @@ export class ParseSymbol {
     }
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
-    public parse(uri: string, text: string, ft: FileParseType): SymInfoEx[] {
+    public parse(uri: string, text: string, ft: FileParseType): SymInfoEx[] | null {
         const nodeList = this.rawParse(uri, text, ft);
         if (!nodeList) {
-            return [];
+            return null;
         }
 
         this.parseScopeDeepth = 0;

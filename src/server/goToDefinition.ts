@@ -93,8 +93,8 @@ export class GoToDefinition {
             return {
                 uri: cls.uri,
                 range: {
-                    start: { line: cls.line, character: 0 },
-                    end: { line: cls.line, character: cls.name.length },
+                    start: { line: cls.line, character: cls.character },
+                    end: { line: cls.line, character: cls.character + cls.name.length },
                 },
             };
         }
@@ -105,8 +105,8 @@ export class GoToDefinition {
             return {
                 uri: alias.uri,
                 range: {
-                    start: { line: alias.line, character: 0 },
-                    end: { line: alias.line, character: alias.name.length },
+                    start: { line: alias.line, character: alias.character },
+                    end: { line: alias.line, character: alias.character + alias.name.length },
                 },
             };
         }

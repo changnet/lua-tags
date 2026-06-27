@@ -317,10 +317,15 @@ export class SymbolEx {
 
         // 不是工程文件，不要把符号添加到工程里
         if (0 !== (FileParseType.FPT_SINGLE & ft)) {
-            return parseSymList;
+            return parseSymList || [];
         }
 
-        // 解析成功，更新缓存，否则使用旧的
+        // 解析失败，保留旧的缓存
+        if (parseSymList === null) {
+            return this.documentSymbol.get(uri) || [];
+        }
+
+        // 解析成功，更新缓存
         this.documentSymbol.set(uri, parseSymList);
         this.documentModule.set(uri, parser.getParseModule());
 

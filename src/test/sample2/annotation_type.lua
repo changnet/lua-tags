@@ -15,3 +15,5 @@ local name_map = {}
 local name_list = {}
 
 -- completion test: my_dog.
+
+local owner_name = my_dog.owner

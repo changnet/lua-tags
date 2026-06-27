@@ -32,6 +32,7 @@ export interface ClassAnnotation {
     fields: Map<string, FieldAnnotation>;
     uri: string;
     line: number;
+    character: number;
 }
 
 // @field 字段注解
@@ -41,6 +42,7 @@ export interface FieldAnnotation {
     description?: string;
     uri: string;
     line: number;
+    character: number;
 }
 
 // @param/@return 函数注解
@@ -65,6 +67,7 @@ export interface AliasAnnotation {
     description?: string;
     uri: string;
     line: number;
+    character: number;
 }
 
 // 单个文档的注解数据
@@ -310,6 +313,7 @@ export class AnnotationRegistry {
                 type: baseType.generics.value,
                 uri: '',
                 line: 0,
+                character: 0,
             };
         }
 
@@ -336,14 +340,15 @@ export class AnnotationRegistry {
         baseUri: string,
     ): SymInfoEx {
         const kind = this.typeToSymbolKind(field.type);
+        const ch = field.character || 0;
         return {
             name: field.name,
             kind: kind,
             location: {
                 uri: field.uri || baseUri,
                 range: {
-                    start: { line: field.line, character: 0 },
-                    end: { line: field.line, character: field.name.length },
+                    start: { line: field.line, character: ch },
+                    end: { line: field.line, character: ch + field.name.length },
                 },
             },
             scope: 0,

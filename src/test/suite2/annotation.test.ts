@@ -105,7 +105,7 @@ suite('Annotation Test Suite', () => {
         // line 7: -- @type Dog - 狗, click on "Dog" (char 9)
         await testDefinition(typeUri, new vscode.Position(7, 9), [{
             uri: classUri,
-            range: new vscode.Range(9, 0, 9, 3),
+            range: new vscode.Range(6, 10, 6, 13),
         }]);
     });
 
@@ -121,5 +121,16 @@ suite('Annotation Test Suite', () => {
         const names = actualList.items.map(i => i.label as string).sort();
         assert.ok(names.includes('breed'), `should include 'breed', got: ${names}`);
         assert.ok(names.includes('owner'), `should include 'owner', got: ${names}`);
+    });
+
+    // 测试跳转到@field成员定义
+    test("test go to definition on @field member access", async () => {
+        const classUri = vscode.Uri.file(path.join(samplePath, "annotation_class.lua"));
+        const typeUri = vscode.Uri.file(path.join(samplePath, "annotation_type.lua"));
+        // line 18: local owner_name = my_dog.owner, click on "owner" (char 30)
+        await testDefinition(typeUri, new vscode.Position(18, 30), [{
+            uri: classUri,
+            range: new vscode.Range(8, 10, 8, 15),
+        }]);
     });
 });
