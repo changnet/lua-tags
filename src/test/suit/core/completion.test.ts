@@ -10,7 +10,7 @@ const CMP_KIND = vscode.CompletionItemKind;
 suite('Extension Completion Test Suite', () => {
 
     test('test require path completion', async () => {
-        await testCompletion(testUri, new vscode.Position(4, 16), {
+        await testCompletion(testUri, new vscode.Position(4, 22), {
             items: [
                 { label: 'animal', kind: CMP_KIND.File },
                 { label: 'battle', kind: CMP_KIND.File },

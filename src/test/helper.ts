@@ -10,10 +10,15 @@ export async function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function activateExtension() {
+export async function activateExtension(extraConfig?: Record<string, any>) {
     try {
         const conf = vscode.workspace.getConfiguration('lua-tags');
         await conf.update('excludeDir', ['exclude/*']);
+        if (extraConfig) {
+            for (const [key, value] of Object.entries(extraConfig)) {
+                await conf.update(key, value);
+            }
+        }
         const ext = vscode.extensions.getExtension('changnet.lua-tags')!;
         await ext.activate();
         await sleep(8000);
@@ -187,7 +192,15 @@ export async function testDocumentSymbol(
 }
 
 export async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic[]) {
+    const allDiags = vscode.languages.getDiagnostics();
+    console.log(`ALL DIAGS: ${allDiags.length} entries`);
+    for (const [du, dd] of allDiags) {
+        console.log(`  uri=${du.toString()}, count=${dd.length}`);
+    }
     const actualList = vscode.languages.getDiagnostics(uri);
+    console.log(`TARGET: ${uri.toString()}, count=${actualList.length}`);
+    const conf = vscode.workspace.getConfiguration('lua-tags');
+    console.log(`luacheck=${conf.get('luacheck')}, checkOnInit=${conf.get('checkOnInit')}, checkHow=${conf.get('checkHow')}, excludeDir=${JSON.stringify(conf.get('excludeDir'))}`);
 
     assert.strictEqual(actualList.length, expectList.length);
     expectList.forEach((expectedItem, index) => {

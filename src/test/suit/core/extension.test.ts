@@ -14,7 +14,7 @@ suite('Extension Test Suite', () => {
 	});
 
 	test("test active", async () => {
-		await activateExtension();
+		await activateExtension({ luacheck: true, checkOnInit: true });
 	}).timeout(10240);
 
 	test('test no workspace symbol', async () => {
