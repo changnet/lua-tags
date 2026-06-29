@@ -1,60 +1,15 @@
-/* eslint-disable max-len */
-// 跳转到定义 测试
-
 import * as path from 'path';
-import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { testSignatureHelp, resolveFixture } from '../../helper';
 
-const samplePath = path.resolve(__dirname, "../../../src/test/sample");
-const testPath = path.join(samplePath, "test.lua");
+const fixturePath = resolveFixture(__dirname, 'core');
+const testPath = path.join(fixturePath, "test.lua");
 const testUri = vscode.Uri.file(testPath);
-
-// test signature help
-async function testSignatureHelp(uri: vscode.Uri,
-    position: vscode.Position, expect: vscode.SignatureHelp) {
-
-    const actual = (await vscode.commands.executeCommand(
-        'vscode.executeSignatureHelpProvider',
-        uri,
-        position
-    )) as vscode.SignatureHelp;
-
-    // console.log(`${JSON.stringify(actual)}`);
-
-    assert.strictEqual(
-        actual.activeParameter, expect.activeParameter, "activeparameter");
-    assert.strictEqual(
-        actual.activeSignature, expect.activeSignature, "active signature");
-
-    expect.signatures.forEach((expectedItem, index) => {
-        const actualItem = actual.signatures[index];
-        assert.strictEqual(actualItem.label, expectedItem.label, "label");
-        assert.strictEqual(actualItem.parameters.length,
-            expectedItem.parameters.length, "parameters length");
-
-        if (expectedItem.documentation) {
-            const doc = actualItem.documentation as vscode.MarkdownString;
-            if (doc.value !== expectedItem.documentation) {
-                console.log("expect", expectedItem.documentation);
-                console.log("got", doc.value);
-            }
-            assert.strictEqual(doc.value,
-                expectedItem.documentation, "documentation");
-        }
-        expectedItem.parameters.forEach((param, paramIdx) => {
-            const actualParam = actualItem.parameters[paramIdx];
-            assert.strictEqual(
-                actualParam.label[0], param.label[0], "param label 0");
-            assert.strictEqual(
-                actualParam.label[1], param.label[1], "param label 1");
-        });
-    });
-}
 
 suite('Extension Signature Test Suite', () => {
 
     test("test other file signature help", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testSignatureHelp(uri, new vscode.Position(54, 31), {
@@ -106,7 +61,6 @@ suite('Extension Signature Test Suite', () => {
         });
     });
 
-    // local comp = string_comp，comp应该能提示string_comp的参数
     test("test ref function signature help", async () => {
         await testSignatureHelp(testUri, new vscode.Position(132, 17), {
             signatures: [{
@@ -139,7 +93,6 @@ suite('Extension Signature Test Suite', () => {
         });
     });
 
-    // 测试Index:test用Index.test调用时，参数能否自动修正
     test("test dot call colon function signalture", async () => {
         await testSignatureHelp(testUri, new vscode.Position(184, 26), {
             signatures: [{
@@ -155,7 +108,6 @@ suite('Extension Signature Test Suite', () => {
         });
     });
 
-    // 测试Index.test用Index:test调用时，参数能否自动修正
     test("test colon call dot function signalture", async () => {
         await testSignatureHelp(testUri, new vscode.Position(185, 27), {
             signatures: [{

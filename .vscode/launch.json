@@ -26,15 +26,15 @@
 			"preLaunchTask": "npm: watch"
 		},
 		{
-			"name": "Extension Tests",
+			"name": "Extension Tests (core)",
 			"type": "extensionHost",
 			"request": "launch",
 			"runtimeExecutable": "${execPath}",
 			"args": [
-				"${workspaceFolder}/src/test/sample",
+				"${workspaceFolder}/src/test/fixture/core",
 				"--disable-extensions",
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
+				"--extensionTestsPath=${workspaceFolder}/out/test/suit/core/index"
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/test/**/*.js"
@@ -42,15 +42,15 @@
 			"preLaunchTask": "npm: watch"
 		},
 		{
-			"name": "Extension Tests2",
+			"name": "Extension Tests (annotation)",
 			"type": "extensionHost",
 			"request": "launch",
 			"runtimeExecutable": "${execPath}",
 			"args": [
-				"${workspaceFolder}/src/test/sample2",
+				"${workspaceFolder}/src/test/fixture/annotation",
 				"--disable-extensions",
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/out/test/suite2/index"
+				"--extensionTestsPath=${workspaceFolder}/out/test/suit/annotation/index"
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/test/**/*.js"
@@ -67,5 +67,15 @@
 			],
 			"preLaunchTask": "npm: watch"
 		},
+	],
+	"compounds": [
+		{
+			"name": "Extension Tests (all)",
+			"configurations": [
+				"Extension Tests (core)",
+				"Extension Tests (annotation)"
+			],
+			"preLaunchTask": "npm: watch"
+		}
 	]
 }

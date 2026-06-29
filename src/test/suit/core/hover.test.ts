@@ -1,42 +1,15 @@
-/* eslint-disable max-len */
-// 鼠标悬浮提示 测试
-
 import * as path from 'path';
-import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { testHover, resolveFixture } from '../../helper';
 
-const samplePath = path.resolve(__dirname, "../../../src/test/sample");
-const testUri = vscode.Uri.file(path.join(samplePath, "test.lua"));
-const test1Uri = vscode.Uri.file(path.join(samplePath, "case/test1.lua"));
-
-
-// test hover
-async function testHover(uri: vscode.Uri,
-    position: vscode.Position, expectList: vscode.Hover[]) {
-
-    const actualList = (await vscode.commands.executeCommand(
-        'vscode.executeHoverProvider',
-        uri,
-        position
-    )) as vscode.Hover[];
-
-    // console.log(`${JSON.stringify(actualList)}`);
-
-    assert.strictEqual(actualList.length, expectList.length);
-    expectList.forEach((expectedItem, index) => {
-        const actualItem = actualList[index];
-        expectedItem.contents.forEach((ctx, ctxIdx) => {
-            const expectCtx = ctx as vscode.MarkdownString;
-            const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
-            assert.strictEqual(actualCtx.value, expectCtx.value);
-        });
-    });
-}
+const fixturePath = resolveFixture(__dirname, 'core');
+const testUri = vscode.Uri.file(path.join(fixturePath, "test.lua"));
+const test1Uri = vscode.Uri.file(path.join(fixturePath, "case/test1.lua"));
 
 suite('Extension Hover Test Suite', () => {
 
     test("test query no base but symbol has hove", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         const val = "```lua\nBATTLE_TYPE.BT_PVP = 1 : number -- player vs player\n```";
@@ -87,7 +60,7 @@ suite('Extension Hover Test Suite', () => {
     });
 
     test("test multi function hove", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         const val = 'animal.lua  \n```lua\nfunction Animal:on_kill(who, ...) : any\n-- called when the animal be killed\n```\n---\nmonster.lua  \n```lua\nfunction Monster:on_kill(who, ...) : any\n-- called when monster was killed\n```';
@@ -193,11 +166,6 @@ suite('Extension Hover Test Suite', () => {
         ]);
     });
 
-    /**
-     * function ref_func() end
-     * RefMob.ref_func = ref_func
-     * 这种情况下，上面的全局函数ref_func能与RefMob.ref_func区分
-     */
     test("test global function reference hover", async () => {
         const val = "```lua\nfunction ref_func() : any\n-- test global reference\n```";
         await testHover(testUri, new vscode.Position(175, 14), [{
@@ -206,12 +174,6 @@ suite('Extension Hover Test Suite', () => {
         ]);
     });
 
-    /**
-     * local function local_func_export() end
-     * Case1.local_func_export = local_func_export
-     * 
-     * 这种情况下，只显示一个Case1.local_func_export，不要显示local函数
-     */
     test("test ref not using local func hover", async () => {
         const val = "case1.lua  \n```lua\nCase1.local_func_export : any == function local_func_export()\n```";
         await testHover(test1Uri, new vscode.Position(1, 17), [{
@@ -220,9 +182,6 @@ suite('Extension Hover Test Suite', () => {
         ]);
     });
 
-    /**
-     * 同一文档中，在同名的local函数之前调用，需要能跳转到全局函数
-     */
     test("test global func before same name local call hover", async () => {
         const val = "case1.lua  \n```lua\nfunction g_func_test() : any\n```";
         await testHover(test1Uri, new vscode.Position(3, 8), [{
@@ -231,9 +190,6 @@ suite('Extension Hover Test Suite', () => {
         ]);
     });
 
-    /**
-     * 同一文档中，在同名的local函数之后调用，需要能跳转到local函数
-     */
     test("test local func after same name global call hover", async () => {
         const val = "```lua\nlocal function g_func_test() : any\n```";
         await testHover(test1Uri, new vscode.Position(8, 6), [{

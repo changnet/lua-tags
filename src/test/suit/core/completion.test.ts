@@ -1,72 +1,13 @@
-/* eslint-disable max-len */
-// 自动补全 测试
-
 import * as path from 'path';
-import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { testCompletion, resolveFixture } from '../../helper';
 
-const samplePath = path.resolve(__dirname, "../../../src/test/sample");
-const testPath = path.join(samplePath, "test.lua");
+const fixturePath = resolveFixture(__dirname, 'core');
+const testPath = path.join(fixturePath, "test.lua");
 const testUri = vscode.Uri.file(testPath);
-
 const CMP_KIND = vscode.CompletionItemKind;
 
-
-// test auto completion
-async function testCompletion(
-    docUri: vscode.Uri,
-    position: vscode.Position,
-    expectList: vscode.CompletionList) {
-    // const doc = await vscode.workspace.openTextDocument(testUri);
-    // await vscode.window.showTextDocument(doc);
-
-    // https://code.visualstudio.com/api/references/commands
-    // Executing the command `vscode.executeCompletionItemProvider` to simulate triggering completion
-    const actualList = (await vscode.commands.executeCommand(
-        'vscode.executeCompletionItemProvider',
-        docUri,
-        position
-    )) as vscode.CompletionList;
-
-    if (actualList.items.length !== expectList.items.length) {
-        console.log(`testCompletion ${JSON.stringify(expectList)}`);
-        console.log(`testCompletion ${JSON.stringify(actualList)}`);
-        assert.strictEqual(actualList.items.length, expectList.items.length);
-    }
-    // vs code返回的数组是不规则的，内容是同一样的
-    // 但位置不一定，导致多次测试结果不一致，暂时不知道原因
-    actualList.items.sort((src, dst) => {
-        if (src.label === dst.label) {
-            return 0;
-        }
-        return src.label > dst.label ? 1 : 0;
-    });
-    expectList.items.forEach((expectedItem, i) => {
-        const actualItem = actualList.items[i];
-        assert.strictEqual(actualItem.label, expectedItem.label, "label check");
-        assert.strictEqual(actualItem.kind, expectedItem.kind, "kind check");
-
-        if (expectedItem.detail) {
-            assert.strictEqual(actualItem.detail, expectedItem.detail);
-        }
-
-        if (expectedItem.documentation) {
-            // test库里的CompletionItem和vs code server那边不一样
-            // server那边用的是markdown
-            const doc = actualItem.documentation as vscode.MarkdownString;
-            assert.strictEqual(doc.value, expectedItem.documentation);
-        }
-    });
-}
-
 suite('Extension Completion Test Suite', () => {
-
-    // FIXME: this test expect a empty array but always fail
-    // test('test no function itself parameters completion', async () => {
-    // 	await testCompletion(testUri, new vscode.Position(78, 27), {
-    // 		items: []
-    // 	});
-    // });
 
     test('test require path completion', async () => {
         await testCompletion(testUri, new vscode.Position(4, 16), {
@@ -95,7 +36,7 @@ suite('Extension Completion Test Suite', () => {
     });
 
     test('test local document module completion', async () => {
-        const docPath = path.join(samplePath, "new_object.lua");
+        const docPath = path.join(fixturePath, "new_object.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(19, 13), {
@@ -135,7 +76,7 @@ suite('Extension Completion Test Suite', () => {
     });
 
     test('test anonymous table completion', async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(28, 48), {
@@ -152,7 +93,7 @@ suite('Extension Completion Test Suite', () => {
     });
 
     test('test local variable completion', async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(31, 47), {
@@ -165,7 +106,7 @@ suite('Extension Completion Test Suite', () => {
     });
 
     test('test upvalue completion', async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(50, 65), {
@@ -177,7 +118,7 @@ suite('Extension Completion Test Suite', () => {
     });
 
     test('test parameter completion', async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(36, 47), {
@@ -187,9 +128,8 @@ suite('Extension Completion Test Suite', () => {
         });
     });
 
-    // filterLocalSym
     test('test filter local completion', async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testCompletion(uri, new vscode.Position(64, 54), {
@@ -219,7 +159,6 @@ suite('Extension Completion Test Suite', () => {
         });
     });
 
-    // 局部符号多次赋值时应该被过滤掉
     test('test local duplicate symbol filter completion', async () => {
         await testCompletion(testUri, new vscode.Position(108, 15), {
             items: [
@@ -231,7 +170,6 @@ suite('Extension Completion Test Suite', () => {
         });
     });
 
-    // 全局符号递归搜索
     test('test global recursive search symbol completion', async () => {
         await testCompletion(testUri, new vscode.Position(112, 28), {
             items: [
@@ -247,7 +185,6 @@ suite('Extension Completion Test Suite', () => {
         });
     });
 
-    // 当前文档符号递归搜索
     test('test document recursive search symbol completion', async () => {
         await testCompletion(testUri, new vscode.Position(118, 13), {
             items: [
@@ -263,7 +200,6 @@ suite('Extension Completion Test Suite', () => {
         });
     });
 
-    // 当前文档符号递归搜索
     test('test wrap completion', async () => {
         await testCompletion(testUri, new vscode.Position(150, 11), {
             items: [

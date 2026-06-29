@@ -31,7 +31,22 @@ LSP 客户端，负责与 VSCode 编辑器通信。
 LSP 服务器，核心功能实现。所有符号解析、补全、跳转等逻辑都在这里。
 
 ### `src/test/`
-测试文件目录，包含测试用例和测试运行脚本。
+测试文件目录。采用 `@vscode/test-cli` 管理，`.vscode-test.js` 中通过 `defineConfig` 定义多组测试配置，一次命令自动运行所有测试。
+
+```
+src/test/
+├── helper.ts              # 公共测试接口（testHover, testCompletion, testGoToDefinition 等）
+├── fixture/               # Lua 样本文件（作为 VSCode 工作区打开）
+│   ├── core/              # 原 sample，测试核心 IntelliSense 功能
+│   └── annotation/        # 原 sample2，测试注解系统
+└── suit/                  # 测试用例
+    ├── core/              # 核心功能测试（completion, definition, hover, signature 等）
+    └── annotation/        # 注解功能测试
+```
+
+运行测试：`npm test`（先编译，再通过 `vscode-test` 依次运行 core 和 annotation 两组测试）。
+
+如需只跑某一组：`npx vscode-test --label core` 或 `npx vscode-test --label annotation`。
 
 ### `src/tools/`
 工具脚本，目前只有 autoSTL.ts 用于自动生成 Lua 标准库符号。

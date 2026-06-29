@@ -164,8 +164,7 @@
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile",
 		"lint": "eslint . --ext .ts",
-		"test": "node ./out/test/runTest.js",
-		"test2": "node ./out/test/runTest2.js",
+		"test": "vscode-test",
 		"stl": "node ./out/tools/autoSTL.js"
 	},
 	"devDependencies": {

@@ -1,50 +1,15 @@
-// 跳转到定义 测试
-
 import * as path from 'path';
-import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { testGoToDefinition, resolveFixture } from '../../helper';
 
-const samplePath = path.resolve(__dirname, "../../../src/test/sample");
-const testPath = path.join(samplePath, "test.lua");
+const fixturePath = resolveFixture(__dirname, 'core');
+const testPath = path.join(fixturePath, "test.lua");
 const testUri = vscode.Uri.file(testPath);
-
-
-// test go to definition
-async function testGoToDefinition(uri: vscode.Uri,
-    position: vscode.Position, expectList: vscode.Location[]) {
-
-    const actualList = (await vscode.commands.executeCommand(
-        'vscode.executeDefinitionProvider',
-        uri,
-        position
-    )) as vscode.Location[];
-
-    // console.log(`${JSON.stringify(actualList)}`);
-
-    if (actualList.length !== expectList.length) {
-        console.log(`${JSON.stringify(expectList)}`);
-        console.log(`${JSON.stringify(actualList)}`);
-        assert.strictEqual(actualList.length, expectList.length);
-    }
-    expectList.forEach((expectedItem, index) => {
-        const actualItem = actualList[index];
-        assert.strictEqual(actualItem.uri.path, expectedItem.uri.path);
-
-        const actualRange = actualItem.range;
-        const expectRange = expectedItem.range;
-        assert.strictEqual(actualRange.start.line, expectRange.start.line);
-        assert.strictEqual(
-            actualRange.start.character, expectRange.start.character);
-        assert.strictEqual(actualRange.end.line, expectRange.end.line);
-        assert.strictEqual(
-            actualRange.end.character, expectRange.end.character);
-    });
-}
 
 suite('Extension Definition Test Suite', () => {
 
     test("test require path definition", async () => {
-        const docPath = path.join(samplePath, "conf", "battle_conf.lua");
+        const docPath = path.join(fixturePath, "conf", "battle_conf.lua");
         await testGoToDefinition(testUri, new vscode.Position(6, 33), [{
             uri: vscode.Uri.file(docPath),
             range: new vscode.Range(0, 0, 0, 0)
@@ -53,7 +18,7 @@ suite('Extension Definition Test Suite', () => {
     });
 
     test("test parameter definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(36, 16), [{
@@ -63,9 +28,8 @@ suite('Extension Definition Test Suite', () => {
         ]);
     });
 
-    // 用局部变量覆盖同名变量
     test("test shadowing definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(30, 32), [{
@@ -76,7 +40,7 @@ suite('Extension Definition Test Suite', () => {
     });
 
     test("test for number loop definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(30, 21), [{
@@ -87,7 +51,7 @@ suite('Extension Definition Test Suite', () => {
     });
 
     test("test for loop definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(42, 21), [{
@@ -98,7 +62,7 @@ suite('Extension Definition Test Suite', () => {
     });
 
     test("test repeat definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(47, 30), [{
@@ -109,7 +73,7 @@ suite('Extension Definition Test Suite', () => {
     });
 
     test("test upvalue definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(50, 44), [{
@@ -120,21 +84,21 @@ suite('Extension Definition Test Suite', () => {
     });
 
     test("test no definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(54, 45), []);
     });
 
     test("test multi definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(54, 20), [{
-            uri: vscode.Uri.file(path.join(samplePath, "animal.lua")),
+            uri: vscode.Uri.file(path.join(fixturePath, "animal.lua")),
             range: new vscode.Range(11, 0, 12, 3)
         }, {
-            uri: vscode.Uri.file(path.join(samplePath, "monster.lua")),
+            uri: vscode.Uri.file(path.join(fixturePath, "monster.lua")),
             range: new vscode.Range(7, 0, 8, 3)
         }
 
@@ -149,8 +113,6 @@ suite('Extension Definition Test Suite', () => {
         ]);
     });
 
-    // localizationFilter
-    // local M = M这种符号被同名本地化时，要能区分本地和全局
     test("test localize filter definition", async () => {
         await testGoToDefinition(testUri, new vscode.Position(49, 14), [{
             uri: testUri,
@@ -175,28 +137,21 @@ suite('Extension Definition Test Suite', () => {
         ]);
     });
 
-    // 当require bbb时，不要跳转到aaabbb
     test("test require file path definition", async () => {
         await testGoToDefinition(testUri, new vscode.Position(141, 37), []);
     });
-
 
     test("test exclude dir definition", async () => {
         await testGoToDefinition(testUri, new vscode.Position(73, 21), []);
     });
 
-    // filterLocalSym
-    // 当一个符号被多个文档本地化时，要能过滤掉其他文档中的本地符号
-    // 在文件A有 M = 9
-    // 文件B有 local M = M
-    // 文件C中的 local x + M 中的M不要跳转到B中的M
     test("test filter local definition", async () => {
-        const docPath = path.join(samplePath, "battle.lua");
+        const docPath = path.join(fixturePath, "battle.lua");
 
         const uri = vscode.Uri.file(docPath);
         await testGoToDefinition(uri, new vscode.Position(64, 23), [{
             uri: vscode.Uri.file(
-                path.join(samplePath, "conf", "battle_conf.lua")),
+                path.join(fixturePath, "conf", "battle_conf.lua")),
             range: new vscode.Range(2, 0, 17, 1)
         }]);
     });
@@ -212,10 +167,9 @@ suite('Extension Definition Test Suite', () => {
         }]);
     });
 
-    // 当没有搜索到的符号定义时，应该会列出其他可能的定义，包括在其他文件为local的
     test("test possible definition", async () => {
-        const uri = vscode.Uri.file(path.join(samplePath, "battle.lua"));
-        const uri2 = vscode.Uri.file(path.join(samplePath, "monster.lua"));
+        const uri = vscode.Uri.file(path.join(fixturePath, "battle.lua"));
+        const uri2 = vscode.Uri.file(path.join(fixturePath, "monster.lua"));
         await testGoToDefinition(uri, new vscode.Position(26, 32), [
             {
                 uri: uri2,

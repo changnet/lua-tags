@@ -1,0 +1,111 @@
+import * as path from 'path';
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+import { testHover, testGoToDefinition, resolveFixture } from '../../helper';
+
+const fixturePath = resolveFixture(__dirname, 'annotation');
+
+suite('Annotation Test Suite', () => {
+
+    test("test @type annotation hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testHover(uri, new vscode.Position(8, 9), [{
+            contents: [{ value: "```lua\nlocal my_dog : Dog\n-- @type Dog - 狗\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test @alias annotation hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testHover(uri, new vscode.Position(2, 10), []);
+    });
+
+    test("test type inference hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        await testHover(uri, new vscode.Position(13, 8), [{
+            contents: [{ value: "```lua\nlocal player : Player\n-- 类型推断：player的类型应为Player\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test data and annotation merge hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_merge.lua"));
+        await testHover(uri, new vscode.Position(6, 4), [{
+            contents: [{ value: "```lua\nclass EXAMPLE {\n    a : number -- 变量a\n    b : string -- 变量b\n}\n\n-- 示例类\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test @param annotation function hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_function.lua"));
+        await testHover(uri, new vscode.Position(5, 12), [{
+            contents: [{ value: "```lua\nfunction test_func(a: number, b: boolean) : string\n-- @param a number - 参数a\n-- @param b boolean - 参数b\n-- @return string - 返回字符串\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test hover on type name in @type annotation", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testHover(uri, new vscode.Position(7, 9), [{
+            contents: [{ value: "```lua\nclass Dog {\n    breed : string -- 品种\n    owner : string -- 主人\n    age : number -- 年龄\n}\n\n-- 狗类\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test go to definition on type name in @type annotation", async () => {
+        const classUri = vscode.Uri.file(path.join(fixturePath, "annotation_class.lua"));
+        const typeUri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testGoToDefinition(typeUri, new vscode.Position(7, 9), [{
+            uri: classUri,
+            range: new vscode.Range(6, 10, 6, 13),
+        }]);
+    });
+
+    test("test @type variable member completion", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        const actualList = (await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider',
+            uri,
+            new vscode.Position(16, 27),
+        )) as vscode.CompletionList;
+
+        const names = actualList.items.map(i => i.label as string).sort();
+        assert.ok(names.includes('breed'), `should include 'breed', got: ${names}`);
+        assert.ok(names.includes('owner'), `should include 'owner', got: ${names}`);
+    });
+
+    test("test go to definition on @field member access", async () => {
+        const classUri = vscode.Uri.file(path.join(fixturePath, "annotation_class.lua"));
+        const typeUri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testGoToDefinition(typeUri, new vscode.Position(18, 30), [{
+            uri: classUri,
+            range: new vscode.Range(8, 10, 8, 15),
+        }]);
+    });
+
+    test("test go to definition on my_dog.age", async () => {
+        const classUri = vscode.Uri.file(path.join(fixturePath, "annotation_class.lua"));
+        const typeUri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testGoToDefinition(typeUri, new vscode.Position(21, 26), [{
+            uri: classUri,
+            range: new vscode.Range(9, 10, 9, 13),
+        }]);
+    });
+
+    test("test hover on my_dog.age", async () => {
+        const typeUri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
+        await testHover(typeUri, new vscode.Position(21, 27), [{
+            contents: [{ value: "annotation_class.lua  \n```lua\nage : number 年龄\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test go to definition on my_dog.age in variable_tracking", async () => {
+        const trackUri = vscode.Uri.file(path.join(fixturePath, "variable_tracking.lua"));
+        await testGoToDefinition(trackUri, new vscode.Position(34, 8), [{
+            uri: trackUri,
+            range: new vscode.Range(9, 10, 9, 13),
+        }]);
+    });
+
+    test("test hover on my_dog.age in variable_tracking", async () => {
+        const trackUri = vscode.Uri.file(path.join(fixturePath, "variable_tracking.lua"));
+        await testHover(trackUri, new vscode.Position(34, 8), [{
+            contents: [{ value: "```lua\nage : number 动物年龄\n```" } as vscode.MarkdownString],
+        }]);
+    });
+});
