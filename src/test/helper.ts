@@ -7,7 +7,7 @@ export function resolveFixture(dir: string, name: string): string {
 }
 
 export async function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function activateExtension(extraConfig?: Record<string, any>) {
@@ -30,12 +30,12 @@ export async function activateExtension(extraConfig?: Record<string, any>) {
 export async function testCompletion(
     docUri: vscode.Uri,
     position: vscode.Position,
-    expectList: vscode.CompletionList) {
-
+    expectList: vscode.CompletionList,
+) {
     const actualList = (await vscode.commands.executeCommand(
         'vscode.executeCompletionItemProvider',
         docUri,
-        position
+        position,
     )) as vscode.CompletionList;
 
     if (actualList.items.length !== expectList.items.length) {
@@ -53,8 +53,8 @@ export async function testCompletion(
 
     expectList.items.forEach((expectedItem, i) => {
         const actualItem = actualList.items[i];
-        assert.strictEqual(actualItem.label, expectedItem.label, "label check");
-        assert.strictEqual(actualItem.kind, expectedItem.kind, "kind check");
+        assert.strictEqual(actualItem.label, expectedItem.label, 'label check');
+        assert.strictEqual(actualItem.kind, expectedItem.kind, 'kind check');
 
         if (expectedItem.detail) {
             assert.strictEqual(actualItem.detail, expectedItem.detail);
@@ -66,13 +66,15 @@ export async function testCompletion(
     });
 }
 
-export async function testHover(uri: vscode.Uri,
-    position: vscode.Position, expectList: vscode.Hover[]) {
-
+export async function testHover(
+    uri: vscode.Uri,
+    position: vscode.Position,
+    expectList: vscode.Hover[],
+) {
     const actualList = (await vscode.commands.executeCommand(
         'vscode.executeHoverProvider',
         uri,
-        position
+        position,
     )) as vscode.Hover[];
 
     assert.strictEqual(actualList.length, expectList.length);
@@ -80,19 +82,23 @@ export async function testHover(uri: vscode.Uri,
         const actualItem = actualList[index];
         expectedItem.contents.forEach((ctx, ctxIdx) => {
             const expectCtx = ctx as vscode.MarkdownString;
-            const actualCtx = actualItem.contents[ctxIdx] as vscode.MarkdownString;
+            const actualCtx = actualItem.contents[
+                ctxIdx
+            ] as vscode.MarkdownString;
             assert.strictEqual(actualCtx.value, expectCtx.value);
         });
     });
 }
 
-export async function testGoToDefinition(uri: vscode.Uri,
-    position: vscode.Position, expectList: vscode.Location[]) {
-
+export async function testGoToDefinition(
+    uri: vscode.Uri,
+    position: vscode.Position,
+    expectList: vscode.Location[],
+) {
     const actualList = (await vscode.commands.executeCommand(
         'vscode.executeDefinitionProvider',
         uri,
-        position
+        position,
     )) as vscode.Location[];
 
     if (actualList.length !== expectList.length) {
@@ -108,106 +114,141 @@ export async function testGoToDefinition(uri: vscode.Uri,
         const expectRange = expectedItem.range;
         assert.strictEqual(actualRange.start.line, expectRange.start.line);
         assert.strictEqual(
-            actualRange.start.character, expectRange.start.character);
+            actualRange.start.character,
+            expectRange.start.character,
+        );
         assert.strictEqual(actualRange.end.line, expectRange.end.line);
         assert.strictEqual(
-            actualRange.end.character, expectRange.end.character);
+            actualRange.end.character,
+            expectRange.end.character,
+        );
     });
 }
 
-export async function testSignatureHelp(uri: vscode.Uri,
-    position: vscode.Position, expect: vscode.SignatureHelp) {
-
+export async function testSignatureHelp(
+    uri: vscode.Uri,
+    position: vscode.Position,
+    expect: vscode.SignatureHelp,
+) {
     const actual = (await vscode.commands.executeCommand(
         'vscode.executeSignatureHelpProvider',
         uri,
-        position
+        position,
     )) as vscode.SignatureHelp;
 
     assert.strictEqual(
-        actual.activeParameter, expect.activeParameter, "activeparameter");
+        actual.activeParameter,
+        expect.activeParameter,
+        'activeparameter',
+    );
     assert.strictEqual(
-        actual.activeSignature, expect.activeSignature, "active signature");
+        actual.activeSignature,
+        expect.activeSignature,
+        'active signature',
+    );
 
     expect.signatures.forEach((expectedItem, index) => {
         const actualItem = actual.signatures[index];
-        assert.strictEqual(actualItem.label, expectedItem.label, "label");
-        assert.strictEqual(actualItem.parameters.length,
-            expectedItem.parameters.length, "parameters length");
+        assert.strictEqual(actualItem.label, expectedItem.label, 'label');
+        assert.strictEqual(
+            actualItem.parameters.length,
+            expectedItem.parameters.length,
+            'parameters length',
+        );
 
         if (expectedItem.documentation) {
             const doc = actualItem.documentation as vscode.MarkdownString;
             if (doc.value !== expectedItem.documentation) {
-                console.log("expect", expectedItem.documentation);
-                console.log("got", doc.value);
+                console.log('expect', expectedItem.documentation);
+                console.log('got', doc.value);
             }
-            assert.strictEqual(doc.value,
-                expectedItem.documentation, "documentation");
+            assert.strictEqual(
+                doc.value,
+                expectedItem.documentation,
+                'documentation',
+            );
         }
         expectedItem.parameters.forEach((param, paramIdx) => {
             const actualParam = actualItem.parameters[paramIdx];
             assert.strictEqual(
-                actualParam.label[0], param.label[0], "param label 0");
+                actualParam.label[0],
+                param.label[0],
+                'param label 0',
+            );
             assert.strictEqual(
-                actualParam.label[1], param.label[1], "param label 1");
+                actualParam.label[1],
+                param.label[1],
+                'param label 1',
+            );
         });
     });
 }
 
-export async function testWorkspaceSymbol(query: string,
-    expect: vscode.SymbolInformation[]) {
+export async function testWorkspaceSymbol(
+    query: string,
+    expect: vscode.SymbolInformation[],
+) {
     const actualList = (await vscode.commands.executeCommand(
-        "vscode.executeWorkspaceSymbolProvider", query)
-    ) as vscode.SymbolInformation[];
+        'vscode.executeWorkspaceSymbolProvider',
+        query,
+    )) as vscode.SymbolInformation[];
 
-    assert.strictEqual(actualList.length,
-        expect.length, "workspace symbol count");
+    assert.strictEqual(
+        actualList.length,
+        expect.length,
+        'workspace symbol count',
+    );
 
     actualList.sort((src, dst) => {
         if (src.name === dst.name) {
             return src.location.uri.toString() > dst.location.uri.toString()
-                ? 1 : -1;
+                ? 1
+                : -1;
         }
         return src.name > dst.name ? 1 : -1;
     });
 
     expect.forEach((exp, index) => {
         const act = actualList[index];
-        assert.strictEqual(act.name, exp.name, "sym name");
-        assert.strictEqual(act.location.uri.toString(),
-            exp.location.uri.toString(), "location");
+        assert.strictEqual(act.name, exp.name, 'sym name');
+        assert.strictEqual(
+            act.location.uri.toString(),
+            exp.location.uri.toString(),
+            'location',
+        );
     });
 }
 
 export async function testDocumentSymbol(
-    uri: vscode.Uri, items: vscode.SymbolInformation[]) {
-    const rawList = (await vscode.commands.executeCommand(
-        "vscode.executeDocumentSymbolProvider", uri));
+    uri: vscode.Uri,
+    items: vscode.SymbolInformation[],
+) {
+    const rawList = await vscode.commands.executeCommand(
+        'vscode.executeDocumentSymbolProvider',
+        uri,
+    );
 
     const list = rawList as vscode.SymbolInformation[];
-    assert.strictEqual(list.length, items.length, "document symbol count");
+    assert.strictEqual(list.length, items.length, 'document symbol count');
     items.forEach((sym, index) => {
         assert.strictEqual(sym.name, list[index].name);
     });
 }
 
-export async function testLuaCheck(uri: vscode.Uri, expectList: vscode.Diagnostic[]) {
-    const allDiags = vscode.languages.getDiagnostics();
-    console.log(`ALL DIAGS: ${allDiags.length} entries`);
-    for (const [du, dd] of allDiags) {
-        console.log(`  uri=${du.toString()}, count=${dd.length}`);
-    }
+export async function testLuaCheck(
+    uri: vscode.Uri,
+    expectList: vscode.Diagnostic[],
+) {
     const actualList = vscode.languages.getDiagnostics(uri);
-    console.log(`TARGET: ${uri.toString()}, count=${actualList.length}`);
-    const conf = vscode.workspace.getConfiguration('lua-tags');
-    console.log(`luacheck=${conf.get('luacheck')}, checkOnInit=${conf.get('checkOnInit')}, checkHow=${conf.get('checkHow')}, excludeDir=${JSON.stringify(conf.get('excludeDir'))}`);
 
     assert.strictEqual(actualList.length, expectList.length);
     expectList.forEach((expectedItem, index) => {
         const actualItem = actualList[index];
-        assert.strictEqual(actualItem.severity,
-            expectedItem.severity, "serverity");
-        assert.strictEqual(actualItem.message,
-            expectedItem.message, "message");
+        assert.strictEqual(
+            actualItem.severity,
+            expectedItem.severity,
+            'serverity',
+        );
+        assert.strictEqual(actualItem.message, expectedItem.message, 'message');
     });
 }

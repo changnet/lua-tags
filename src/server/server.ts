@@ -332,6 +332,7 @@ export class Server {
         const beg = Date.now();
 
         const checkOnInit = Setting.instance().isCheckOnInit();
+        Utils.instance().Info(`Lua-tags checkOnInit = ${checkOnInit}`);
         const files = await DirWalker.instance().walk(
             uri.fsPath,
             (uri, ctx) => {
