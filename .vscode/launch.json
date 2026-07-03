@@ -58,6 +58,22 @@
 			"preLaunchTask": "npm: watch"
 		},
 		{
+			"name": "Extension Test3",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				"${workspaceFolder}/src/test/fixture/test3",
+				"--disable-extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suit/test3/index"
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/test/**/*.js"
+			],
+			"preLaunchTask": "npm: watch"
+		},
+		{
 			"name": "Run auto stl",
 			"type": "node",
 			"request": "launch",

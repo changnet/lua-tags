@@ -3,6 +3,7 @@
 import { Hover, Position, MarkupKind, SymbolKind } from 'vscode-languageserver';
 
 import { SymbolEx } from './symbol';
+import { Utils } from './utils';
 
 import { SymInfoEx, CommentType } from './parseSymbol';
 
@@ -186,6 +187,12 @@ export class HoverProvider {
     }
 
     private toMarkdown(symList: SymInfoEx[], uri: string): string {
+        const MAX_HOVER_COUNT = 64;
+        if (symList.length > MAX_HOVER_COUNT) {
+            Utils.instance().Debug(`hover result count ${symList.length} exceeds limit ${MAX_HOVER_COUNT}, truncated`);
+            symList = symList.slice(0, MAX_HOVER_COUNT);
+        }
+
         const list: string[] = [];
         const registry = AnnotationRegistry.instance();
 

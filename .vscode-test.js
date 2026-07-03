@@ -15,4 +15,11 @@ module.exports = defineConfig([
         mocha: { ui: 'tdd' },
         launchArgs: ['--disable-extensions'],
     },
+    {
+        label: 'test3',
+        files: 'out/test/suit/test3/**/*.test.js',
+        workspaceFolder: 'src/test/fixture/test3',
+        mocha: { ui: 'tdd' },
+        launchArgs: ['--disable-extensions'],
+    },
 ]);

@@ -5,7 +5,6 @@ import { testHover, resolveFixture } from '../../helper';
 const fixturePath = resolveFixture(__dirname, 'core');
 const testUri = vscode.Uri.file(path.join(fixturePath, "test.lua"));
 const test1Uri = vscode.Uri.file(path.join(fixturePath, "case/test1.lua"));
-
 suite('Extension Hover Test Suite', () => {
 
     test("test query no base but symbol has hove", async () => {
