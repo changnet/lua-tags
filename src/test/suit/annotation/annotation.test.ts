@@ -112,7 +112,7 @@ suite('Annotation Test Suite', () => {
     // -- 新测试：函数参数类型来自@param
     test("test function parameter type from @param hover", async () => {
         const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
-        await testHover(uri, new vscode.Position(31, 34), [{
+        await testHover(uri, new vscode.Position(30, 34), [{
             contents: [{ value: "```lua\n(parameter) mail_obj : MailObj\n```" } as vscode.MarkdownString],
         }]);
     });
@@ -120,8 +120,8 @@ suite('Annotation Test Suite', () => {
     // -- 新测试：require文件通过@return推断类型
     test("test require type from @return hover", async () => {
         const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
-        await testHover(uri, new vscode.Position(35, 10), [{
-            contents: [{ value: "```lua\nlocal MailObj : MailObj\n```" } as vscode.MarkdownString],
+        await testHover(uri, new vscode.Position(34, 10), [{
+            contents: [{ value: "```lua\nlocal MailObj : MailObj\n-- completion test: Bar.\n```" } as vscode.MarkdownString],
         }]);
     });
 
@@ -147,7 +147,7 @@ suite('Annotation Test Suite', () => {
         const actualList = (await vscode.commands.executeCommand(
             'vscode.executeCompletionItemProvider',
             uri,
-            new vscode.Position(34, 24),
+            new vscode.Position(34, 25),
         )) as vscode.CompletionList;
 
         const names = actualList.items.map(i => i.label as string).sort();
