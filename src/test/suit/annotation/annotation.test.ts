@@ -108,4 +108,58 @@ suite('Annotation Test Suite', () => {
             contents: [{ value: "```lua\nage : number 动物年龄\n```" } as vscode.MarkdownString],
         }]);
     });
+
+    // -- 新测试：函数参数类型来自@param
+    test("test function parameter type from @param hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        await testHover(uri, new vscode.Position(31, 34), [{
+            contents: [{ value: "```lua\n(parameter) mail_obj : MailObj\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    // -- 新测试：require文件通过@return推断类型
+    test("test require type from @return hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        await testHover(uri, new vscode.Position(35, 10), [{
+            contents: [{ value: "```lua\nlocal MailObj : MailObj\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    // -- 新测试：类继承，type显示为类名
+    test("test class inheritance type hover", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        await testHover(uri, new vscode.Position(27, 8), [{
+            contents: [{ value: "```lua\nlocal Bar : Bar\n-- @class Bar : Foo - 子类\n-- @field x number - 成员变量x\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    // -- 新测试：@class Bar:Foo 中Bar有@class定义，hover显示类格式
+    test("test class inheritance hover on class name", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        await testHover(uri, new vscode.Position(25, 10), [{
+            contents: [{ value: "```lua\nclass Bar : Foo {\n    x : number -- 成员变量x\n}\n\n-- 子类\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    // -- 新测试：类继承，子类能补全到父类的字段（通过Bar.触发）
+    test("test class inheritance child field completion", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        const actualList = (await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider',
+            uri,
+            new vscode.Position(34, 24),
+        )) as vscode.CompletionList;
+
+        const names = actualList.items.map(i => i.label as string).sort();
+        assert.ok(names.includes('x'), `should include 'x', got: ${names}`);
+        assert.ok(names.includes('base_field'), `should include 'base_field', got: ${names}`);
+    });
+
+    // -- 新测试：@return语句的类型推断
+    test("test return @return type inference", async () => {
+        const returnUri = vscode.Uri.file(path.join(fixturePath, "annotation_return.lua"));
+        await testHover(returnUri, new vscode.Position(0, 13), [{
+            contents: [{ value: "```lua\nclass MailObj {\n    subject : string -- 邮件主题\n    body : string -- 邮件正文\n}\n\n-- 邮件对象\n```" } as vscode.MarkdownString],
+        }]);
+    });
 });

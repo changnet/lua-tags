@@ -65,7 +65,8 @@ export class HoverProvider {
      */
     private formatClassMarkdown(cls: ClassAnnotation, uri: string): string {
         const lines: string[] = [];
-        lines.push(`class ${cls.name} {`);
+        const className = cls.parent ? `${cls.name} : ${cls.parent}` : cls.name;
+        lines.push(`class ${className} {`);
 
         for (const [fieldName, field] of cls.fields) {
             const typeDesc = SymbolEx.instance().formatType(field.type);

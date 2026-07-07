@@ -6,6 +6,7 @@ import { Setting, FileParseType } from './setting';
 import { ParseSymbol, SymInfoEx, VSCodeSymbol, LocalType } from './parseSymbol';
 import { Location, SymbolKind } from 'vscode-languageserver';
 import { loadStl } from './stlSymbol';
+import { CacheSymbol } from './cacheSymbol';
 import {
     AnnotationRegistry,
     AnnotationType,
@@ -829,13 +830,57 @@ export class SymbolEx {
             }
         }
 
-        // 3. 从赋值自动推导类型
+        // 3. 如果变量是require导入的，检查目标文件的@return注解
+        if (sym.refUri) {
+            const rawUri = this.getRequireUri(sym.refUri);
+            if (rawUri) {
+                const fileReturn = registry.getFileReturnType(rawUri);
+                if (fileReturn) {
+                    return fileReturn;
+                }
+            }
+        }
+
+        // 4. 如果是函数参数，从函数@param注解中获取类型
+        if (sym.local === LocalType.LT_PARAMETER) {
+            const funcLine = this.findEnclosingFunction(uri, sym.location.range.start.line);
+            if (funcLine >= 0) {
+                const funcAnnotation = registry.getLineFunction(uri, funcLine);
+                if (funcAnnotation) {
+                    const paramAnnotation = funcAnnotation.params.find(p => p.name === sym.name);
+                    if (paramAnnotation) {
+                        return paramAnnotation.type;
+                    }
+                }
+            }
+        }
+
+        // 5. 从赋值自动推导类型
         const inferredType = this.inferTypeFromValue(sym);
         if (inferredType) {
             return inferredType;
         }
 
         return null;
+    }
+
+    /**
+     * 查找包含指定行的函数声明
+     */
+    private findEnclosingFunction(uri: string, line: number): number {
+        const cache = CacheSymbol.instance().getCache(uri);
+        if (!cache) {
+            return -1;
+        }
+        for (const node of cache.nodes) {
+            if (node.type === 'FunctionDeclaration') {
+                const loc = node.loc;
+                if (loc && loc.start.line - 1 <= line && line <= loc.end.line - 1) {
+                    return loc.start.line - 1;
+                }
+            }
+        }
+        return -1;
     }
 
     /**

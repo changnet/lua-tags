@@ -19,7 +19,7 @@ import {
 // 注解正则表达式
 // extractCommentText 已经去掉了 -- 或 --- 前缀，所以直接匹配 @annotation
 // @class ClassName [description]
-const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s+(?:-\s*)?(.*))?$/;
+const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s*:\s*(\w+))?(?:\s+(?:-\s*)?(.*))?$/;
 // @field fieldName typeName [description]
 const FIELD_PATTERN = /^-?@field\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
 // @param paramName typeName [description]
@@ -139,7 +139,8 @@ function parseAnnotationLine(line: string): AnnotationLine | null {
             type: 'class',
             data: {
                 name: classMatch[1],
-                description: classMatch[2].trim() || undefined,
+                parent: classMatch[2] || undefined,
+                description: classMatch[3]?.trim() || undefined,
             },
         };
     }
@@ -372,12 +373,24 @@ function processCommentBlock(
                 currentClassLine = blockStartLine + lineIdx;
                 currentClass = {
                     name: data.name,
+                    parent: data.parent,
                     description: data.description,
                     fields: new Map(),
                     uri: uri,
                     line: currentClassLine,
                     character: calcAnnotationChar(rawLineMap, currentClassLine, trimmed, data.name),
                 };
+
+                // 如果@class下方有变量声明，自动将该变量类型设置为类名
+                if (targetSym) {
+                    const typeAnnotation: TypeAnnotation = {
+                        type: createSimpleType(data.name),
+                        description: data.description,
+                        uri: uri,
+                        line: targetSym.location.range.start.line,
+                    };
+                    result.types.set(targetSym.location.range.start.line, typeAnnotation);
+                }
                 break;
             }
             case 'field': {

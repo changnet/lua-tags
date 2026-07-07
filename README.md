@@ -86,6 +86,24 @@ end
 -- @field c Foo[] 可嵌套其他类型
 ```
 
+- 类继承
+
+```lua
+-- @class Bar:Foo 类名
+-- @field x number 成员变量x
+```
+
+注意，`:`前后可允许有空格，例如`Bar : Foo`或者`Bar: Foo`
+
+不仅仅在纯注解中支持继承，在声明一个类时也可以
+
+```lua
+-- @class Bar:Foo 类名
+local Bar = {}
+```
+
+则`Bar`的类型为`Bar`，它继承了`Foo`的所有成员变量和函数。
+
 - `[]`定义数组
 
 ```lua

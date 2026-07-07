@@ -20,7 +20,7 @@ import { SymbolEx, QueryPos, SymbolQuery } from './symbol';
 import { Server } from './server';
 import { Location, SymbolKind } from 'vscode-languageserver';
 import { CacheSymbol } from './cacheSymbol';
-import { AnnotationRegistry } from './annotation';
+import { AnnotationRegistry, ClassAnnotation, createSimpleType } from './annotation';
 
 export interface SearchResult {
     // name: string; // 名字，暂时不记，在SymbolQuery中有
@@ -739,12 +739,26 @@ export class Search {
                     continue;
                 }
 
-                // 返回所有字段
+                // 返回所有字段（包括父类字段）
                 const results: SymInfoEx[] = [];
-                cls.fields.forEach((field) => {
-                    const typeStr = symbol.formatType(field.type);
-                    results.push(registry.fieldToSym(field, query.base!, cls.uri, typeStr));
-                });
+                const processedFields = new Set<string>();
+                const gatherFields = (targetCls: ClassAnnotation) => {
+                    targetCls.fields.forEach((field) => {
+                        if (!processedFields.has(field.name)) {
+                            const typeStr = symbol.formatType(field.type);
+                            results.push(registry.fieldToSym(field, query.base!, targetCls.uri, typeStr));
+                            processedFields.add(field.name);
+                        }
+                    });
+                };
+                gatherFields(cls);
+                let parentName = cls.parent;
+                while (parentName) {
+                    const parentCls = registry.resolveType(uri, createSimpleType(parentName));
+                    if (!parentCls) break;
+                    gatherFields(parentCls);
+                    parentName = parentCls.parent;
+                }
                 return results.length > 0 ? results : null;
             }
 

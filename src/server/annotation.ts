@@ -28,6 +28,7 @@ export interface AnnotationParam {
 // @class 类定义注解
 export interface ClassAnnotation {
     name: string;
+    parent?: string;
     description?: string;
     fields: Map<string, FieldAnnotation>;
     uri: string;
@@ -262,7 +263,7 @@ export class AnnotationRegistry {
 
     /**
      * 解析类型表达式，查找对应的类定义
-     * 支持别名递归解析
+     * 支持别名递归解析，支持父类继承
      */
     public resolveType(
         uri: string,
@@ -271,7 +272,6 @@ export class AnnotationRegistry {
         // 先检查是否是数组类型，去掉数组标记
         let typeName = typeAnnotation.name;
         if (typeAnnotation.isArray) {
-            // 数组类型不直接解析类
             return null;
         }
 
@@ -293,21 +293,18 @@ export class AnnotationRegistry {
     }
 
     /**
-     * 解析类型表达式，查找字段
+     * 解析字段，支持从父类继承字段
      */
     public resolveField(
         uri: string,
         baseType: AnnotationType,
         fieldName: string,
     ): FieldAnnotation | null {
-        // 如果是数组类型，不支持字段访问（应该用索引）
         if (baseType.isArray) {
             return null;
         }
 
-        // 如果是table<K,V>类型，字段访问返回V类型
         if (baseType.generics) {
-            // table的字段访问返回值类型
             return {
                 name: fieldName,
                 type: baseType.generics.value,
@@ -317,18 +314,48 @@ export class AnnotationRegistry {
             };
         }
 
-        // 如果是func类型，不支持字段访问
         if (baseType.func) {
             return null;
         }
 
-        // 查找类定义
         const cls = this.resolveType(uri, baseType);
         if (!cls) {
             return null;
         }
 
-        return cls.fields.get(fieldName) || null;
+        let field = cls.fields.get(fieldName);
+        if (field) {
+            return field;
+        }
+
+        // 在父类中查找字段
+        if (cls.parent) {
+            const parentCls = this.resolveType(uri, createSimpleType(cls.parent));
+            if (parentCls) {
+                field = parentCls.fields.get(fieldName);
+                if (field) {
+                    return field;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取文件的@return类型（用于require文件类型推断）
+     */
+    public getFileReturnType(uri: string): AnnotationType | null {
+        const doc = this.documentAnnotation.get(uri);
+        if (!doc) {
+            return null;
+        }
+        for (const [_line, func] of doc.functions) {
+            if (func.returns) {
+                return func.returns;
+            }
+        }
+        return null;
     }
 
     /**
