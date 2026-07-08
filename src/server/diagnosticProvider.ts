@@ -241,7 +241,7 @@ export class DiagnosticProvider {
         } else if (platform === 'linux') {
             // platform === "darwin"
             // TODO:luacheck是静态编译，mac和linux不知道能否通用？
-            cmd = path.resolve(__dirname, '../../luacheck/luacheck_x64');
+            cmd = path.resolve(__dirname, '../../luacheck/luacheck');
             //Utils.instance().setExec(cmd);
         }
 

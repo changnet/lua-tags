@@ -219,6 +219,4 @@ a = 1 -- 变量a
 
 - https://github.com/fstirlitz/luaparse
 - https://github.com/farzher/fuzzysort
-- https://github.com/mpeterv/luacheck
-
-- https://www.cockos.com/licecap/
+- https://github.com/lunarmodules/luacheck/
