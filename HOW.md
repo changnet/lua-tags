@@ -64,7 +64,7 @@ npm install
 	},
 ```
 
-这样配置后，npm会下载对应仓库`package.json`中`files`字段指定的文件，执行`npm update luaparse`更新。
+这样配置后，npm会下载对应仓库`package.json`中`files`字段指定的文件，执行`npm update luaparse`更新。如果git上的仓库更新了，得用`npm install changnet/luaparse#master`来更新，`npm update luaparse`不行，原因未知。
 
 自己的`luaparse`仓库增加了`types`目录并做了修改，所以`package.json`不再依赖`@types/luaparse"`
 

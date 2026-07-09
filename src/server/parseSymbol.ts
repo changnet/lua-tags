@@ -11,6 +11,7 @@ import {
     Comment,
     Statement,
     Identifier,
+    IdentifierWithAttribute,
     FunctionDeclaration,
     LocalStatement,
     MemberExpression,
@@ -246,16 +247,24 @@ export class ParseSymbol {
     }
 
     // 解析成员变量赋值
+    // IdentifierWithAttribute 是 luaparse 在 Lua 5.5 引入的带属性标识符节点
+    // （如 local x <const> = 5、local x <close> = f），其 name/loc 与 Identifier 一致
     private parseBaseName(
-        ider: Identifier | MemberExpression | IndexExpression | null,
+        ider:
+            | Identifier
+            | MemberExpression
+            | IndexExpression
+            | IdentifierWithAttribute
+            | null,
     ): NameInfo {
         const nameInfo: NameInfo = { name: '' };
         if (!ider) {
             return nameInfo;
         }
 
-        if (ider.type === 'Identifier') {
+        if (ider.type === 'Identifier' || ider.type === 'IdentifierWithAttribute') {
             // function test() 这种直接声明函数的写法
+            // 或 local x <const> = 5 这种带属性的局部变量
             nameInfo.name = ider.name;
         } else if (ider.type === 'MemberExpression') {
             // function m:test()、M.val = xxx 或者 function m.test() 这种成员函数写法
@@ -626,7 +635,7 @@ export class ParseSymbol {
 
     public toParseSym(
         nameInfo: NameInfo,
-        node: Statement | Expression,
+        node: Statement | Expression | IdentifierWithAttribute,
         init?: Statement | Expression,
         local?: LocalType,
     ): VSCodeSymbol {
@@ -644,7 +653,7 @@ export class ParseSymbol {
     // @loc: luaparse中的loc位置结构
     public static toSym(
         nameInfo: NameInfo,
-        node: Statement | Expression,
+        node: Statement | Expression | IdentifierWithAttribute,
         scope: number,
         uri: string,
         init?: Statement | Expression,

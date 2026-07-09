@@ -3,6 +3,7 @@
 import {
     Node,
     Statement,
+    IdentifierWithAttribute,
     FunctionDeclaration,
     LocalStatement,
     AssignmentStatement,
@@ -24,7 +25,7 @@ import { AnnotationRegistry, ClassAnnotation, createSimpleType } from './annotat
 
 export interface SearchResult {
     // name: string; // 名字，暂时不记，在SymbolQuery中有
-    node: Statement | Expression;
+    node: Statement | Expression | IdentifierWithAttribute;
     local: LocalType;
     base?: string;
     init?: Statement | Expression;
@@ -32,7 +33,7 @@ export interface SearchResult {
 
 // 搜索局部变量回调函数
 export type CallBack = (
-    node: Statement | Expression,
+    node: Statement | Expression | IdentifierWithAttribute,
     local: LocalType,
     name: string,
     base?: string,
@@ -368,7 +369,7 @@ export class Search {
 
     // 搜索某个节点，返回是否继续搜索
     private searchOne(
-        node: Statement | Expression,
+        node: Statement | Expression | IdentifierWithAttribute,
         local: LocalType,
         name: string,
         base?: string,
