@@ -8,7 +8,7 @@ suite('Extension Test Suite3', () => {
     });
 
     test('test active', async () => {
-        // 必须以高版本启动，否则 <const>/<close> 等属性会被当作语法错误
-        await activateExtension({ luaVersion: '5.4' });
+        // 必须以高版本启动，否则 <const>/<close> 以及 Lua 5.5 的 global 关键字等会被当作语法错误
+        await activateExtension({ luaVersion: '5.5' });
     }).timeout(10240);
 });

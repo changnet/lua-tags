@@ -58,9 +58,10 @@
 						"5.2",
 						"5.3",
 						"5.4",
+						"5.5",
 						"LuaJIT"
 					],
-					"default": "5.3",
+					"default": "5.5",
 					"description": "Lua Version."
 				},
 				"lua-tags.maxFileSize": {
