@@ -36,43 +36,42 @@ ncu -u
 npm install
 ```
 
-# Configure
+## 使用git仓库作为node_modules
 
-Attension: Hot configure reload NOT support, restart to activate new configure
+在`package.json`中，正常是这样配置的
 
-- MaxFileSisze
-  文件大小,单位kb。超过此大小的文件，除非是配置文件，否则不解析
-- ExcludeDirectories
-  需要排除的目录数组，以正则匹配相对路径。比如主目录是/data/project，
-  需要排除bin目录则写 bin/\*
-- LuaVersion
-  lua的版本，字符串，值可能是: "5.1" 、 "5.2" 、 "5.3" 、 "LuaJIT"
+```json
+	"dependencies": {
+		"fuzzysort": "^3.1.0",
+		"luaparse": "^0.3.1",
+		"vscode-languageclient": "^9.0.1",
+		"vscode-languageserver": "^9.0.1",
+		"vscode-languageserver-textdocument": "^1.0.12",
+		"vscode-uri": "^3.1.0"
+	},
+```
 
-# 文件过滤
+但由于`luaparse`无人维护，于是使用自己的仓库
 
-工程目录：VS Code打开的目录会被认为工程目录，只解析该目录中以.lua结尾的文件
+```json
+	"dependencies": {
+		"fuzzysort": "^3.1.0",
+		"luaparse": "github:changnet/luaparse#master",
+		"vscode-languageclient": "^9.0.1",
+		"vscode-languageserver": "^9.0.1",
+		"vscode-languageserver-textdocument": "^1.0.12",
+		"vscode-uri": "^3.1.0"
+	},
+```
 
-- 非工程目录文件（包括被排除的目录）
-    - 按单个文件解析，解析符号不会合并到工程符号中。但会使用工程中的符号
-- 超大的文件
-    - 通过词法解析（即仅解析主要符号），主要用于配置解析(test/conf目录)
+这样配置后，npm会下载对应仓库`package.json`中`files`字段指定的文件，执行`npm update luaparse`更新。
 
-# 类型推导
+自己的`luaparse`仓库增加了`types`目录并做了修改，所以`package.json`不再依赖`@types/luaparse"`
 
-- 本地化
-    - local M = M
-    - TODO:local N = M
-    - TODO:local M = require "no_name"
-    - TODO:return {}
-- oo(object-oriented)类
-    - TODO:继承
-- table类
-    - TODO:成员函数名和本地不一样
+```
+"@types/luaparse": "^0.2.13",
+```
 
-# 符号
+执行`npm remove @types/luaparse`
 
-- 初始化时，只解析和记录每个文件顶层作用域的符号，以节省CPU和内存
-- 局部符号
-    - 做一个LRU缓存，记录常用文件的原始符号
-    - 查询时，对比原始符号，通过位置(loc)找到当前符号所在的函数，解析该函数的局部符号
-    - 得到局部符号后，按作用域对比位置(loc)查找符号
+注意typescript默认会查找与`luaparser.js`同级的`index.d.ts`，如果存在则使用。现在这个文件是放在`types`目录，则`luaparse`的`package.json`里要增加`types`字段指定`index.d.ts`

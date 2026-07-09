@@ -15,7 +15,7 @@ lua-tags 是一个 VSCode LSP 插件项目，为 Lua 语言提供智能感知（
 ## 基础设定
 - **架构**: 客户端-服务器（Client-Server）架构
 - **协议**: 使用 vscode-languageserver 和 vscode-languageclient 实现 LSP
-- **Lua版本支持**: 5.1、5.2、5.3、LuaJIT
+- **Lua版本支持**: 5.1、5.2、5.3、5.4、LuaJIT
 - **核心依赖**:
   - luaparse: Lua 代码解析器
   - fuzzysort: 模糊搜索库
@@ -210,7 +210,7 @@ luacheck 可执行文件，用于代码检查。
 - 自定义类: 通过 `@class` 声明
 
 ## 配置项
-- `lua-tags.luaVersion`: Lua 版本（5.1/5.2/5.3/LuaJIT）
+- `lua-tags.luaVersion`: Lua 版本（5.1/5.2/5.3/5.4/LuaJIT）
 - `lua-tags.maxFileSize`: 最大文件大小限制
 - `lua-tags.excludeDir`: 排除的目录
 - `lua-tags.luacheck`: 启用 luacheck

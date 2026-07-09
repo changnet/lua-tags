@@ -57,6 +57,7 @@
 						"5.1",
 						"5.2",
 						"5.3",
+						"5.4",
 						"LuaJIT"
 					],
 					"default": "5.3",
@@ -169,7 +170,6 @@
 	},
 	"devDependencies": {
 		"@types/glob": "^9.0.0",
-		"@types/luaparse": "^0.2.13",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "^25.6.0",
 		"@types/vscode": "^1.116.0",
@@ -184,7 +184,7 @@
 	},
 	"dependencies": {
 		"fuzzysort": "^3.1.0",
-		"luaparse": "^0.3.1",
+		"luaparse": "github:changnet/luaparse#master",
 		"vscode-languageclient": "^9.0.1",
 		"vscode-languageserver": "^9.0.1",
 		"vscode-languageserver-textdocument": "^1.0.12",

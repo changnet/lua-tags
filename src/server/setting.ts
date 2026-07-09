@@ -6,7 +6,7 @@ import { Utils } from './utils';
 
 // let ver:string = "5.1"
 // luaVersion = ver as Version
-export type Version = '5.1' | '5.2' | '5.3' | 'LuaJIT';
+export type Version = '5.1' | '5.2' | '5.3' | '5.4' | 'LuaJIT';
 
 // 按位(1是否需要解析 2是否超大 3是否工程文件)
 export enum FileParseType {
