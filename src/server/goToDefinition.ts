@@ -12,8 +12,11 @@ import { AnnotationRegistry } from './annotation';
 
 import { Setting } from './setting';
 
+import { ParseSymbol } from './parseSymbol';
+
 // 注解类型模式 - 支持 ---@ 和 -- @ 两种格式（匹配原始行文本）
-const ANNOTATION_TYPE_PATTERN = /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?(\w+)/;
+const ANNOTATION_TYPE_PATTERN =
+    /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?(\w+)/;
 
 export class GoToDefinition {
     private static ins: GoToDefinition;
@@ -28,29 +31,13 @@ export class GoToDefinition {
         return GoToDefinition.ins;
     }
 
-    // require + 自定义加载函数名列表
-    private static loadFuncNames(): string[] {
-        const names = ['require'];
-        const customs = Setting.instance().getCustomLoadFuncs();
-        customs.forEach((n) => {
-            if (n && names.indexOf(n) < 0) {
-                names.push(n);
-            }
-        });
-        return names;
-    }
-
-    // require("aaa.bbb")或 import("aaa.bbb")/include("aaa.bbb.lua") 这种，打开对应文件
+    // require("aaa.bbb") / import("aaa.bbb") / include("aaa.bbb.lua") 这种，打开对应文件
     private getRequireDefinition(
         text: string,
         pos: Position,
     ): Definition | null {
-        const names = GoToDefinition.loadFuncNames();
-        const re = new RegExp(
-            '(?:' + names.join('|') + ')\\s*[(]?\\s*"([/|\\\\.\\w]+)"\\s*[)]?',
-        );
         // 注意特殊情况下，可能会有 require "a/b" require "a\b"
-        const found = text.match(re);
+        const found = Setting.instance().getLoadFuncPathRegex(text, true);
         if (!found || !found[1]) {
             return null;
         }
@@ -61,12 +48,10 @@ export class GoToDefinition {
             return null;
         }
 
-        // 自定义加载函数可能带 .lua 后缀，去掉后再解析 uri
-        let modPath = found[1];
-        if (modPath.endsWith('.lua')) {
-            modPath = modPath.substring(0, modPath.length - '.lua'.length);
-        }
-        const uri = SymbolEx.instance().getRequireUri(modPath);
+        // 统一用 toModulePath 归一化（去 .lua 后缀、/ \ 统一为 .）再解析 uri
+        const uri = SymbolEx.instance().getRequireUri(
+            ParseSymbol.toModulePath(found[1]),
+        );
         if ('' === uri) {
             return null;
         }
@@ -105,7 +90,11 @@ export class GoToDefinition {
 
         // 检查光标是否在类型名范围内
         const typeStart = text.indexOf(typeName);
-        if (typeStart < 0 || pos.character < typeStart || pos.character > typeStart + typeName.length) {
+        if (
+            typeStart < 0 ||
+            pos.character < typeStart ||
+            pos.character > typeStart + typeName.length
+        ) {
             return null;
         }
 
@@ -117,7 +106,10 @@ export class GoToDefinition {
                 uri: cls.uri,
                 range: {
                     start: { line: cls.line, character: cls.character },
-                    end: { line: cls.line, character: cls.character + cls.name.length },
+                    end: {
+                        line: cls.line,
+                        character: cls.character + cls.name.length,
+                    },
                 },
             };
         }
@@ -129,7 +121,10 @@ export class GoToDefinition {
                 uri: alias.uri,
                 range: {
                     start: { line: alias.line, character: alias.character },
-                    end: { line: alias.line, character: alias.character + alias.name.length },
+                    end: {
+                        line: alias.line,
+                        character: alias.character + alias.name.length,
+                    },
                 },
             };
         }

@@ -30,18 +30,6 @@ export class AutoCompletion {
         return AutoCompletion.ins;
     }
 
-    // require + 自定义加载函数名列表，用于路径补全/跳转的正则构造
-    private static loadFuncNames(): string[] {
-        const names = ['require'];
-        const customs = Setting.instance().getCustomLoadFuncs();
-        customs.forEach((n) => {
-            if (n && names.indexOf(n) < 0) {
-                names.push(n);
-            }
-        });
-        return names;
-    }
-
     // 符号转自动完成格式
     private toCompletion(sym: SymInfoEx, uri: string): CompletionItem {
         // vs code会自动补全上下文中的单词，默认类型为CompletionItemKind.Text
@@ -72,7 +60,8 @@ export class AutoCompletion {
         }
 
         // 添加注解类型信息到detail
-        const typeDesc = SymbolEx.instance().getVariableTypeDesc(uri, sym) || 'any';
+        const typeDesc =
+            SymbolEx.instance().getVariableTypeDesc(uri, sym) || 'any';
         if (typeDesc) {
             item.detail = item.detail
                 ? `${item.detail} (${typeDesc})`
@@ -92,7 +81,7 @@ export class AutoCompletion {
         // 如果是常量，显示常量值： test.lua: val = 999
         const local = SymbolEx.getLocalTypePrefix(sym.local);
         const base = sym.base && sym.indexer ? sym.base + sym.indexer : '';
-            
+
         if (sym.value) {
             mdDoc += `${local}${base}${sym.name} = ${sym.value} : ${typeDesc}`;
         } else if (sym.kind === SymbolKind.Function) {
@@ -108,13 +97,18 @@ export class AutoCompletion {
             let parameters = sym.parameters ? sym.parameters.join(', ') : '';
             if (funcAnnotation && funcAnnotation.params.length > 0) {
                 parameters = funcAnnotation.params
-                    .map(p => `${p.name}: ${SymbolEx.instance().formatType(p.type)}`)
+                    .map(
+                        (p) =>
+                            `${p.name}: ${SymbolEx.instance().formatType(p.type)}`,
+                    )
                     .join(', ');
             }
 
             let returnDesc = 'any';
             if (funcAnnotation?.returns) {
-                returnDesc = SymbolEx.instance().formatType(funcAnnotation.returns);
+                returnDesc = SymbolEx.instance().formatType(
+                    funcAnnotation.returns,
+                );
             }
 
             mdDoc += `${local}function ${base}${sym.name}(${parameters}) : ${returnDesc}`;
@@ -199,28 +193,20 @@ export class AutoCompletion {
         return endPath.replace(/\//g, '.');
     }
 
-    // require "a.b.c" 自动补全后面的路径
-    // 自定义加载函数(import/include 等)同样支持路径补全
+    // require / import / include 等加载函数的路径补全
     public getRequireCompletion(line: string, pos: number) {
         const text = line.substring(0, pos);
 
-        // 构造函数名匹配：require 以及所有自定义加载函数
-        const names = AutoCompletion.loadFuncNames();
-        const re = new RegExp(
-            '(?:' + names.join('|') + ')\\s*[(]?\\s*"([/|\\\\.\\w]+)',
-        );
-        const found = text.match(re);
+        // 加载函数 + 路径正则统一在 Setting 构造（不要求闭合，支持打到一半的路径）
+        const found = Setting.instance().getLoadFuncPathRegex(text, false);
         if (!found || !found[1]) {
             return null;
         }
 
-        // 得到path = a.b.c，自定义加载函数可能带 .lua 后缀，去掉它
-        let rawPath = found[1];
-        if (rawPath.endsWith('.lua')) {
-            rawPath = rawPath.substring(0, rawPath.length - '.lua'.length);
-        }
+        // 统一用 toModulePath 归一化：去掉 .lua 后缀、把 / \ 统一为 .
+        // 再用 toUriFormat 转回 / 形式以便和 uri 做前缀匹配
         const symbol = SymbolEx.instance();
-        let path = symbol.toUriFormat(rawPath);
+        let path = symbol.toUriFormat(ParseSymbol.toModulePath(found[1]));
 
         // 匹配写了一半的路径，比如 sample.conf只写了sqmple.co中的co
         let leftWord: string | null = null;

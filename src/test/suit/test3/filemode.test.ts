@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import {
     testHover,
     testGoToDefinition,
-    testWorkspaceSymbol,
     resolveFixture,
 } from '../../helper';
 
@@ -38,20 +37,5 @@ suite('File Mode Test3 Suite', () => {
         await testHover(testUri, new vscode.Position(6, 12), [{
             contents: [{ value: val } as vscode.MarkdownString],
         }]);
-    }).timeout(10240);
-
-    // module 方式加载的文件会注册一个带文件位置的模块符号 modules.sub.mod_a
-    test('workspace symbol finds derived module', async () => {
-        await testWorkspaceSymbol('modules', [
-            {
-                name: 'modules.sub.mod_a',
-                kind: vscode.SymbolKind.Module,
-                containerName: '',
-                location: new vscode.Location(
-                    modAUri,
-                    new vscode.Range(0, 0, 0, 'modules.sub.mod_a'.length),
-                ),
-            } as vscode.SymbolInformation,
-        ]);
     }).timeout(10240);
 });

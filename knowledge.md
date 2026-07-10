@@ -226,16 +226,22 @@ luacheck 可执行文件，用于代码检查。
 - `lua-tags.fileMode`: 数组，每项 `{module:boolean, files:glob}`，按 glob 覆盖单个
   文件的加载方式，首个匹配生效。glob 在 `setting.ts` globToRegex 中编译。
 - `lua-tags.customLoadFunc`: 自定义加载函数名数组（如 `["import","include"]`），
-  配置后等同 `require`，`local M = import("a.b.c")` 会把 M 绑定到 a.b.c 模块；
-  `include("a.b.c.lua")` 会自动去掉 .lua 后缀。实现在 `parseSymbol.ts` toSym 的
-  CallExpression/StringCallExpression 分支（toModulePath），路径补全/跳转见
-  `autoCompletion.ts` 与 `goToDefinition.ts` 的 loadFuncNames。
+  配置后与 `require` 一视同仁——`Setting.isLoadFunc(name)` 同时匹配 require 与自定义
+  函数，`parseSymbol.ts` toSym 的 CallExpression/StringCallExpression 分支用统一的
+  `isLoadFunc` 判断并走 `toModulePath`（去 `.lua` 后缀、`/`/`\` 归一为 `.`）。
+  `local M = import("a.b.c")` 会把 M 绑定到 a.b.c 模块；`include("a.b.c.lua")` 同理。
+  路径补全/跳转见 `autoCompletion.ts` 与 `goToDefinition.ts`，二者均用
+  `Setting.getLoadFuncs()`（require+自定义）构造正则，并用 `toModulePath` 归一化路径。
 
 ## file mode 与 module 符号
-- `parseSymbol.ts` 新增 `defaultModuleName` / `hasExplicitModule` / `syntheticModuleSym`：
-  以 module 方式加载且无显式 `module()` 调用时，合成一个带文件位置的 Module 符号
-  （line 0），并预先放入 parseModule，使后续 pushModuleSymbol 把顶层符号挂到它的
-  subSymList。该合成符号最后才 push 到 parseSymList，避免抢占上方注释。
-- `symbol.ts` 的 `parse()` 在创建 ParseSymbol 后调用 `setDefaultModuleName`。
-- module 方式下顶层符号的 `baseModule` 被设置（非全局），但仍可通过 require 引用
-  的文件符号列表被 `M.field` 解析到。
+- `parseSymbol.ts` 新增 `defaultModuleName`：以 module 方式加载时，`parse()` 开头把
+  `parseModuleName` 初始化为 `defaultModuleName`，使 `pushParseSymbol` 把顶层全局
+  符号挂到该模块名下（设置 `baseModule`，非全局）。
+- **必要性说明**：原有的 `module("name")` 处理只在 `parseCallStatement` 里、即代码里
+  显式写了 `module(...)` 调用时才设置 `parseModuleName`。file mode 针对的是**没有**
+  显式 `module()` 调用、模块名由文件路径推导的文件，原逻辑覆盖不到，所以必须新增
+  `defaultModuleName` 在 `parse()` 入口处主动初始化 `parseModuleName`。
+- 若文件内同时有显式 `module("name")`，`parseCallStatement` 会覆盖
+  `parseModuleName`，以显式名为准。
+- module 方式下顶层符号的 `baseModule` 被设置（非全局），但仍可通过 require 引用的
+  文件符号列表被 `M.field` 解析到（不需要额外合成模块符号）。

@@ -423,6 +423,74 @@ files:${files}, version:${this.customOptions.version}`,
         });
     }
 
+    /**
+     * 计算 RPC 前缀剥离后的符号提取起点。
+     *
+     * 当行中出现 RPC[addr].X.Y 时，配置了 rpcPrefix 正则后，若光标位于前缀之后的
+     * 符号部分，则返回前缀后 "." 或 ":" 之后的下标，使 base/name 提取忽略前缀
+     * （X 当顶层符号、X.Y 当 base=X name=Y）。若光标落在前缀本身（如 RPC/Call）上，
+     * 或未配置前缀、或没有匹配，返回 0（不剥离）。
+     *
+     * @param text 光标所在行的完整文本
+     * @param pos  光标位置
+     * @return 符号提取起点下标，0 表示不剥离
+     */
+    private getRpcEffectiveStart(text: string, pos: Position): number {
+        const prefixes = Setting.instance().getRpcPrefixes();
+        if (prefixes.length === 0) {
+            return 0;
+        }
+
+        // 第一遍：判断光标是否落在某个前缀匹配区间内（[m.index, matchEnd]）
+        // 落在前缀上时不剥离，正常搜索前缀符号本身（如 RPC、Call）
+        let cursorOnPrefix = false;
+        for (const re of prefixes) {
+            re.lastIndex = 0;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(text)) !== null) {
+                const matchEnd = m.index + m[0].length;
+                if (m.index <= pos.character && pos.character <= matchEnd) {
+                    cursorOnPrefix = true;
+                    break;
+                }
+                if (m[0].length === 0) {
+                    re.lastIndex++;
+                }
+            }
+            if (cursorOnPrefix) {
+                break;
+            }
+        }
+        if (cursorOnPrefix) {
+            return 0;
+        }
+
+        // 第二遍：找最后一个结束于光标之前、且紧跟 . 或 : 的前缀，取其后的符号起点。
+        // 多个前缀时取最靠后的，保证光标落在该前缀的符号段内
+        let effectiveStart = 0;
+        for (const re of prefixes) {
+            re.lastIndex = 0;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(text)) !== null) {
+                const matchEnd = m.index + m[0].length;
+                if (matchEnd > pos.character) {
+                    break;
+                }
+                const after = text.charAt(matchEnd);
+                if (after === '.' || after === ':') {
+                    const symStart = matchEnd + 1;
+                    if (symStart <= pos.character && symStart > effectiveStart) {
+                        effectiveStart = symStart;
+                    }
+                }
+                if (m[0].length === 0) {
+                    re.lastIndex++;
+                }
+            }
+        }
+        return effectiveStart;
+    }
+
     // 根据光标位置分解出要查询的符号信息
     public getQuerySymbol(
         uri: string,
@@ -447,60 +515,8 @@ files:${files}, version:${this.customOptions.version}`,
         let beg: number = pos.character;
         let end: number = pos.character;
 
-        /*
-         * RPC 前缀剥离：当行中出现 RPC[addr].X.Y 时，配置了 rpcPrefix 正则后，
-         * 若光标位于前缀之后的符号部分，则从前缀后的 "." 或 ":" 开始提取 base/name，
-         * 这样 X 会被当作顶层符号、X.Y 会被当作 base=X name=Y，而不会把前缀卷入 base。
-         * 若光标位于前缀本身（如 RPC/Call）上，则不剥离，正常搜索前缀符号。
-         */
-        const prefixes = Setting.instance().getRpcPrefixes();
-        let effectiveStart = 0;
-        if (prefixes.length > 0) {
-            // 第一遍：判断光标是否落在某个前缀匹配区间内（[m.index, matchEnd]）
-            let cursorOnPrefix = false;
-            for (const re of prefixes) {
-                re.lastIndex = 0;
-                let m: RegExpExecArray | null;
-                while ((m = re.exec(text)) !== null) {
-                    const matchEnd = m.index + m[0].length;
-                    if (m.index <= pos.character && pos.character <= matchEnd) {
-                        cursorOnPrefix = true;
-                        break;
-                    }
-                    if (m[0].length === 0) {
-                        re.lastIndex++;
-                    }
-                }
-                if (cursorOnPrefix) {
-                    break;
-                }
-            }
-
-            // 第二遍：光标不在前缀上时，找最后一个结束于光标之前、且紧跟 . 或 : 的前缀，
-            // 取其后的符号起点作为 effectiveStart（多个前缀时取最靠后的，保证光标落在其符号段内）
-            if (!cursorOnPrefix) {
-                for (const re of prefixes) {
-                    re.lastIndex = 0;
-                    let m: RegExpExecArray | null;
-                    while ((m = re.exec(text)) !== null) {
-                        const matchEnd = m.index + m[0].length;
-                        if (matchEnd > pos.character) {
-                            break;
-                        }
-                        const after = text.charAt(matchEnd);
-                        if (after === '.' || after === ':') {
-                            const symStart = matchEnd + 1;
-                            if (symStart <= pos.character && symStart > effectiveStart) {
-                                effectiveStart = symStart;
-                            }
-                        }
-                        if (m[0].length === 0) {
-                            re.lastIndex++;
-                        }
-                    }
-                }
-            }
-        }
+        // RPC 前缀剥离：计算符号提取的有效起点（前缀之后），0 表示不剥离
+        const effectiveStart = this.getRpcEffectiveStart(text, pos);
 
         // 仅截取前缀之后的部分用于 base/name 提取，位置计算仍基于 pos.character 和长度
         const trimLeft = effectiveStart > 0

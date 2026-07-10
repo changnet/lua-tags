@@ -55,6 +55,10 @@ export class Setting {
     // custom load func: 自定义加载函数名集合，等同 require
     private customLoadFunc = new Set<string>();
 
+    // 「加载函数 + 路径」正则缓存，避免每次调用都重新拼字符串构造 RegExp。
+    // requireClose 有 true/false 两种形态，故各缓存一份；customLoadFunc 变化时清空。
+    private loadFuncRegexCache: { open: RegExp; closed: RegExp } | null = null;
+
     private constructor() {}
 
     public static instance() {
@@ -122,7 +126,10 @@ export class Setting {
         this.rpcPrefix = Setting.parseRegexList(<string[]>conf.rpcPrefix);
 
         // default file mode
-        if (conf.defaultFileMode === 'module' || conf.defaultFileMode === 'load') {
+        if (
+            conf.defaultFileMode === 'module' ||
+            conf.defaultFileMode === 'load'
+        ) {
             this.defaultFileMode = conf.defaultFileMode;
         }
 
@@ -130,7 +137,12 @@ export class Setting {
         this.fileModeList = Setting.parseFileModeList(conf.fileMode);
 
         // custom load func
-        this.customLoadFunc = new Set<string>(<string[]>conf.customLoadFunc || []);
+        this.customLoadFunc = new Set<string>(
+            <string[]>conf.customLoadFunc || [],
+        );
+
+        // customLoadFunc 变化，清空正则缓存
+        this.loadFuncRegexCache = null;
 
         if ('' !== this.rawRootUri) {
             this.rootUri = this.parseRootPath(
@@ -258,8 +270,17 @@ export class Setting {
     }
 
     /**
-     * 解析 rpcPrefix 配置（字符串数组）为编译好的 RegExp 数组
-     * 支持 "pattern/flags" 和 "pattern" 两种写法，内部始终加 'g' 以便全文扫描
+     * 解析 rpcPrefix 配置（字符串数组）为编译好的 RegExp 数组。
+     *
+     * 为什么要把字符串拆出 body/flags：VSCode 配置项只能是 JSON 值，无法直接存 RegExp，
+     * 用户只能用字符串表达正则。需求示例里给出的写法是 `RPC\[(.*?)\]/g`——即模仿 JS
+     * 正则字面量、把 flag 写在末尾的 `/g`。若不拆分，`/g` 会被当作 pattern 的一部分
+     * （去匹配字面量 "/g"），导致正则失效。所以这里用 `^(.+)\/([gimsuy]*)$` 把末尾的
+     * `/flags` 拆出来：能拆出就用拆出的 body+flags，拆不出（用户只写了 pattern）就把
+     * 整串当 body、flags 留空。最后无论哪种都补上 `g`，保证能全文扫描一行内的多个前缀。
+     *
+     * 注意 `(.+)` 贪婪、取最后一个 `/` 作分隔，因此 pattern 内部含 `/` 时以最后一个 `/`
+     * 后是否是合法 flag 字符为准——RPC 前缀这类场景一般不含 `/`，可放心使用。
      */
     private static parseRegexList(list?: string[]): RegExp[] {
         const out: RegExp[] = [];
@@ -270,7 +291,7 @@ export class Setting {
             if (typeof raw !== 'string' || raw.length === 0) {
                 continue;
             }
-            // 形如 "RPC\[(.*?)\]/g"
+            // 形如 "RPC\[(.*?)\]/g"：拆出 body 与 flags
             const m = raw.match(/^(.+)\/([gimsuy]*)$/);
             let body: string;
             let flags: string;
@@ -296,7 +317,9 @@ export class Setting {
     /**
      * 解析 fileMode 配置数组，把 glob 编译成正则
      */
-    private static parseFileModeList(list?: any[]): { module: boolean; re: RegExp }[] {
+    private static parseFileModeList(
+        list?: any[],
+    ): { module: boolean; re: RegExp }[] {
         const out: { module: boolean; re: RegExp }[] = [];
         if (!list || !Array.isArray(list)) {
             return out;
@@ -352,14 +375,57 @@ export class Setting {
         return this.rpcPrefix;
     }
 
-    /** 是否为自定义加载函数（等同 require） */
-    public isCustomLoadFunc(name: string): boolean {
-        return this.customLoadFunc.has(name);
+    /**
+     * 是否为加载函数（require 或自定义加载函数）。
+     * require 与 customLoadFunc 配置的函数一视同仁，走同一套处理逻辑。
+     */
+    public isLoadFunc(name: string): boolean {
+        return 'require' === name || this.customLoadFunc.has(name);
     }
 
-    /** 获取自定义加载函数名集合 */
-    public getCustomLoadFuncs(): Set<string> {
-        return this.customLoadFunc;
+    /** 获取所有加载函数名（require 在前，自定义函数在后），用于构造正则 */
+    public getLoadFuncs(): string[] {
+        const names = ['require'];
+        this.customLoadFunc.forEach((n) => {
+            if (n && names.indexOf(n) < 0) {
+                names.push(n);
+            }
+        });
+        return names;
+    }
+
+    /**
+     * 构造「加载函数 + 路径字符串」的匹配正则，捕获组 1 为模块路径。
+     * require / import / include 等共用同一份正则，避免在补全与跳转两处重复维护。
+     *
+     * @param requireClose true 要求路径字符串闭合（带结束 `"` 和可选 `)`），
+     *                     适用于跳转到定义；false 不要求闭合，适用于打到一半的路径补全。
+     */
+    public getLoadFuncPathRegex(
+        text: string,
+        requireClose: boolean,
+    ): RegExpMatchArray | null {
+        const re = this.getCachedLoadFuncRegex(requireClose);
+        return text.match(re);
+    }
+
+    /**
+     * 获取缓存的「加载函数 + 路径」正则。requireClose 决定路径是否需要闭合引号，
+     * 对应 closed / open 两份正则；仅在 customLoadFunc 变化时重新构造。
+     */
+    private getCachedLoadFuncRegex(requireClose: boolean): RegExp {
+        if (null === this.loadFuncRegexCache) {
+            const names = this.getLoadFuncs();
+            const head = '(?:' + names.join('|') + ')\\s*[(]?\\s*"';
+            const body = '([/|\\\\.\\w]+)';
+            this.loadFuncRegexCache = {
+                open: new RegExp(head + body),
+                closed: new RegExp(head + body + '"\\s*[)]?'),
+            };
+        }
+        return requireClose
+            ? this.loadFuncRegexCache.closed
+            : this.loadFuncRegexCache.open;
     }
 
     /**
@@ -381,7 +447,9 @@ export class Setting {
         }
 
         // 使用默认模式
-        return this.defaultFileMode === 'module' ? this.pathToModuleName(rel) : null;
+        return this.defaultFileMode === 'module'
+            ? this.pathToModuleName(rel)
+            : null;
     }
 
     /** 计算文件相对 root 的路径（用 / 分隔），失败返回 null */

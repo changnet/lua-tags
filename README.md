@@ -213,19 +213,21 @@ Lua 有两种常见的文件加载约定：
 - 模块名按文件相对工程根目录的路径推导，例如 `modules/sub/mod_a.lua` 的模块名为
   `modules.sub.mod_a`（与 `require("modules.sub.mod_a")` 的路径一致）。
 - 文件内的顶层全局符号（函数、变量等）会挂到该模块名下，不再作为全局符号出现。
-- lua-tags 会为该文件合成一个带文件位置的模块符号（可通过 `Ctrl+T` 工作区符号搜索
-  到），方便跳转。
 - 通过 `local M = require("modules.sub.mod_a")` 引入后，`M.greet`、`M.magic` 等
   成员仍可正常解析。
-- 若文件内本身就写了显式的 `module("name")` 调用，则以显式名为准，合成模块符号
-  不会被创建。
+- 若文件内本身就写了显式的 `module("name")` 调用，则以显式名为准。
+
+说明：原有的 `module("name")` 处理只在代码里显式写了 `module(...)` 调用时才生效；
+file mode 针对的是**没有**显式 `module()` 调用、模块名由文件路径推导的文件，因此需要
+单独配置。两者互不冲突，显式调用优先。
 
 glob 语法支持 `*`（匹配单层路径段，不含 `/`）、`**`（匹配任意多层）、`?`。
 
 ## 自定义加载函数（customLoadFunc）
 
 除 `require` 之外，有些项目会用自定义函数（如 `import`、`include`）来加载模块。
-配置 `lua-tags.customLoadFunc` 后，这些函数会被当作 `require` 处理：
+配置 `lua-tags.customLoadFunc` 后，这些函数与 `require` 完全等同处理（统一走
+`isLoadFunc` 判断）：
 
 ```json
 {
