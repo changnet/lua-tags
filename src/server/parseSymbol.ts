@@ -127,6 +127,13 @@ export class ParseSymbol {
     private parseComments: Comment[] = [];
     private parseCodeLine: number[] = [];
     private parseModuleName: string | null = null;
+    // 文件级默认模块名（由 file mode 配置推导），用于 module 方式加载文件时
+    // 把顶层全局符号挂到该模块名下；若文件内有显式 module() 调用则会被覆盖
+    private defaultModuleName: string | null = null;
+    // 文件内是否出现了显式 module("name") 调用
+    private hasExplicitModule = false;
+    // module 方式加载时合成的模块符号（带文件位置），用于符号搜索/跳转
+    private syntheticModuleSym: SymInfoEx | null = null;
 
     public constructor() {
         this.options = {
@@ -388,6 +395,7 @@ export class ParseSymbol {
         // 记录当前文件的模块名
         // TODO: module("a.b.c") 这种现在暂时不支持
         this.parseModuleName = name;
+        this.hasExplicitModule = true;
 
         // 给模块名生成一个符号
         const sym: SymInfoEx = {
@@ -590,6 +598,20 @@ export class ParseSymbol {
         return raw.substring(2, raw.length - 2);
     }
 
+    /**
+     * 把自定义加载函数传入的字符串参数转成模块路径
+     * include("a.b.c.lua") / include("a/b/c.lua") 都会归一为 a.b.c
+     * 去掉 .lua 后缀，并把 / \ 统一为 .
+     */
+    public static toModulePath(p: string): string {
+        let s = p.replace(/\\/g, '/');
+        if (s.endsWith('.lua')) {
+            s = s.substring(0, s.length - '.lua'.length);
+        }
+        s = s.replace(/\//g, '.');
+        return s;
+    }
+
     private static toConst(expr: Node): string | null {
         switch (expr.type) {
             case 'UnaryExpression':
@@ -752,6 +774,16 @@ export class ParseSymbol {
                     if (arg.type === 'StringLiteral') {
                         sym.refUri = ParseSymbol.stringLiteralValue(arg);
                     }
+                } else if ('Identifier' === base.type
+                    && Setting.instance().isCustomLoadFunc(base.name)) {
+                    // local M = import("a.b.c") 或 local M = include("a.b.c.lua")
+                    // 等同 require，绑定到 a.b.c 模块（去掉 .lua 后缀）
+                    const arg = initNode.arguments[0];
+                    if (arg.type === 'StringLiteral') {
+                        sym.refUri = ParseSymbol.toModulePath(
+                            ParseSymbol.stringLiteralValue(arg),
+                        );
+                    }
                 } else if ('Identifier' === base.type) {
                     // local result = func() - 记录函数名用于@return推断
                     if (sym.scope >= 0 && sym.scope <= 2 && init) {
@@ -772,6 +804,15 @@ export class ParseSymbol {
                     const arg = initNode.argument;
                     if (arg.type === 'StringLiteral') {
                         sym.refUri = ParseSymbol.stringLiteralValue(arg);
+                    }
+                } else if ('Identifier' === base.type
+                    && Setting.instance().isCustomLoadFunc(base.name)) {
+                    // local M = import "a.b.c" 或 local M = include "a.b.c.lua"
+                    const arg = initNode.argument;
+                    if (arg.type === 'StringLiteral') {
+                        sym.refUri = ParseSymbol.toModulePath(
+                            ParseSymbol.stringLiteralValue(arg),
+                        );
                     }
                 }
                 break;
@@ -803,9 +844,38 @@ export class ParseSymbol {
 
     // 解析一段代码，如果这段代码有错误，会发给vs code
     public parse(uri: string, text: string, ft: FileParseType): SymInfoEx[] | null {
+        // 初始化默认模块名：若文件以 module 方式加载，则顶层全局符号会挂到该模块名下
+        // 若文件内有显式 module("name") 调用，会在 parseCallStatement 中覆盖此值
+        this.parseModuleName = this.defaultModuleName;
+        this.hasExplicitModule = false;
+        this.syntheticModuleSym = null;
+
         const nodeList = this.rawParse(uri, text, ft);
         if (!nodeList) {
             return null;
+        }
+
+        // 若以 module 方式加载且没有显式 module() 调用，则合成一个模块符号
+        // （带文件位置），便于符号搜索/跳转/workspace symbol。先放入 parseModule，
+        // 这样后续 parseNode 时 pushModuleSymbol 会把顶层符号挂到它的 subSymList 上
+        if (this.defaultModuleName && !this.hasExplicitModule) {
+            const modSym: SymInfoEx = {
+                name: this.defaultModuleName,
+                scope: 0,
+                kind: SymbolKind.Module,
+                location: {
+                    uri: this.parseUri,
+                    range: {
+                        start: { line: 0, character: 0 },
+                        end: {
+                            line: 0,
+                            character: this.defaultModuleName.length,
+                        },
+                    },
+                },
+            };
+            this.syntheticModuleSym = modSym;
+            this.parseModule.set(this.defaultModuleName, modSym);
         }
 
         this.parseScopeDeepth = 0;
@@ -832,12 +902,25 @@ export class ParseSymbol {
             annotations.functions,
         );
 
+        // 最后把合成的模块符号加入符号列表（放在末尾，避免抢占上方注释）
+        if (this.syntheticModuleSym) {
+            this.parseSymList.push(this.syntheticModuleSym);
+        }
+
         return this.parseSymList;
     }
 
     // 获取已经解析好的模块信息
     public getParseModule() {
         return this.parseModule;
+    }
+
+    /**
+     * 设置文件级默认模块名（file mode 为 module 时使用）
+     * 传 null 表示 load 方式，不挂模块名
+     */
+    public setDefaultModuleName(name: string | null) {
+        this.defaultModuleName = name;
     }
 
     // 解析一段代码并查找局部变量

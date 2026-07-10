@@ -140,13 +140,58 @@
 					"default": [],
 					"description": "regex to exclude luacheck dir and files, like: config/*.luacheckrc can exclude files too"
 				},
-				"lua-tags.exportPath": {
-					"scope": "resource",
-					"type": "string",
-					"default": "",
-					"description": "File path to auto export global symbol, default is lua-tags-global-symbols"
-				},
-				"lua-tags.trace.server": {
+			"lua-tags.exportPath": {
+				"scope": "resource",
+				"type": "string",
+				"default": "",
+				"description": "File path to auto export global symbol, default is lua-tags-global-symbols"
+			},
+			"lua-tags.rpcPrefix": {
+				"scope": "resource",
+				"type": "array",
+				"default": [],
+				"description": "RPC prefix regex patterns (typescript regex with /g flag). When a line like `RPC[addr].X.Y(a,b,c)` is parsed, the matched prefix (e.g. `RPC[addr].`) is ignored when extracting the base/name of the symbol under the cursor. Example: [\"RPC\\\\[(.*?)\\\\]/g\", \"Call\\\\[(.*?)\\\\]/g\"]. Searching for the prefix name itself (RPC/Call) still works normally."
+			},
+			"lua-tags.defaultFileMode": {
+				"scope": "resource",
+				"type": "string",
+				"enum": [
+					"load",
+					"module"
+				],
+				"default": "load",
+				"description": "Default file loading mode. 'load' treats top-level globals as real globals (lua loadfile style). 'module' scopes top-level globals under a module name derived from the file path (lua5.1 module() style)."
+			},
+			"lua-tags.fileMode": {
+				"scope": "resource",
+				"type": "array",
+				"default": [],
+				"description": "Per-file loading mode overrides. Each entry is {module: boolean, files: glob}. 'files' is a glob pattern matched against the file path relative to the workspace root, e.g. \"modules/*/*.lua\". 'module:true' loads the file in module mode, 'module:false' forces load mode (overrides defaultFileMode). First match wins.",
+				"items": {
+					"type": "object",
+					"properties": {
+						"module": {
+							"type": "boolean",
+							"description": "true for module mode, false for load mode"
+						},
+						"files": {
+							"type": "string",
+							"description": "glob pattern relative to workspace root"
+						}
+					},
+					"required": [
+						"module",
+						"files"
+					]
+				}
+			},
+			"lua-tags.customLoadFunc": {
+				"scope": "resource",
+				"type": "array",
+				"default": [],
+				"description": "Custom function names that behave like require. When `local M = import(\"a.b.c\")` or `local M = include(\"a.b.c.lua\")` is parsed, M is bound to the a.b.c module (a trailing .lua is stripped). Example: [\"import\", \"include\"]."
+			},
+			"lua-tags.trace.server": {
 					"scope": "window",
 					"type": "string",
 					"enum": [

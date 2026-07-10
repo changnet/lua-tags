@@ -10,21 +10,31 @@ export async function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// 共享的激活 Promise：保证多个 suite 的 before 钩子复用同一次激活
+let activatePromise: Promise<void> | null = null;
+
 export async function activateExtension(extraConfig?: Record<string, any>) {
-    try {
-        const conf = vscode.workspace.getConfiguration('lua-tags');
-        await conf.update('excludeDir', ['exclude/*']);
-        if (extraConfig) {
-            for (const [key, value] of Object.entries(extraConfig)) {
-                await conf.update(key, value);
-            }
-        }
-        const ext = vscode.extensions.getExtension('changnet.lua-tags')!;
-        await ext.activate();
-        await sleep(8000);
-    } catch (e) {
-        assert.ok(false, `error in activate extension ${e}`);
+    if (activatePromise) {
+        return activatePromise;
     }
+    activatePromise = (async () => {
+        try {
+            const conf = vscode.workspace.getConfiguration('lua-tags');
+            await conf.update('excludeDir', ['exclude/*']);
+            if (extraConfig) {
+                for (const [key, value] of Object.entries(extraConfig)) {
+                    await conf.update(key, value);
+                }
+            }
+            const ext = vscode.extensions.getExtension('changnet.lua-tags')!;
+            await ext.activate();
+            await sleep(8000);
+        } catch (e) {
+            activatePromise = null;
+            assert.ok(false, `error in activate extension ${e}`);
+        }
+    })();
+    return activatePromise;
 }
 
 export async function testCompletion(

@@ -151,6 +151,102 @@ end
 local a = get_obj()
 ```
 
+## RPC 前缀识别（rpcPrefix）
+
+在某些项目里，远程调用会写成 `RPC[addr].X.Y(a, b, c)` 或 `Call[addr].X.Y(a, b, c)`
+的形式。此时如果对 `X` 或 `X.Y` 进行跳转、hover、补全，默认情况下前缀
+`RPC[addr].` / `Call[addr].` 可能被错误地卷入符号的 base 解析。
+
+通过 `lua-tags.rpcPrefix` 配置一组 TypeScript 正则（带 `/g` 标志），lua-tags 会在
+解析光标所在行的符号时，把匹配到的前缀连同其后紧跟的 `.` 或 `:` 一起忽略，仅提取
+前缀之后的符号部分：
+
+- `RPC[addr].X.Y` 中的 `X` 会被当作顶层符号（无 base）
+- `RPC[addr].X.Y` 中的 `X.Y` 会被当作 `base=X`、`name=Y`
+- 但当光标直接落在前缀本身（如 `RPC`、`Call`）上时，仍按普通符号正常搜索
+
+配置示例（`.vscode/settings.json`）：
+
+```json
+{
+    "lua-tags.rpcPrefix": [
+        "RPC\\[(.*?)\\]/g",
+        "Call\\[(.*?)\\]/g"
+    ]
+}
+```
+
+说明：
+
+- 数组中每一项是一个字符串形式的正则，支持 `pattern/flags` 写法（如
+  `RPC\[(.*?)\]/g`），也支持不带 flag 的纯 pattern（内部会自动加 `g` 以便全文扫描）。
+- 正则的匹配区间若覆盖光标，则认为光标在前缀上，不剥离；否则取最后一个结束于光标
+  之前、且紧跟 `.` 或 `:` 的前缀作为剥离点。
+- 该特性只影响跳转 / hover / 补全时的符号切分，不影响符号定义本身的解析。
+
+## 文件加载方式（defaultFileMode / fileMode）
+
+Lua 有两种常见的文件加载约定：
+
+- `load`（普通 `loadfile`）：文件顶层全局变量就是真正的全局符号。
+- `module`（Lua 5.1 的 `module("name", package.seeall)`）：文件顶层全局变量会被
+  挂到模块名下，不污染全局。
+
+`lua-tags.defaultFileMode` 设置全局默认的加载方式，取值 `load` 或 `module`，默认
+`load`。
+
+`lua-tags.fileMode` 是一个数组，每项用 glob 指定一批文件单独覆盖默认值，匹配规则
+为「首个匹配生效」，glob 相对工程根目录：
+
+```json
+{
+    "lua-tags.defaultFileMode": "load",
+    "lua-tags.fileMode": [
+        { "module": true,  "files": "modules/*/*.lua" },
+        { "module": false, "files": "global/*/*.lua" }
+    ]
+}
+```
+
+以 `module` 方式加载的文件：
+
+- 模块名按文件相对工程根目录的路径推导，例如 `modules/sub/mod_a.lua` 的模块名为
+  `modules.sub.mod_a`（与 `require("modules.sub.mod_a")` 的路径一致）。
+- 文件内的顶层全局符号（函数、变量等）会挂到该模块名下，不再作为全局符号出现。
+- lua-tags 会为该文件合成一个带文件位置的模块符号（可通过 `Ctrl+T` 工作区符号搜索
+  到），方便跳转。
+- 通过 `local M = require("modules.sub.mod_a")` 引入后，`M.greet`、`M.magic` 等
+  成员仍可正常解析。
+- 若文件内本身就写了显式的 `module("name")` 调用，则以显式名为准，合成模块符号
+  不会被创建。
+
+glob 语法支持 `*`（匹配单层路径段，不含 `/`）、`**`（匹配任意多层）、`?`。
+
+## 自定义加载函数（customLoadFunc）
+
+除 `require` 之外，有些项目会用自定义函数（如 `import`、`include`）来加载模块。
+配置 `lua-tags.customLoadFunc` 后，这些函数会被当作 `require` 处理：
+
+```json
+{
+    "lua-tags.customLoadFunc": ["import", "include"]
+}
+```
+
+配置后，下面两种写法都会把变量绑定到 `a.b.c` 模块：
+
+```lua
+local M = import("a.b.c")
+local N = include("a.b.c.lua")   -- 带 .lua 后缀会自动去掉
+```
+
+效果与 `local M = require("a.b.c")` 一致：
+
+- `M.field` / `N.field` 能正确解析到 `a.b.c` 模块内的符号。
+- 在 `import("a.b.c")` / `include("a.b.c.lua")` 上「跳转到定义」会打开对应文件。
+- 输入 `import("a.` 时支持路径自动补全（与 `require` 一致）。
+- 字符串参数里的 `.lua` 后缀会被自动剥离，`/`、`\` 也会归一化为 `.`。
+
 ## Thanks
 
 - https://github.com/fstirlitz/luaparse

@@ -14,6 +14,7 @@ import { ParseSymbol, SymInfoEx, CommentType, LocalType } from './parseSymbol';
 import { Server } from './server';
 import { Search, Filter } from './search';
 import { AnnotationRegistry } from './annotation';
+import { Setting } from './setting';
 
 export class AutoCompletion {
     private static accurate = -500;
@@ -27,6 +28,18 @@ export class AutoCompletion {
         }
 
         return AutoCompletion.ins;
+    }
+
+    // require + 自定义加载函数名列表，用于路径补全/跳转的正则构造
+    private static loadFuncNames(): string[] {
+        const names = ['require'];
+        const customs = Setting.instance().getCustomLoadFuncs();
+        customs.forEach((n) => {
+            if (n && names.indexOf(n) < 0) {
+                names.push(n);
+            }
+        });
+        return names;
     }
 
     // 符号转自动完成格式
@@ -187,18 +200,27 @@ export class AutoCompletion {
     }
 
     // require "a.b.c" 自动补全后面的路径
+    // 自定义加载函数(import/include 等)同样支持路径补全
     public getRequireCompletion(line: string, pos: number) {
         const text = line.substring(0, pos);
 
-        // 匹配require "a.b.c"或者 require（"a.b.c"）
-        const found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)/);
+        // 构造函数名匹配：require 以及所有自定义加载函数
+        const names = AutoCompletion.loadFuncNames();
+        const re = new RegExp(
+            '(?:' + names.join('|') + ')\\s*[(]?\\s*"([/|\\\\.\\w]+)',
+        );
+        const found = text.match(re);
         if (!found || !found[1]) {
             return null;
         }
 
-        // 得到path = a.b.c
+        // 得到path = a.b.c，自定义加载函数可能带 .lua 后缀，去掉它
+        let rawPath = found[1];
+        if (rawPath.endsWith('.lua')) {
+            rawPath = rawPath.substring(0, rawPath.length - '.lua'.length);
+        }
         const symbol = SymbolEx.instance();
-        let path = symbol.toUriFormat(found[1]);
+        let path = symbol.toUriFormat(rawPath);
 
         // 匹配写了一半的路径，比如 sample.conf只写了sqmple.co中的co
         let leftWord: string | null = null;

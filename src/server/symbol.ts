@@ -314,6 +314,8 @@ export class SymbolEx {
         }
 
         let parser = new ParseSymbol();
+        // 设置文件级默认模块名（file mode 为 module 时为非空字符串）
+        parser.setDefaultModuleName(Setting.instance().getModuleMode(uri));
         let parseSymList = parser.parse(uri, text, ft);
 
         // 不是工程文件，不要把符号添加到工程里

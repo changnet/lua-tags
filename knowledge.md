@@ -217,3 +217,25 @@ luacheck 可执行文件，用于代码检查。
 - `lua-tags.checkOnInit`: 初始化时检查所有文件
 - `lua-tags.checkHow`: 检查时机（typing/save）
 - `lua-tags.exportPath`: 全局符号导出路径
+- `lua-tags.rpcPrefix`: RPC 前缀正则数组（TypeScript 正则，带 /g），跳转/hover 时
+  忽略匹配到的前缀（如 `RPC[addr].`），仅提取前缀后的符号；光标落在前缀本身上时
+  仍正常搜索。实现在 `setting.ts`（parseRegexList/getRpcPrefixes）与
+  `server.ts`（getQuerySymbol 的 effectiveStart 逻辑）。
+- `lua-tags.defaultFileMode`: 默认文件加载方式 `load`/`module`，默认 `load`。module
+  方式下顶层全局符号挂到按路径推导的模块名下。
+- `lua-tags.fileMode`: 数组，每项 `{module:boolean, files:glob}`，按 glob 覆盖单个
+  文件的加载方式，首个匹配生效。glob 在 `setting.ts` globToRegex 中编译。
+- `lua-tags.customLoadFunc`: 自定义加载函数名数组（如 `["import","include"]`），
+  配置后等同 `require`，`local M = import("a.b.c")` 会把 M 绑定到 a.b.c 模块；
+  `include("a.b.c.lua")` 会自动去掉 .lua 后缀。实现在 `parseSymbol.ts` toSym 的
+  CallExpression/StringCallExpression 分支（toModulePath），路径补全/跳转见
+  `autoCompletion.ts` 与 `goToDefinition.ts` 的 loadFuncNames。
+
+## file mode 与 module 符号
+- `parseSymbol.ts` 新增 `defaultModuleName` / `hasExplicitModule` / `syntheticModuleSym`：
+  以 module 方式加载且无显式 `module()` 调用时，合成一个带文件位置的 Module 符号
+  （line 0），并预先放入 parseModule，使后续 pushModuleSymbol 把顶层符号挂到它的
+  subSymList。该合成符号最后才 push 到 parseSymList，避免抢占上方注释。
+- `symbol.ts` 的 `parse()` 在创建 ParseSymbol 后调用 `setDefaultModuleName`。
+- module 方式下顶层符号的 `baseModule` 被设置（非全局），但仍可通过 require 引用
+  的文件符号列表被 `M.field` 解析到。

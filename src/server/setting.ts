@@ -44,6 +44,17 @@ export class Setting {
     // export global symbol
     private exportPath = '';
 
+    // rpc prefix: 编译好的正则数组，用于在 getQuerySymbol 中剥离 RPC 前缀
+    private rpcPrefix: RegExp[] = [];
+
+    // file mode
+    private defaultFileMode: 'load' | 'module' = 'load';
+    // 每条配置: {module, glob regex}
+    private fileModeList: { module: boolean; re: RegExp }[] = [];
+
+    // custom load func: 自定义加载函数名集合，等同 require
+    private customLoadFunc = new Set<string>();
+
     private constructor() {}
 
     public static instance() {
@@ -106,6 +117,20 @@ export class Setting {
         if (conf.exportPath) {
             this.exportPath = <string>conf.exportPath || '';
         }
+
+        // rpc prefix
+        this.rpcPrefix = Setting.parseRegexList(<string[]>conf.rpcPrefix);
+
+        // default file mode
+        if (conf.defaultFileMode === 'module' || conf.defaultFileMode === 'load') {
+            this.defaultFileMode = conf.defaultFileMode;
+        }
+
+        // file mode list
+        this.fileModeList = Setting.parseFileModeList(conf.fileMode);
+
+        // custom load func
+        this.customLoadFunc = new Set<string>(<string[]>conf.customLoadFunc || []);
 
         if ('' !== this.rawRootUri) {
             this.rootUri = this.parseRootPath(
@@ -230,5 +255,155 @@ export class Setting {
     /** 获取保存全局符号路径 */
     public getExportPath() {
         return this.exportPath;
+    }
+
+    /**
+     * 解析 rpcPrefix 配置（字符串数组）为编译好的 RegExp 数组
+     * 支持 "pattern/flags" 和 "pattern" 两种写法，内部始终加 'g' 以便全文扫描
+     */
+    private static parseRegexList(list?: string[]): RegExp[] {
+        const out: RegExp[] = [];
+        if (!list || !Array.isArray(list)) {
+            return out;
+        }
+        for (const raw of list) {
+            if (typeof raw !== 'string' || raw.length === 0) {
+                continue;
+            }
+            // 形如 "RPC\[(.*?)\]/g"
+            const m = raw.match(/^(.+)\/([gimsuy]*)$/);
+            let body: string;
+            let flags: string;
+            if (m) {
+                body = m[1];
+                flags = m[2];
+            } else {
+                body = raw;
+                flags = '';
+            }
+            if (flags.indexOf('g') < 0) {
+                flags += 'g';
+            }
+            try {
+                out.push(new RegExp(body, flags));
+            } catch (e) {
+                Utils.instance().error(`invalid rpcPrefix regex: ${raw}`);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 解析 fileMode 配置数组，把 glob 编译成正则
+     */
+    private static parseFileModeList(list?: any[]): { module: boolean; re: RegExp }[] {
+        const out: { module: boolean; re: RegExp }[] = [];
+        if (!list || !Array.isArray(list)) {
+            return out;
+        }
+        for (const item of list) {
+            if (!item || typeof item !== 'object') {
+                continue;
+            }
+            const files = item.files;
+            if (typeof files !== 'string' || files.length === 0) {
+                continue;
+            }
+            const re = Setting.globToRegex(files);
+            if (!re) {
+                continue;
+            }
+            out.push({ module: !!item.module, re: re });
+        }
+        return out;
+    }
+
+    /**
+     * 把一个简单 glob 转成正则。支持 * / ** / ?，分隔符使用 /
+     */
+    private static globToRegex(glob: string): RegExp | null {
+        let re = '';
+        for (let i = 0; i < glob.length; i++) {
+            const c = glob[i];
+            if (c === '*') {
+                if (glob[i + 1] === '*') {
+                    re += '.*';
+                    i++;
+                } else {
+                    re += '[^/]*';
+                }
+            } else if (c === '?') {
+                re += '[^/]';
+            } else if ('\\^$.|+()[]{}!'.indexOf(c) >= 0) {
+                re += '\\' + c;
+            } else {
+                re += c;
+            }
+        }
+        try {
+            return new RegExp('^' + re + '$');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /** 获取 rpc prefix 正则列表 */
+    public getRpcPrefixes(): RegExp[] {
+        return this.rpcPrefix;
+    }
+
+    /** 是否为自定义加载函数（等同 require） */
+    public isCustomLoadFunc(name: string): boolean {
+        return this.customLoadFunc.has(name);
+    }
+
+    /** 获取自定义加载函数名集合 */
+    public getCustomLoadFuncs(): Set<string> {
+        return this.customLoadFunc;
+    }
+
+    /**
+     * 判断某个文件是否以 module 方式加载，并返回推导出的模块名
+     * @return 模块名（如 "modules.sub.mod_a"）；返回 null 表示 load 方式
+     */
+    public getModuleMode(uri: string): string | null {
+        const rel = this.getRelativePath(uri);
+        if (null === rel) {
+            // 无法计算相对路径时退化为 defaultFileMode 判断
+            return this.defaultFileMode === 'module' ? '' : null;
+        }
+
+        // 先匹配 fileMode 列表，首个匹配生效
+        for (const item of this.fileModeList) {
+            if (item.re.test(rel)) {
+                return item.module ? this.pathToModuleName(rel) : null;
+            }
+        }
+
+        // 使用默认模式
+        return this.defaultFileMode === 'module' ? this.pathToModuleName(rel) : null;
+    }
+
+    /** 计算文件相对 root 的路径（用 / 分隔），失败返回 null */
+    private getRelativePath(uri: string): string | null {
+        if ('' === this.rootUri || !uri.startsWith(this.rootUri)) {
+            return null;
+        }
+        let rel = uri.substring(this.rootUri.length);
+        // 去掉开头的 /
+        while (rel.charAt(0) === '/') {
+            rel = rel.substring(1);
+        }
+        return rel;
+    }
+
+    /** 把相对路径转成模块名：去掉 .lua，/ 替换为 . */
+    private pathToModuleName(rel: string): string {
+        let name = rel.replace(/\\/g, '/');
+        if (name.endsWith('.lua')) {
+            name = name.substring(0, name.length - '.lua'.length);
+        }
+        name = name.replace(/\//g, '.');
+        return name;
     }
 }

@@ -448,6 +448,66 @@ files:${files}, version:${this.customOptions.version}`,
         let end: number = pos.character;
 
         /*
+         * RPC 前缀剥离：当行中出现 RPC[addr].X.Y 时，配置了 rpcPrefix 正则后，
+         * 若光标位于前缀之后的符号部分，则从前缀后的 "." 或 ":" 开始提取 base/name，
+         * 这样 X 会被当作顶层符号、X.Y 会被当作 base=X name=Y，而不会把前缀卷入 base。
+         * 若光标位于前缀本身（如 RPC/Call）上，则不剥离，正常搜索前缀符号。
+         */
+        const prefixes = Setting.instance().getRpcPrefixes();
+        let effectiveStart = 0;
+        if (prefixes.length > 0) {
+            // 第一遍：判断光标是否落在某个前缀匹配区间内（[m.index, matchEnd]）
+            let cursorOnPrefix = false;
+            for (const re of prefixes) {
+                re.lastIndex = 0;
+                let m: RegExpExecArray | null;
+                while ((m = re.exec(text)) !== null) {
+                    const matchEnd = m.index + m[0].length;
+                    if (m.index <= pos.character && pos.character <= matchEnd) {
+                        cursorOnPrefix = true;
+                        break;
+                    }
+                    if (m[0].length === 0) {
+                        re.lastIndex++;
+                    }
+                }
+                if (cursorOnPrefix) {
+                    break;
+                }
+            }
+
+            // 第二遍：光标不在前缀上时，找最后一个结束于光标之前、且紧跟 . 或 : 的前缀，
+            // 取其后的符号起点作为 effectiveStart（多个前缀时取最靠后的，保证光标落在其符号段内）
+            if (!cursorOnPrefix) {
+                for (const re of prefixes) {
+                    re.lastIndex = 0;
+                    let m: RegExpExecArray | null;
+                    while ((m = re.exec(text)) !== null) {
+                        const matchEnd = m.index + m[0].length;
+                        if (matchEnd > pos.character) {
+                            break;
+                        }
+                        const after = text.charAt(matchEnd);
+                        if (after === '.' || after === ':') {
+                            const symStart = matchEnd + 1;
+                            if (symStart <= pos.character && symStart > effectiveStart) {
+                                effectiveStart = symStart;
+                            }
+                        }
+                        if (m[0].length === 0) {
+                            re.lastIndex++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 仅截取前缀之后的部分用于 base/name 提取，位置计算仍基于 pos.character 和长度
+        const trimLeft = effectiveStart > 0
+            ? leftText.substring(effectiveStart)
+            : leftText;
+
+        /*
          * https://javascript.info/regexp-groups
          * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
          * \w是匹配单词字符，即a-zA-Z0-9_
@@ -457,7 +517,7 @@ files:${files}, version:${this.customOptions.version}`,
          * A:B.C.D.E:F ==> Array ["A:B.C.D.E:F", "E:", "F"]
          * ABC ==> Array ["ABC", undefined, "ABC"]
          */
-        const leftWords = leftText.match(/(\w+[.|:])*(\w+)?$/);
+        const leftWords = trimLeft.match(/(\w+[.|:])*(\w+)?$/);
         if (leftWords) {
             // match在非贪婪模式下，总是返回 总匹配字符串，然后是依次匹配到字符串
             if (leftWords[1]) {
@@ -491,11 +551,11 @@ files:${files}, version:${this.customOptions.version}`,
         }
 
         const dotPos = text.lastIndexOf('.', beg);
-        if (dotPos > 0) {
+        if (dotPos >= effectiveStart && dotPos > 0) {
             indexer = '.';
         }
         const colonPos = text.lastIndexOf(':', beg);
-        if (colonPos > dotPos) {
+        if (colonPos >= effectiveStart && colonPos > dotPos) {
             indexer = ':';
         }
 

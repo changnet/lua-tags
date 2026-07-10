@@ -10,6 +10,8 @@ import { Server } from './server';
 
 import { AnnotationRegistry } from './annotation';
 
+import { Setting } from './setting';
+
 // 注解类型模式 - 支持 ---@ 和 -- @ 两种格式（匹配原始行文本）
 const ANNOTATION_TYPE_PATTERN = /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?(\w+)/;
 
@@ -26,24 +28,45 @@ export class GoToDefinition {
         return GoToDefinition.ins;
     }
 
-    // require("aaa.bbb")这种，则打开对应的文件
+    // require + 自定义加载函数名列表
+    private static loadFuncNames(): string[] {
+        const names = ['require'];
+        const customs = Setting.instance().getCustomLoadFuncs();
+        customs.forEach((n) => {
+            if (n && names.indexOf(n) < 0) {
+                names.push(n);
+            }
+        });
+        return names;
+    }
+
+    // require("aaa.bbb")或 import("aaa.bbb")/include("aaa.bbb.lua") 这种，打开对应文件
     private getRequireDefinition(
         text: string,
         pos: Position,
     ): Definition | null {
+        const names = GoToDefinition.loadFuncNames();
+        const re = new RegExp(
+            '(?:' + names.join('|') + ')\\s*[(]?\\s*"([/|\\\\.\\w]+)"\\s*[)]?',
+        );
         // 注意特殊情况下，可能会有 require "a/b" require "a\b"
-        const found = text.match(/require\s*[(]?\s*"([/|\\|.|\w]+)"\s*[)]?/);
+        const found = text.match(re);
         if (!found || !found[1]) {
             return null;
         }
 
-        // 光标的位置不在require("a.b.c")范围内
+        // 光标的位置不在 require("a.b.c") 范围内
         const start = text.indexOf(found[0]);
         if (start > pos.character || pos.character > start + found[0].length) {
             return null;
         }
 
-        const uri = SymbolEx.instance().getRequireUri(found[1]);
+        // 自定义加载函数可能带 .lua 后缀，去掉后再解析 uri
+        let modPath = found[1];
+        if (modPath.endsWith('.lua')) {
+            modPath = modPath.substring(0, modPath.length - '.lua'.length);
+        }
+        const uri = SymbolEx.instance().getRequireUri(modPath);
         if ('' === uri) {
             return null;
         }
