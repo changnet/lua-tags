@@ -142,7 +142,9 @@ export class HoverProvider {
                 let displayParams = parameters;
                 if (funcAnnotation && funcAnnotation.params.length > 0) {
                     displayParams = funcAnnotation.params
-                        .map(p => `${p.name}: ${SymbolEx.instance().formatType(p.type)}`)
+                        .map(p => p.type
+                            ? `${p.name}: ${SymbolEx.instance().formatType(p.type)}`
+                            : p.name)
                         .join(', ');
                 }
 

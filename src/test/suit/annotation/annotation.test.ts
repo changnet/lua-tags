@@ -40,6 +40,21 @@ suite('Annotation Test Suite', () => {
         }]);
     });
 
+    test("@param type recognition: show type only when recognizable, else only name", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_function.lua"));
+        await testHover(uri, new vscode.Position(25, 12), [{
+            contents: [{ value: [
+                "```lua",
+                "function DataCache_get(tbl_name, keys, fields, opts: DataOpts) : any",
+                "--- @param tbl_name 表名",
+                "--- @param keys 数据唯一标识的键值对，这个要做缓存key，必须按顺序。比如{\"pid\", 999, \"type\", 1}",
+                "--- @param fields 需要读取的字段列表，如{\"name\", \"level\"}，nil表示读取全部字段",
+                "--- @param opts DataOpts 可选项，支持ikey字段指定需要还原数字键的字段列表，例如{\"data\", \"vars\"}",
+                "```",
+            ].join("\n") } as vscode.MarkdownString],
+        }]);
+    });
+
     test("test hover on type name in @type annotation", async () => {
         const uri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
         await testHover(uri, new vscode.Position(7, 9), [{

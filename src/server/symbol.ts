@@ -851,7 +851,7 @@ export class SymbolEx {
                 if (funcAnnotation) {
                     const paramAnnotation = funcAnnotation.params.find(p => p.name === sym.name);
                     if (paramAnnotation) {
-                        return paramAnnotation.type;
+                        return paramAnnotation.type ?? null;
                     }
                 }
             }
@@ -922,10 +922,15 @@ export class SymbolEx {
     /**
      * 格式化类型为字符串
      */
-    public formatType(type: AnnotationType): string {
+    public formatType(type: AnnotationType | undefined): string {
+        if (!type) {
+            return '';
+        }
         if (type.func) {
             const params = type.func.params
-                .map(p => `${p.name}: ${this.formatType(p.type)}`)
+                .map(p => p.type
+                    ? `${p.name}: ${this.formatType(p.type)}`
+                    : p.name)
                 .join(', ');
             const returns = type.func.returns
                 ? `:${this.formatType(type.func.returns)}`

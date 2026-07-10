@@ -6,6 +6,8 @@ All notable changes to the "lua-tags" extension will be documented in this file.
 
 1. 增加注解（Annotation）支持
 2. luacheck更新至1.2.0
+3. 增加Lua5.4、Lua5.5支持
+4. 增加RPC前缀、自定义加载
 
 ## [1.0.16] 2021-10-13
 

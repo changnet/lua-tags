@@ -21,7 +21,7 @@ export interface AnnotationType {
 // 函数参数注解
 export interface AnnotationParam {
     name: string;
-    type: AnnotationType;
+    type?: AnnotationType;   // 类型无法识别（如只有描述）时为 undefined
     description?: string;
 }
 

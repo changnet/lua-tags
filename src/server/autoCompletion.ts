@@ -99,7 +99,9 @@ export class AutoCompletion {
                 parameters = funcAnnotation.params
                     .map(
                         (p) =>
-                            `${p.name}: ${SymbolEx.instance().formatType(p.type)}`,
+                            p.type
+                                ? `${p.name}: ${SymbolEx.instance().formatType(p.type)}`
+                                : p.name,
                     )
                     .join(', ');
             }
@@ -116,10 +118,13 @@ export class AutoCompletion {
             // 添加@return信息
             if (funcAnnotation && funcAnnotation.params.length > 0) {
                 for (const param of funcAnnotation.params) {
+                    const typeDesc = param.type
+                        ? SymbolEx.instance().formatType(param.type)
+                        : '';
                     if (param.description) {
-                        mdDoc += `\n-- @param ${param.name} ${SymbolEx.instance().formatType(param.type)} ${param.description}`;
-                    } else {
-                        mdDoc += `\n-- @param ${param.name} ${SymbolEx.instance().formatType(param.type)}`;
+                        mdDoc += `\n-- @param ${param.name}${typeDesc ? ' ' + typeDesc : ''} ${param.description}`;
+                    } else if (typeDesc) {
+                        mdDoc += `\n-- @param ${param.name} ${typeDesc}`;
                     }
                 }
             }

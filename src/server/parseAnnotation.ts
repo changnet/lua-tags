@@ -21,15 +21,121 @@ import {
 // @class ClassName [description]
 const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s*:\s*(\w+))?(?:\s+(?:-\s*)?(.*))?$/;
 // @field fieldName typeName [description]
-const FIELD_PATTERN = /^-?@field\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
+const FIELD_LINE = /^-?@field\s+(\w+)\s+(.*)$/;
 // @param paramName typeName [description]
-const PARAM_PATTERN = /^-?@param\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
+const PARAM_LINE = /^-?@param\s+(\w+)\s+(.*)$/;
 // @return typeName [description]
-const RETURN_PATTERN = /^-?@return\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
+const RETURN_LINE = /^-?@return\s+(.*)$/;
 // @type typeName [description]
-const TYPE_PATTERN = /^-?@type\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
+const TYPE_LINE = /^-?@type\s+(.*)$/;
 // @alias AliasName typeName [description]
-const ALIAS_PATTERN = /^-?@alias\s+(\w+)\s+(.+?)(?:\s+(?:-\s*)?(.*))?$/;
+const ALIAS_LINE = /^-?@alias\s+(\w+)\s+(.*)$/;
+
+/**
+ * 判断一个字符串是否「看起来像类型」。
+ *
+ * 类型表达式的合法字符集为：标识符字符（`\w`）、点（module 路径）、
+ * 方括号/尖括号/圆括号（数组/泛型/函数）、逗号、冒号、空格（仅出现在括号内部，
+ * 例如 `table<string, number>`、`func(a: number)`）。
+ * 描述性文字（中文、全角标点、引号等）不在合法字符集中，因此可据此区分。
+ *
+ * 此外类型表达式必须以标识符字符（字母/下划线）开头，否则视为没有类型、
+ * 整段都是描述。
+ */
+function isTypeLike(s: string): boolean {
+    s = s.trim();
+    if (s === '') {
+        return false;
+    }
+    // 必须以字母/下划线开头
+    if (!/^[A-Za-z_]/.test(s)) {
+        return false;
+    }
+    // 只允许类型语法字符
+    return /^[\w.<>\[\](),: ]+$/.test(s);
+}
+
+/**
+ * 从注解尾部（@param/@field/@return/@type/@alias 去掉名字/关键字后的部分）中
+ * 拆分出「类型」与「描述」。
+ *
+ * 两种情形：
+ *  1. 包含类型：`@param name Type desc` —— 第一个「类型表达式」（括号配平地扫描，
+ *     使 `table<K,V>`/`func(...)`/`Foo[]` 等保持完整）若通过 isTypeLike 校验，
+ *     则作为类型，剩余部分（去掉可选的 `-` 前缀）作为描述。
+ *  2. 不包含类型：`@param name 这是一段描述` —— 首个字符不是标识符（如中文），
+ *     或首个 token 不是合法类型，则整段视为描述，不显示类型。
+ *
+ * 关键点：类型表达式可能包含括号字面量（如 `{"pid", 999}`、函数类型
+ * `func(a:number)`、泛型 `table<K,V>`），内部允许空格和逗号；只有括号层级为 0
+ * 的空格才作为「类型/描述」的分隔符，避免把描述里的 `{}` 截断。
+ */
+function extractTypeAndDescription(rest: string): { typeStr?: string; description?: string } {
+    rest = rest.trim();
+    if (rest === '') {
+        return {};
+    }
+
+    // 不以标识符字符开头 → 没有类型，整段都是描述
+    if (!/^[A-Za-z_]/.test(rest)) {
+        let desc = rest;
+        if (desc.startsWith('-')) {
+            desc = desc.substring(1).trim();
+        }
+        return { description: desc.length > 0 ? desc : undefined };
+    }
+
+    let depth = 0;
+    let i = 0;
+    let lastNonSpace = '';
+    for (; i < rest.length; i++) {
+        const c = rest[i];
+        if (c === '(' || c === '<' || c === '{') {
+            depth++;
+            lastNonSpace = c;
+        } else if (c === ')' || c === '>' || c === '}') {
+            if (depth > 0) {
+                depth--;
+            }
+            lastNonSpace = c;
+        } else if (c === ':') {
+            // 冒号（如 func(...): 返回值）属于类型表达式的一部分，
+            // 其后紧跟的空格不应作为「类型/描述」分隔符
+            lastNonSpace = ':';
+        } else if (c === ' ') {
+            // 仅在括号层级为 0 且前一个非空格字符不是冒号时，
+            // 才把空格视为类型与描述的分隔符
+            if (depth === 0 && lastNonSpace !== ':') {
+                break;
+            }
+            // 空格本身不更新 lastNonSpace
+        } else {
+            lastNonSpace = c;
+        }
+    }
+
+    const candidate = rest.substring(0, i).trim();
+    const restAfter = rest.substring(i).trim();
+
+    if (candidate && isTypeLike(candidate)) {
+        let desc = restAfter;
+        // 兼容 `type - description` 写法，去掉描述前的连字符
+        if (desc.startsWith('-')) {
+            desc = desc.substring(1).trim();
+        }
+        return {
+            typeStr: candidate,
+            description: desc.length > 0 ? desc : undefined,
+        };
+    }
+
+    // 不是合法类型：整段作为描述，不显示类型
+    let desc = rest;
+    if (desc.startsWith('-')) {
+        desc = desc.substring(1).trim();
+    }
+    return { description: desc.length > 0 ? desc : undefined };
+}
 
 // 注解解析结果
 export interface AnnotationResult {
@@ -146,64 +252,69 @@ function parseAnnotationLine(line: string): AnnotationLine | null {
     }
 
     // @field
-    const fieldMatch = line.match(FIELD_PATTERN);
+    const fieldMatch = line.match(FIELD_LINE);
     if (fieldMatch) {
+        const { typeStr, description } = extractTypeAndDescription(fieldMatch[2]);
         return {
             type: 'field',
             data: {
                 name: fieldMatch[1],
-                typeStr: fieldMatch[2].trim(),
-                description: fieldMatch[3]?.trim() || undefined,
+                typeStr,
+                description,
             },
         };
     }
 
     // @param
-    const paramMatch = line.match(PARAM_PATTERN);
+    const paramMatch = line.match(PARAM_LINE);
     if (paramMatch) {
+        const { typeStr, description } = extractTypeAndDescription(paramMatch[2]);
         return {
             type: 'param',
             data: {
                 name: paramMatch[1],
-                typeStr: paramMatch[2].trim(),
-                description: paramMatch[3]?.trim() || undefined,
+                typeStr,
+                description,
             },
         };
     }
 
     // @return
-    const returnMatch = line.match(RETURN_PATTERN);
+    const returnMatch = line.match(RETURN_LINE);
     if (returnMatch) {
+        const { typeStr, description } = extractTypeAndDescription(returnMatch[1]);
         return {
             type: 'return',
             data: {
-                typeStr: returnMatch[1].trim(),
-                description: returnMatch[2]?.trim() || undefined,
+                typeStr,
+                description,
             },
         };
     }
 
     // @type
-    const typeMatch = line.match(TYPE_PATTERN);
+    const typeMatch = line.match(TYPE_LINE);
     if (typeMatch) {
+        const { typeStr, description } = extractTypeAndDescription(typeMatch[1]);
         return {
             type: 'type',
             data: {
-                typeStr: typeMatch[1].trim(),
-                description: typeMatch[2]?.trim() || undefined,
+                typeStr,
+                description,
             },
         };
     }
 
     // @alias
-    const aliasMatch = line.match(ALIAS_PATTERN);
+    const aliasMatch = line.match(ALIAS_LINE);
     if (aliasMatch) {
+        const { typeStr, description } = extractTypeAndDescription(aliasMatch[2]);
         return {
             type: 'alias',
             data: {
                 name: aliasMatch[1],
-                typeStr: aliasMatch[2].trim(),
-                description: aliasMatch[3]?.trim() || undefined,
+                typeStr,
+                description,
             },
         };
     }
@@ -398,7 +509,7 @@ function processCommentBlock(
                     const data = annotation.data;
                     const field: FieldAnnotation = {
                         name: data.name,
-                        type: parseType(data.typeStr),
+                        type: data.typeStr ? parseType(data.typeStr) : createSimpleType('any'),
                         description: data.description,
                         uri: uri,
                         line: blockStartLine + lineIdx,
@@ -415,7 +526,7 @@ function processCommentBlock(
                 const data = annotation.data;
                 currentFunction.params.push({
                     name: data.name,
-                    type: parseType(data.typeStr),
+                    type: data.typeStr ? parseType(data.typeStr) : undefined,
                     description: data.description,
                 });
                 break;
@@ -425,14 +536,14 @@ function processCommentBlock(
                     currentFunction = { params: [], returns: undefined };
                 }
                 const data = annotation.data;
-                currentFunction.returns = parseType(data.typeStr);
+                currentFunction.returns = data.typeStr ? parseType(data.typeStr) : undefined;
                 break;
             }
             case 'type': {
                 if (targetSym) {
                     const data = annotation.data;
                     const typeAnnotation: TypeAnnotation = {
-                        type: parseType(data.typeStr),
+                        type: data.typeStr ? parseType(data.typeStr) : createSimpleType('any'),
                         description: data.description,
                         uri: uri,
                         line: targetSym.location.range.start.line,
@@ -445,7 +556,7 @@ function processCommentBlock(
                 const data = annotation.data;
                 const alias: AliasAnnotation = {
                     name: data.name,
-                    type: parseType(data.typeStr),
+                    type: data.typeStr ? parseType(data.typeStr) : createSimpleType('any'),
                     description: data.description,
                     uri: uri,
                     line: blockStartLine + lineIdx,

@@ -34,7 +34,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "\\s*-?(@param)\\s+(\\w+)(?:\\s+([\\w\\[\\]<>(),:.]+))?"
+            "match": "\\s*-?(@param)\\s+([A-Za-z0-9_]+)(?:\\s+([A-Za-z_][A-Za-z0-9_\\[\\]<>(),:. ]*))?"
         },
         "doc-return-support": {
             "captures": {
@@ -45,7 +45,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "\\s*-?(@return)\\s*([\\w\\[\\]<>(),:.]+)?"
+            "match": "\\s*-?(@return)\\s*([A-Za-z_][A-Za-z0-9_\\[\\]<>(),:. ]*)?"
         },
         "doc-type-support": {
             "captures": {
@@ -56,7 +56,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "\\s*-?(@type)\\s*([\\w\\[\\]<>(),:.]+)?"
+            "match": "\\s*-?(@type)\\s*([A-Za-z_][A-Za-z0-9_\\[\\]<>(),:. ]*)?"
         },
         "doc-field-support": {
             "captures": {
@@ -70,7 +70,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "\\s*-?(@field)\\s+(\\w+)(?:\\s+([\\w\\[\\]<>(),:.]+))?"
+            "match": "\\s*-?(@field)\\s+([A-Za-z0-9_]+)(?:\\s+([A-Za-z_][A-Za-z0-9_\\[\\]<>(),:. ]*))?"
         },
         "doc-class-support": {
             "captures": {
@@ -84,7 +84,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "\\s*-?(@class)\\s+(\\w+)(?:\\s*:\\s*(\\w+))?"
+            "match": "\\s*-?(@class)\\s+([A-Za-z0-9_]+)(?:\\s*:\\s*([A-Za-z0-9_]+))?"
         },
         "doc-alias-support": {
             "captures": {
@@ -98,7 +98,7 @@
                     "name": "entity.name.type"
                 }
             },
-            "match": "\\s*-?(@alias)\\s+(\\w+)(?:\\s+([\\w\\[\\]<>(),:.]+))?"
+            "match": "\\s*-?(@alias)\\s+([A-Za-z0-9_]+)(?:\\s+([A-Za-z_][A-Za-z0-9_\\[\\]<>(),:. ]*))?"
         }
     }
 }

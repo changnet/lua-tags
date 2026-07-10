@@ -1,8 +1,10 @@
 # lua-tags
 
-Lua IntelliSense for Visual Studio Code.
+Lua编码辅助Visual Studio Code插件
 
-## Features
+本插件通过解析Lua文件并缓存必要的符号(tags)，在极小的资源占用(一个大项目大约400M内存，其他插件2G多)提供常见的功能。由于只处理必要的符号，一些局部变量因此是不会被解析的。
+
+## 功能
 
 - Hover
 - Lint(luacheck)
@@ -169,10 +171,7 @@ local a = get_obj()
 
 ```json
 {
-    "lua-tags.rpcPrefix": [
-        "RPC\\[(.*?)\\]/g",
-        "Call\\[(.*?)\\]/g"
-    ]
+    "lua-tags.rpcPrefix": ["RPC\\[(.*?)\\]/g", "Call\\[(.*?)\\]/g"]
 }
 ```
 
@@ -189,20 +188,17 @@ local a = get_obj()
 Lua 有两种常见的文件加载约定：
 
 - `load`（普通 `loadfile`）：文件顶层全局变量就是真正的全局符号。
-- `module`（Lua 5.1 的 `module("name", package.seeall)`）：文件顶层全局变量会被
-  挂到模块名下，不污染全局。
+- `module`（Lua 5.1 的 `module("name", package.seeall)`）：文件顶层全局变量会被挂到模块名下，不污染全局。
 
-`lua-tags.defaultFileMode` 设置全局默认的加载方式，取值 `load` 或 `module`，默认
-`load`。
+`lua-tags.defaultFileMode` 设置全局默认的加载方式，取值 `load` 或 `module`，默认`load`。
 
-`lua-tags.fileMode` 是一个数组，每项用 glob 指定一批文件单独覆盖默认值，匹配规则
-为「首个匹配生效」，glob 相对工程根目录：
+`lua-tags.fileMode` 是一个数组，每项用 glob 指定一批文件单独覆盖默认值，匹配规则为「首个匹配生效」，glob 相对工程根目录：
 
 ```json
 {
     "lua-tags.defaultFileMode": "load",
     "lua-tags.fileMode": [
-        { "module": true,  "files": "modules/*/*.lua" },
+        { "module": true, "files": "modules/*/*.lua" },
         { "module": false, "files": "global/*/*.lua" }
     ]
 }
@@ -225,9 +221,7 @@ glob 语法支持 `*`（匹配单层路径段，不含 `/`）、`**`（匹配任
 
 ## 自定义加载函数（customLoadFunc）
 
-除 `require` 之外，有些项目会用自定义函数（如 `import`、`include`）来加载模块。
-配置 `lua-tags.customLoadFunc` 后，这些函数与 `require` 完全等同处理（统一走
-`isLoadFunc` 判断）：
+除 `require` 之外，有些项目会用自定义函数（如 `import`、`include`）来加载模块。配置 `lua-tags.customLoadFunc` 后，这些函数与 `require` 完全等同处理
 
 ```json
 {
@@ -239,15 +233,11 @@ glob 语法支持 `*`（匹配单层路径段，不含 `/`）、`**`（匹配任
 
 ```lua
 local M = import("a.b.c")
-local N = include("a.b.c.lua")   -- 带 .lua 后缀会自动去掉
+local M = include("a.b.c.lua")
+local M = include("a/b/c.lua")
 ```
 
-效果与 `local M = require("a.b.c")` 一致：
-
-- `M.field` / `N.field` 能正确解析到 `a.b.c` 模块内的符号。
-- 在 `import("a.b.c")` / `include("a.b.c.lua")` 上「跳转到定义」会打开对应文件。
-- 输入 `import("a.` 时支持路径自动补全（与 `require` 一致）。
-- 字符串参数里的 `.lua` 后缀会被自动剥离，`/`、`\` 也会归一化为 `.`。
+效果与 `local M = require("a.b.c")` 一致
 
 ## Thanks
 
