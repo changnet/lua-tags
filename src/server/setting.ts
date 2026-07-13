@@ -188,10 +188,50 @@ export class Setting {
     }
 
     private isUriExclude(uri: string, excludes: string[]): boolean {
+        if (!excludes || excludes.length === 0) {
+            return false;
+        }
+
+        // 计算文件相对 rootUri 的路径（统一用 / 分隔），用于和配置中的相对路径比较。
+        // 旧实现误用了 this.rootDir（相对工程根目录的配置项，通常是空串），
+        // 拼接出的正则永远无法命中完整的 file:// uri，导致 excludeDir 完全不生效。
+        let rel = uri;
+        if (this.rootUri && uri.startsWith(this.rootUri)) {
+            rel = uri.substring(this.rootUri.length);
+        }
+        rel = rel.replace(/^\/+/, '').replace(/\\/g, '/');
+
         for (const dir of excludes) {
-            const re = new RegExp(`${this.rootDir}/${dir}`, 'g');
-            if (uri.match(re)) {
+            const normDir = dir.replace(/\\/g, '/').replace(/^\/+/, '');
+            if (normDir === '') {
+                continue;
+            }
+
+            // 1) 精确等于该路径（配置了一个具体文件或目录本身，相对 workspace 根）
+            if (rel === normDir) {
                 return true;
+            }
+
+            // 2) 该路径是父目录：rel 以 "dir/" 开头
+            //    如配置 "logic/hsetting"，则 logic/hsetting/foo.lua 与
+            //    logic/hsetting/sub/bar.lua 都会被排除
+            if (rel.startsWith(normDir + '/')) {
+                return true;
+            }
+
+            // 3) 支持 * 通配（匹配除 / 外的任意字符），用于排除某个目录下的文件，
+            //    如配置 "exclude/*" 排除 exclude/ 下的直接文件
+            if (normDir.indexOf('*') >= 0) {
+                const re = new RegExp(
+                    '^' +
+                        normDir
+                            .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+                            .replace(/\*/g, '[^/]*') +
+                        '(?:/|$)',
+                );
+                if (re.test(rel)) {
+                    return true;
+                }
             }
         }
 
@@ -210,10 +250,13 @@ export class Setting {
             isInRoot = true;
         }
 
-        // 是否被排除
-        const isExclude = this.isUriExclude(uri, this.excludeDir);
+        // 是否被排除（excludeDir）：排除的文件/目录完全不解析，
+        // 不进入符号索引、不注册注解，插件启动时也不会去解析它
+        if (this.isUriExclude(uri, this.excludeDir)) {
+            return FileParseType.FPT_NONE;
+        }
 
-        if (!isInRoot || isExclude) {
+        if (!isInRoot) {
             ft = ft | FileParseType.FPT_SINGLE;
         }
 

@@ -177,4 +177,57 @@ suite('Annotation Test Suite', () => {
             contents: [{ value: "```lua\nclass MailObj {\n    subject : string -- 邮件主题\n    body : string -- 邮件正文\n}\n\n-- 邮件对象\n```" } as vscode.MarkdownString],
         }]);
     });
+
+    // -- 带点类型名（整体，不是多层嵌套表）
+    // annotation_dotted.lua:
+    //   line 1: -- @class protobuf.a.b - 带点类型
+    //   line 2: -- @field c number - 字段c
+    //   line 4: -- @type protobuf.a.b
+    //   line 5: local x = {}
+    //   line 8: local v = x.c
+    test("test go to definition on dotted type name in @type annotation", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_dotted.lua"));
+        await testGoToDefinition(uri, new vscode.Position(4, 9), [{
+            uri: uri,
+            range: new vscode.Range(1, 10, 1, 22),
+        }]);
+    });
+
+    test("test go to definition on dotted class name", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_dotted.lua"));
+        await testGoToDefinition(uri, new vscode.Position(1, 10), [{
+            uri: uri,
+            range: new vscode.Range(1, 10, 1, 22),
+        }]);
+    });
+
+    test("test hover on dotted-typed variable", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_dotted.lua"));
+        await testHover(uri, new vscode.Position(5, 7), [{
+            contents: [{ value: "```lua\nlocal x : protobuf.a.b\n-- @type protobuf.a.b\n```" } as vscode.MarkdownString],
+        }]);
+    });
+
+    test("test dotted type field completion", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_dotted.lua"));
+        const actualList = (await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider',
+            uri,
+            new vscode.Position(8, 12),
+        )) as vscode.CompletionList;
+
+        const names = actualList.items.map(i => i.label as string).sort();
+        assert.ok(names.includes('c'), `should include field 'c', got: ${names}`);
+    });
+
+    // -- excludeDir 配置生效：被排除的文件不应进入符号索引
+    // helper 在激活时已设置 excludeDir: ["exclude/*"]，exclude/excludeme.lua
+    // 的相对路径为 exclude/excludeme.lua，应被排除，符号不可被检索到
+    test("test excludeDir: excluded file symbol is not indexed", async () => {
+        const ws = await vscode.commands.executeCommand(
+            'vscode.executeWorkspaceSymbolProvider',
+            'EXCLUDED_SYMBOL_XYZ',
+        ) as vscode.SymbolInformation[];
+        assert.strictEqual(ws.length, 0, 'excluded symbol should not be indexed');
+    });
 });

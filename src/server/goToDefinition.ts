@@ -15,8 +15,9 @@ import { Setting } from './setting';
 import { ParseSymbol } from './parseSymbol';
 
 // 注解类型模式 - 支持 ---@ 和 -- @ 两种格式（匹配原始行文本）
+// 类型名允许带点（如 protobuf.a.b），作为一个整体跳转
 const ANNOTATION_TYPE_PATTERN =
-    /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?(\w+)/;
+    /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?([\w.]+)/;
 
 export class GoToDefinition {
     private static ins: GoToDefinition;

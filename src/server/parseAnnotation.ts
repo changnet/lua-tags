@@ -19,8 +19,10 @@ import {
 // 注解正则表达式
 // extractCommentText 已经去掉了 -- 或 --- 前缀，所以直接匹配 @annotation
 // @class ClassName [description]
-const CLASS_PATTERN = /^-?@class\s+(\w+)(?:\s*:\s*(\w+))?(?:\s+(?:-\s*)?(.*))?$/;
+// 类型名允许带点（如 protobuf.a.b），作为一个整体，不是多层嵌套表
+const CLASS_PATTERN = /^-?@class\s+([\w.]+)(?:\s*:\s*([\w.]+))?(?:\s+(?:-\s*)?(.*))?$/;
 // @field fieldName typeName [description]
+// 字段/参数名保持为单一标识符(\w+)；类型部分（含点）交给 extractTypeAndDescription
 const FIELD_LINE = /^-?@field\s+(\w+)\s+(.*)$/;
 // @param paramName typeName [description]
 const PARAM_LINE = /^-?@param\s+(\w+)\s+(.*)$/;
@@ -29,7 +31,8 @@ const RETURN_LINE = /^-?@return\s+(.*)$/;
 // @type typeName [description]
 const TYPE_LINE = /^-?@type\s+(.*)$/;
 // @alias AliasName typeName [description]
-const ALIAS_LINE = /^-?@alias\s+(\w+)\s+(.*)$/;
+// 别名同样允许带点（如 protobuf.a.b）
+const ALIAS_LINE = /^-?@alias\s+([\w.]+)\s+(.*)$/;
 
 /**
  * 判断一个字符串是否「看起来像类型」。
