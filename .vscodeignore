@@ -13,3 +13,9 @@ vsc-extension-quickstart.md
 *.gif
 grammars_injection_highlight.png
 stl/doc_*/**
+.workbuddy/**
+.agents/**
+knowledge.md
+.eslintignore
+.vscode-test.js
+HOW.md

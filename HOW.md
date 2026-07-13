@@ -75,3 +75,35 @@ npm install
 执行`npm remove @types/luaparse`
 
 注意typescript默认会查找与`luaparser.js`同级的`index.d.ts`，如果存在则使用。现在这个文件是放在`types`目录，则`luaparse`的`package.json`里要增加`types`字段指定`index.d.ts`
+
+## 版本发布
+
+https://code.visualstudio.com/api/working-with-extensions/publishing-extension
+
+1. 安装vsce
+
+```
+npm install -g @vscode/vsce
+```
+
+2. 修改`package.json`中的版本号，检查`CHANGELOG.md`是否修改
+
+3. 打包
+
+```
+$ cd myExtension
+$ vsce package
+# myExtension.vsix generated
+$ vsce publish
+# <publisher id>.myExtension published to VS Code Marketplace
+```
+
+如果是预发布
+
+```
+vsce package --pre-release
+vsce publish --pre-release
+```
+
+4. 配置密钥
+   上面的`publish`会提示输入密钥，但创建`Azure DevOps`的`Microsoft Entra ID`极其麻烦，如果没有其他需求建议不要用`publish`命令，直接登录[Visual Studio Marketplace Management](https://marketplace.visualstudio.com/)，手动上传vsix包来发布。

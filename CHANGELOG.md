@@ -2,7 +2,7 @@
 
 All notable changes to the "lua-tags" extension will be documented in this file.
 
-## [2.0.1] 2026-07-08
+## [2.0.1] 2026-07-12
 
 1. 增加注解（Annotation）支持
 2. luacheck更新至1.2.0
