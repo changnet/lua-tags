@@ -1,52 +1,48 @@
 # lua-tags
 
+🌐 [English](README.en.md)
+
 Lua编码辅助Visual Studio Code插件
 
-本插件通过解析Lua文件并缓存必要的符号(tags)，在极小的资源占用(一个大项目大约400M内存，其他插件2G多)提供常见的功能。由于只处理必要的符号，一些局部变量因此是不会被解析的。
+本插件通过解析Lua文件并缓存必要的符号(tags)，在极小的资源占用(一个大项目大约400M内存，其他插件2G多)提供常见的功能。由于只处理必要的符号，一些变量是不会被解析（比如在if语句中写一个全局变量）。
 
 ## 功能
 
-- Hover
-- Lint(luacheck)
-- Signature Helps
-- Document Symbol
-- Auto Completion
-- Workspace Symbol
-- Go To Definition
+- 悬停提示（Hover）
+- 函数参数提示（Signature Helps）
+- 文档符号搜索（Document Symbol）
+- 自动实例（Auto Completion）
+- 全局符号搜索（Workspace Symbol）
+- 定义跳转（Go To Definition）
+- 代码检查（Lint(luacheck)）
 
 ![animation](animation.gif)
 
-## Configure & Usage
+## 用法
 
-Download and installation are available at [Visual Studio Code Extension
-Marketplace](https://marketplace.visualstudio.com/items?itemName=changnet.lua-tags).
+在VSCode市场[Visual Studio Code Extension Marketplace](https://marketplace.visualstudio.com/items?itemName=changnet.lua-tags)安装好插件。
 
-Once installed, all configure options details are at extension Contributions page
-
-Hot configure reload NOT support, restart Visual Studio Code to activate new
-configure after configure changed
+安装好后，在插件的`FEATURES`标签可以看到所有的配置，根据自己的需求进行配置即可。
 
 ## luacheck
 
-lua-tags already integret with luacheck(win32 and linux)，if using MacOS or other
-platform, specify luaCheckPath at configure or add luacheck to os excuate PATH
+lua-tags已经集成luacheck，但如果希望使用特定的luacheck版本，可以自己在配置中指定luacheck的位置。
 
-## export global symbols
+一个复杂的项目，luacheck至少要进行以下配置
 
-ctrl + shift + p: "lua-tags: export global symbols" can export all global
-symbols to file(lua-tags-global-symbols) in workspace root directory.
+- 配置`.luacheckrc`
+- 自己维护全局符号
+  由于`luacheck`本身不记录跨文件的符号引用，需要用户自己用脚本维护整个项目的全局符号，然后在`.luacheckrc`中用`globals`指定，这是`luacheck`社区常见的做法。
 
-It may help to set .luacheckrc.
+lua-tags提供了一个`export global symbols`的功能，可以自动导出全局符号，有需要可以使用该功能来维护全局符号。
 
-## multi-root workspaces
+## 多目录工作空间(multi-root workspaces)
 
-This extension does NOT support [multi-root workspaces](code.visualstudio.com/docs/editor/multi-root-workspaces).
-If it is activated at multi-root workspaces, only the first folder works.
+此插件不支持多目录工作空间[multi-root workspaces](code.visualstudio.com/docs/editor/multi-root-workspaces)，如果你的工作空间包含多个目录，它只识别第一个。
 
-## @param @return hightlight
+## 关键注释高亮（@param @return hightlight）
 
-Just like other language, @param、@return in comment will be hightlight by
-[grammars injection](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide#injection-grammars)
+和其他语言一样， 关键注释高亮（@param @return hightlight）[grammars injection](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide#injection-grammars)
 
 ![grammars injection highlight](grammars_injection_highlight.png)
 
@@ -155,17 +151,9 @@ local a = get_obj()
 
 ## RPC 前缀识别（rpcPrefix）
 
-在某些项目里，远程调用会写成 `RPC[addr].X.Y(a, b, c)` 或 `Call[addr].X.Y(a, b, c)`
-的形式。此时如果对 `X` 或 `X.Y` 进行跳转、hover、补全，默认情况下前缀
-`RPC[addr].` / `Call[addr].` 可能被错误地卷入符号的 base 解析。
+在某些项目里，远程调用会写成 `RPC[addr].X.Y(a, b, c)` 或 `Call[addr].X.Y(a, b, c)`的形式。此时 `X` 或 `X.Y` 的跳转、补全功能不可用。
 
-通过 `lua-tags.rpcPrefix` 配置一组 TypeScript 正则（带 `/g` 标志），lua-tags 会在
-解析光标所在行的符号时，把匹配到的前缀连同其后紧跟的 `.` 或 `:` 一起忽略，仅提取
-前缀之后的符号部分：
-
-- `RPC[addr].X.Y` 中的 `X` 会被当作顶层符号（无 base）
-- `RPC[addr].X.Y` 中的 `X.Y` 会被当作 `base=X`、`name=Y`
-- 但当光标直接落在前缀本身（如 `RPC`、`Call`）上时，仍按普通符号正常搜索
+`lua-tags.rpcPrefix` 可配置RPC前缀，lua-tags 会在解析时会自动忽略前缀，把`RPC[addr].X.Y(a, b, c)`识别为`X.Y(a, b, c)`，这样直接跳转到`X.Y`。
 
 配置示例（`.vscode/settings.json`）：
 
@@ -175,13 +163,7 @@ local a = get_obj()
 }
 ```
 
-说明：
-
-- 数组中每一项是一个字符串形式的正则，支持 `pattern/flags` 写法（如
-  `RPC\[(.*?)\]/g`），也支持不带 flag 的纯 pattern（内部会自动加 `g` 以便全文扫描）。
-- 正则的匹配区间若覆盖光标，则认为光标在前缀上，不剥离；否则取最后一个结束于光标
-  之前、且紧跟 `.` 或 `:` 的前缀作为剥离点。
-- 该特性只影响跳转 / hover / 补全时的符号切分，不影响符号定义本身的解析。
+配置使用的正则规则是`TypeScript`的正则。
 
 ## 文件加载方式（defaultFileMode / fileMode）
 
@@ -204,20 +186,9 @@ Lua 有两种常见的文件加载约定：
 }
 ```
 
-以 `module` 方式加载的文件：
+配置使用的正则规则是`TypeScript`的正则。
 
-- 模块名按文件相对工程根目录的路径推导，例如 `modules/sub/mod_a.lua` 的模块名为
-  `modules.sub.mod_a`（与 `require("modules.sub.mod_a")` 的路径一致）。
-- 文件内的顶层全局符号（函数、变量等）会挂到该模块名下，不再作为全局符号出现。
-- 通过 `local M = require("modules.sub.mod_a")` 引入后，`M.greet`、`M.magic` 等
-  成员仍可正常解析。
-- 若文件内本身就写了显式的 `module("name")` 调用，则以显式名为准。
-
-说明：原有的 `module("name")` 处理只在代码里显式写了 `module(...)` 调用时才生效；
-file mode 针对的是**没有**显式 `module()` 调用、模块名由文件路径推导的文件，因此需要
-单独配置。两者互不冲突，显式调用优先。
-
-glob 语法支持 `*`（匹配单层路径段，不含 `/`）、`**`（匹配任意多层）、`?`。
+注意：`module`方式已被淘汰，不建议使用。此功能只是为了兼容一些老旧项目。
 
 ## 自定义加载函数（customLoadFunc）
 
@@ -229,7 +200,7 @@ glob 语法支持 `*`（匹配单层路径段，不含 `/`）、`**`（匹配任
 }
 ```
 
-配置后，下面两种写法都会把变量绑定到 `a.b.c` 模块：
+配置后，下面两种写法都会把变量M绑定到 `a.b.c` 模块：
 
 ```lua
 local M = import("a.b.c")
@@ -239,7 +210,7 @@ local M = include("a/b/c.lua")
 
 效果与 `local M = require("a.b.c")` 一致
 
-## Thanks
+## 感谢
 
 - https://github.com/fstirlitz/luaparse
 - https://github.com/farzher/fuzzysort
