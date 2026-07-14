@@ -8,16 +8,16 @@ import { Search } from './search';
 
 import { Server } from './server';
 
-import { AnnotationRegistry } from './annotation';
+import {
+    AnnotationRegistry,
+    createSimpleType,
+} from './annotation';
+
+import { getAnnotationSymbolAt } from './annotationNav';
 
 import { Setting } from './setting';
 
 import { ParseSymbol } from './parseSymbol';
-
-// 注解类型模式 - 支持 ---@ 和 -- @ 两种格式（匹配原始行文本）
-// 类型名允许带点（如 protobuf.a.b），作为一个整体跳转
-const ANNOTATION_TYPE_PATTERN =
-    /^--\s*-?@(?:type|field|param|return|alias|class)\s+(?:\w+\s+)?([\w.]+)/;
 
 export class GoToDefinition {
     private static ins: GoToDefinition;
@@ -69,39 +69,29 @@ export class GoToDefinition {
     /**
      * 获取注解中类型名的跳转定义
      * 例如: ---@type Dog 中的Dog，跳转到Dog类的定义
+     *
+     * 支持继承/成员表达式（顶层冒号分隔）：
+     *   -- @type Foo:Bar        点击 Bar → 跳转到 Bar 的定义（类，或 Foo 的成员字段）
+     *   -- @type Foo : Bar      同上（冒号前后允许空格）
+     *   -- @type Foo: Bar       同上
+     *   -- @class Bar : Foo     点击 Foo（父类）→ 跳转到 @class Foo
      */
     private getAnnotationTypeDefinition(
         text: string,
         pos: Position,
         uri: string,
     ): Definition | null {
-        // 检查是否是注解行（支持 ---@ 和 -- @ 格式）
-        const trimmedLine = text.trim();
-        if (!/^--\s*-?@/.test(trimmedLine)) {
+        // 从注解行取出光标处的符号（合法字符：字母/数字/点号），base 为冒号前的符号
+        const sym = getAnnotationSymbolAt(text, pos.character);
+        if (!sym) {
             return null;
         }
 
-        // 提取类型名
-        const match = trimmedLine.match(ANNOTATION_TYPE_PATTERN);
-        if (!match || !match[1]) {
-            return null;
-        }
-
-        const typeName = match[1];
-
-        // 检查光标是否在类型名范围内
-        const typeStart = text.indexOf(typeName);
-        if (
-            typeStart < 0 ||
-            pos.character < typeStart ||
-            pos.character > typeStart + typeName.length
-        ) {
-            return null;
-        }
-
-        // 查找类定义
         const registry = AnnotationRegistry.instance();
-        const cls = registry.getGlobalClass(typeName);
+
+        // 1) 当作类名跳转（@class X : Y 里的 Y 是父类，也走这里；@type Foo:Bar 里的
+        //    Bar 若是类同样命中）
+        const cls = registry.getGlobalClass(sym.name);
         if (cls) {
             return {
                 uri: cls.uri,
@@ -115,8 +105,8 @@ export class GoToDefinition {
             };
         }
 
-        // 查找别名定义
-        const alias = registry.getGlobalAlias(typeName);
+        // 2) 当作别名跳转
+        const alias = registry.getGlobalAlias(sym.name);
         if (alias) {
             return {
                 uri: alias.uri,
@@ -128,6 +118,31 @@ export class GoToDefinition {
                     },
                 },
             };
+        }
+
+        // 3) 若该符号被顶层冒号分隔（继承/成员），尝试解析为 base 的成员字段
+        //    例如 @type Foo:bar 里的 bar 是 Foo 的成员字段
+        if (sym.base) {
+            const baseCls = registry.getGlobalClass(sym.base);
+            if (baseCls) {
+                const field = registry.resolveField(
+                    uri,
+                    createSimpleType(baseCls.name),
+                    sym.name,
+                );
+                if (field && field.uri) {
+                    return {
+                        uri: field.uri,
+                        range: {
+                            start: { line: field.line, character: field.character },
+                            end: {
+                                line: field.line,
+                                character: field.character + field.name.length,
+                            },
+                        },
+                    };
+                }
+            }
         }
 
         return null;

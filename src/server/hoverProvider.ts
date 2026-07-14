@@ -1,6 +1,6 @@
 // 处理鼠标悬浮提示
 
-import { Hover, Position, MarkupKind, SymbolKind } from 'vscode-languageserver';
+import { Hover, MarkupKind, SymbolKind } from 'vscode-languageserver';
 
 import { SymbolEx } from './symbol';
 import { Utils } from './utils';
@@ -11,7 +11,15 @@ import { Search } from './search';
 
 import { Server } from './server';
 
-import { AnnotationRegistry, ClassAnnotation } from './annotation';
+import { AnnotationRegistry, ClassAnnotation, createSimpleType } from './annotation';
+
+import { getAnnotationSymbolAt } from './annotationNav';
+
+import { Setting } from './setting';
+
+import { ParseSymbol } from './parseSymbol';
+
+import { Position } from 'vscode-languageserver';
 
 export class HoverProvider {
     private static ins: HoverProvider;
@@ -231,10 +239,74 @@ export class HoverProvider {
         return `\`\`\`lua\n(module) ${name}\n\`\`\``;
     }
 
+    /**
+     * 为注解中的类型名（如 `-- @type Foo:Bar` 的 Foo / Bar）提供 hover 提示。
+     * 与 GoToDefinition.getAnnotationTypeDefinition 共用同一套 token 提取逻辑，
+     * 因此 Foo:Bar / Foo : Bar / Foo: Bar 三种写法表现一致。
+     */
+    private getAnnotationTypeHover(
+        text: string,
+        pos: Position,
+        uri: string,
+    ): string | null {
+        // 从注解行取出光标处的符号（合法字符：字母/数字/点号），base 为冒号前的符号
+        const sym = getAnnotationSymbolAt(text, pos.character);
+        if (!sym) {
+            return null;
+        }
+
+        const registry = AnnotationRegistry.instance();
+
+        // 1) 类定义：Foo（包括 @class X : Foo 中的父类 Foo）直接展示类信息
+        const cls = registry.getGlobalClass(sym.name);
+        if (cls) {
+            return this.formatClassMarkdown(cls, uri);
+        }
+
+        // 2) 别名定义
+        const alias = registry.getGlobalAlias(sym.name);
+        if (alias) {
+            const typeStr = SymbolEx.instance().formatType(alias.type);
+            return `\`\`\`lua\n(alias) ${alias.name} = ${typeStr}\n\`\`\``;
+        }
+
+        // 3) 冒号分隔的继承/成员符号（如 Foo:bar 中的 bar），解析为 Foo 的成员字段
+        if (sym.base) {
+            const baseCls = registry.getGlobalClass(sym.base);
+            if (baseCls) {
+                const field = registry.resolveField(
+                    uri,
+                    createSimpleType(baseCls.name),
+                    sym.name,
+                );
+                if (field) {
+                    const typeStr = SymbolEx.instance().formatType(field.type);
+                    const desc = field.description
+                        ? ` -- ${field.description}`
+                        : '';
+                    return `\`\`\`lua\n${field.name} : ${typeStr}${desc}\n\`\`\``;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public doHover(srv: Server, uri: string, pos: Position): Hover | null {
         const line = srv.getQueryText(uri, pos);
         if (!line) {
             return null;
+        }
+
+        // 注解中的类型名（Foo:Bar 等），展示类/字段/别名信息
+        const annoValue = this.getAnnotationTypeHover(line, pos, uri);
+        if (annoValue) {
+            return {
+                contents: {
+                    kind: MarkupKind.Markdown,
+                    value: annoValue,
+                },
+            };
         }
 
         const query = srv.getQuerySymbol(uri, line, pos);

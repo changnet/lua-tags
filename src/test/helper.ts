@@ -135,6 +135,42 @@ export async function testGoToDefinition(
     });
 }
 
+// 检查 hover 返回的内容（拼接后）包含指定子串，避免对完整 markdown 做脆弱的精确匹配
+export async function testHoverContains(
+    uri: vscode.Uri,
+    position: vscode.Position,
+    expectSubstr: string,
+) {
+    const actualList = (await vscode.commands.executeCommand(
+        'vscode.executeHoverProvider',
+        uri,
+        position,
+    )) as vscode.Hover[];
+
+    assert.ok(actualList.length > 0, 'expect at least one hover result');
+    const allText = actualList
+        .map((h) => {
+            const c = h.contents as any;
+            if (Array.isArray(c)) {
+                return c
+                    .map((x) => (x && x.value ? x.value : String(x)))
+                    .join('\n');
+            }
+            if (c && c.value) {
+                return c.value;
+            }
+            return '';
+        })
+        .join('\n')
+        // 路径分隔符归一化：Windows 下 fsPath 用反斜杠，期望串用正斜杠，
+        // 归一后便于跨平台比较（如 require("a/b/c") 的跳转/hover 路径）
+        .replace(/\\/g, '/');
+    assert.ok(
+        allText.indexOf(expectSubstr) >= 0,
+        `hover content should contain "${expectSubstr}", got: ${allText}`,
+    );
+}
+
 export async function testSignatureHelp(
     uri: vscode.Uri,
     position: vscode.Position,

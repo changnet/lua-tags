@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { testHover, testGoToDefinition, resolveFixture } from '../../helper';
+import { testHover, testGoToDefinition, testHoverContains, resolveFixture } from '../../helper';
 
 const fixturePath = resolveFixture(__dirname, 'annotation');
 
@@ -16,7 +16,8 @@ suite('Annotation Test Suite', () => {
 
     test("test @alias annotation hover", async () => {
         const uri = vscode.Uri.file(path.join(fixturePath, "annotation_type.lua"));
-        await testHover(uri, new vscode.Position(2, 10), []);
+        // @alias 名称现在会被当作注释中的符号查表，hover 应展示别名定义
+        await testHoverContains(uri, new vscode.Position(2, 10), "MyFunc");
     });
 
     test("test type inference hover", async () => {
@@ -229,5 +230,91 @@ suite('Annotation Test Suite', () => {
             'EXCLUDED_SYMBOL_XYZ',
         ) as vscode.SymbolInformation[];
         assert.strictEqual(ws.length, 0, 'excluded symbol should not be indexed');
+    });
+
+    // -- 注解中的冒号表达式：类型名中的冒号（Foo:Bar）前后允许空格。
+    //    注释检测以 @type/@class 等关键字为准（兼容 -- / ---- / -[[ 任意前缀），
+    //    合法符号字符为 字母/数字/点号。
+    //    - Foo:bar 形式：bar 是 Foo 的成员字段 → 跳转到 @field
+    //    - Child:Base 形式：Base 是父类（类）→ 跳转到 @class
+    const colonUri = vscode.Uri.file(path.join(fixturePath, "annotation_colon.lua"));
+
+    // == 成员字段跳转（ColonBase:colonMember）==
+
+    // @type ColonBase:colonMember 无空格，点击 colonMember 跳转到 @field colonMember
+    test("test colon member no-space go to field", async () => {
+        await testGoToDefinition(colonUri, new vscode.Position(4, 25), [{
+            uri: colonUri,
+            range: new vscode.Range(1, 10, 1, 21),
+        }]);
+    });
+
+    // @type ColonBase :colonMember 冒号前空格
+    test("test colon member space before go to field", async () => {
+        await testGoToDefinition(colonUri, new vscode.Position(6, 26), [{
+            uri: colonUri,
+            range: new vscode.Range(1, 10, 1, 21),
+        }]);
+    });
+
+    // @type ColonBase: colonMember 冒号后空格
+    test("test colon member space after go to field", async () => {
+        await testGoToDefinition(colonUri, new vscode.Position(8, 26), [{
+            uri: colonUri,
+            range: new vscode.Range(1, 10, 1, 21),
+        }]);
+    });
+
+    // == 基类（父类）跳转（ColonChild:ColonBase）==
+
+    // @class ColonChild : ColonBase 继承，点击父类 ColonBase 跳转到 @class ColonBase
+    test("test colon parent class go to definition", async () => {
+        await testGoToDefinition(colonUri, new vscode.Position(11, 28), [{
+            uri: colonUri,
+            range: new vscode.Range(0, 10, 0, 19),
+        }]);
+    });
+
+    // @type ColonChild:ColonBase 无空格，点击父类 ColonBase 跳转到 @class ColonBase
+    test("test colon parent class no-space go to definition", async () => {
+        await testGoToDefinition(colonUri, new vscode.Position(14, 25), [{
+            uri: colonUri,
+            range: new vscode.Range(0, 10, 0, 19),
+        }]);
+    });
+
+    // @type ColonBase:colonMember 无空格，点击 ColonBase（基类）也跳转到 @class ColonBase
+    test("test colon base type go to class", async () => {
+        await testGoToDefinition(colonUri, new vscode.Position(4, 10), [{
+            uri: colonUri,
+            range: new vscode.Range(0, 10, 0, 19),
+        }]);
+    });
+
+    // == hover ==
+
+    // @type ColonBase:colonMember 无空格，hover 在 colonMember 上应显示成员字段
+    test("test colon member no-space hover field", async () => {
+        await testHoverContains(colonUri, new vscode.Position(4, 25), "colonMember : number -- 字段colonMember");
+    });
+
+    // @type ColonBase :colonMember 冒号前空格，hover 在 colonMember 同样显示字段
+    test("test colon member space before hover field", async () => {
+        await testHoverContains(colonUri, new vscode.Position(6, 26), "colonMember : number -- 字段colonMember");
+    });
+
+    // @type ColonBase: colonMember 冒号后空格，hover 在 colonMember 同样显示字段
+    test("test colon member space after hover field", async () => {
+        await testHoverContains(colonUri, new vscode.Position(8, 26), "colonMember : number -- 字段colonMember");
+    });
+
+    // @class ColonChild : ColonBase 继承，hover 在父类 ColonBase 上应显示 @class ColonBase
+    test("test colon parent class hover", async () => {
+        await testHoverContains(colonUri, new vscode.Position(11, 28), "class ColonBase {");
+    });
+
+    // @type ColonBase:colonMember 无空格，hover 在 ColonBase 上应显示 @class ColonBase
+    test("test colon base type hover class", async () => {
+        await testHoverContains(colonUri, new vscode.Position(4, 10), "class ColonBase {");
     });
 });
