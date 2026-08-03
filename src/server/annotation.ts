@@ -77,6 +77,9 @@ interface DocumentAnnotation {
     aliases: Map<string, AliasAnnotation>;      // aliasName -> AliasAnnotation
     types: Map<number, TypeAnnotation>;          // line -> TypeAnnotation
     functions: Map<number, FunctionAnnotation>;  // line -> FunctionAnnotation
+    // 文件级(顶层) return 语句所在行，没有则为 -1
+    // 只有绑定到该行的 @return 才是「文件返回类型」，用于 require 的类型推断
+    returnLine: number;
 }
 
 // 创建空的类型表达式
@@ -143,6 +146,7 @@ export class AnnotationRegistry {
 
     /**
      * 设置某个文档的注解数据
+     * @param returnLine 文件级(顶层) return 语句所在行，没有则传 -1
      */
     public setDocumentAnnotations(
         uri: string,
@@ -150,12 +154,14 @@ export class AnnotationRegistry {
         aliases: Map<string, AliasAnnotation>,
         types: Map<number, TypeAnnotation>,
         functions: Map<number, FunctionAnnotation>,
+        returnLine: number = -1,
     ) {
         this.documentAnnotation.set(uri, {
             classes,
             aliases,
             types,
             functions,
+            returnLine,
         });
         this.needUpdate = true;
     }
@@ -344,18 +350,29 @@ export class AnnotationRegistry {
 
     /**
      * 获取文件的@return类型（用于require文件类型推断）
+     *
+     * 注意：只有写在文件级(顶层) return 语句上方的 @return 才算文件返回类型。
+     * 函数上方的 @return 是该函数的返回值，函数体内部的 @return 更不是文件返回值，
+     * 二者都不能用来推断 `local A = require "a"` 中 A 的类型。
+     *
+     *     -- @return MyClass1      <- 属于 test()，不是文件返回类型
+     *     function test() end
+     *
+     *     function test2()
+     *         -- @return MyClass2  <- 函数体内部，不是文件返回类型
+     *     end
+     *
+     *     -- @return MyClass       <- 文件级 return 上方，这个才是文件返回类型
+     *     return {}
      */
     public getFileReturnType(uri: string): AnnotationType | null {
         const doc = this.documentAnnotation.get(uri);
-        if (!doc) {
+        if (!doc || doc.returnLine < 0) {
             return null;
         }
-        for (const [_line, func] of doc.functions) {
-            if (func.returns) {
-                return func.returns;
-            }
-        }
-        return null;
+
+        const func = doc.functions.get(doc.returnLine);
+        return func?.returns ?? null;
     }
 
     /**

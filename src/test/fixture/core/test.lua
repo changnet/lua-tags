@@ -184,3 +184,7 @@ function Indexer.call_with_colon(args1, args2)
 end
 index.call_with_dot(ins, args1) -- args1应该和声明中的args1匹配
 index:call_with_colon(args2) -- args2应该和函数声明中的args2匹配
+
+-- test ref standard library function: its markdown comment must render outside the code block
+
+local tunpack = table.unpack

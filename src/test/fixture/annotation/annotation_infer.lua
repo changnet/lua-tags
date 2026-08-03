@@ -33,3 +33,5 @@ end
 
 -- completion test: Bar.
 local MailObj = require "annotation_return"
+
+-- completion test: MailObj.

@@ -134,11 +134,34 @@ suite('Annotation Test Suite', () => {
     });
 
     // -- 新测试：require文件通过@return推断类型
+    //
+    // annotation_return.lua 中故意放了两个干扰用的 @return：
+    //   - 函数上方的 @return MailObjDecoy1（属于该函数，不是文件返回类型）
+    //   - 函数体内部的 @return MailObjDecoy2（更不是文件返回类型）
+    // 只有写在文件级 return 上方的 @return MailObj 才是文件返回类型，
+    // 所以这里必须解析成 MailObj 而不是任何一个 Decoy
     test("test require type from @return hover", async () => {
         const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
         await testHover(uri, new vscode.Position(34, 10), [{
             contents: [{ value: "```lua\nlocal MailObj : MailObj\n-- completion test: Bar.\n```" } as vscode.MarkdownString],
         }]);
+    });
+
+    // -- 新测试：函数上方/函数体内的 @return 不能污染文件返回类型
+    // 与上面的 hover 用同一份 fixture，这里换成补全来交叉验证：
+    // MailObj 必须被解析为 @class MailObj，能补全出 subject/body 字段；
+    // 若错误地绑定到 MailObjDecoy1/2（没有对应的 @class），则补不出任何字段
+    test("test file return type ignores function @return", async () => {
+        const uri = vscode.Uri.file(path.join(fixturePath, "annotation_infer.lua"));
+        const actualList = (await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider',
+            uri,
+            new vscode.Position(36, 28),
+        )) as vscode.CompletionList;
+
+        const names = actualList.items.map(i => i.label as string).sort();
+        assert.ok(names.includes('subject'), `should include 'subject', got: ${names}`);
+        assert.ok(names.includes('body'), `should include 'body', got: ${names}`);
     });
 
     // -- 新测试：类继承，type显示为类名
@@ -163,7 +186,7 @@ suite('Annotation Test Suite', () => {
         const actualList = (await vscode.commands.executeCommand(
             'vscode.executeCompletionItemProvider',
             uri,
-            new vscode.Position(34, 25),
+            new vscode.Position(33, 24),
         )) as vscode.CompletionList;
 
         const names = actualList.items.map(i => i.label as string).sort();
@@ -172,9 +195,10 @@ suite('Annotation Test Suite', () => {
     });
 
     // -- 新测试：@return语句的类型推断
+    // 文件级 return 在第 11 行，其上方第 10 行为 -- @return MailObj
     test("test return @return type inference", async () => {
         const returnUri = vscode.Uri.file(path.join(fixturePath, "annotation_return.lua"));
-        await testHover(returnUri, new vscode.Position(0, 13), [{
+        await testHover(returnUri, new vscode.Position(10, 13), [{
             contents: [{ value: "```lua\nclass MailObj {\n    subject : string -- 邮件主题\n    body : string -- 邮件正文\n}\n\n-- 邮件对象\n```" } as vscode.MarkdownString],
         }]);
     });

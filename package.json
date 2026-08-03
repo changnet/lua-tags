@@ -1,6 +1,6 @@
 {
 	"name": "lua-tags",
-	"displayName": "lua_tags",
+	"displayName": "lua-tags",
 	"description": "Lua IntelliSense for Visual Studio Code",
 	"version": "2.0.2",
 	"engines": {

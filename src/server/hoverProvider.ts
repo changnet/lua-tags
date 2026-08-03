@@ -53,7 +53,14 @@ export class HoverProvider {
             }
         }
 
-        const ref = SymbolEx.instance().getRefValue(sym);
+        const refInfo = SymbolEx.instance().getRefInfo(sym);
+        const ref = refInfo.text;
+        // 被引用符号（如标准库 table.unpack）的 markdown 注释必须放在代码块外面，
+        // 否则 **i** 这类标记不会被渲染，会原样显示出来
+        if (!prefix && refInfo.htmlComment) {
+            prefix = refInfo.htmlComment + '\n';
+        }
+
         // eslint-disable-next-line max-len
         let extraInfo = '';
         if (annotationInfo) {

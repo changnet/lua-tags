@@ -825,6 +825,26 @@ export class ParseSymbol {
         return true;
     }
 
+    /**
+     * 查找文件级(顶层) return 语句所在行（0-based），没有则返回 -1
+     *
+     * onCreateNode 只收集作用域深度 <= 1 的节点，函数体/do-end 内部的 return
+     * 处于更深的作用域，不会出现在 nodeList 中，因此这里拿到的一定是顶层 return。
+     * 用于区分「文件返回类型」和「函数返回类型」，见 getFileReturnType。
+     */
+    private static findFileReturnLine(nodeList: Node[]): number {
+        let line = -1;
+        for (const node of nodeList) {
+            if (node.type === 'ReturnStatement' && node.loc) {
+                // lua 中顶层 return 必须是最后一条语句，正常只有一个；
+                // 保险起见取最后一个
+                line = node.loc.start.line - 1;
+            }
+        }
+
+        return line;
+    }
+
     // 解析一段代码，如果这段代码有错误，会发给vs code
     public parse(uri: string, text: string, ft: FileParseType): SymInfoEx[] | null {
         // 初始化默认模块名：若文件以 module 方式加载，则顶层全局符号会挂到该模块名下
@@ -858,6 +878,7 @@ export class ParseSymbol {
             annotations.aliases,
             annotations.types,
             annotations.functions,
+            ParseSymbol.findFileReturnLine(nodeList),
         );
 
         return this.parseSymList;

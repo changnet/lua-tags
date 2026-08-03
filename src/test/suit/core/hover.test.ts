@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { testHover, resolveFixture } from '../../helper';
 
@@ -163,6 +164,47 @@ suite('Extension Hover Test Suite', () => {
             contents: [{ value: val } as vscode.MarkdownString],
         }
         ]);
+    });
+
+    // Bug 2：local tunpack = table.unpack 在 tunpack 上的 hover，
+    // 标准库注释里的 markdown（**i**）必须渲染在代码块【外面】，
+    // 否则会像旧版本一样把 ** 原样显示出来。
+    test("test ref standard function renders markdown comment outside code block", async () => {
+        // 0-based line 189 = `local tunpack = table.unpack`
+        // （注释与 local 之间空一行，避免注释被 appendComment 当作 tunpack 的 CT_ABOVE 覆盖掉 STL 的 markdown 注释）
+        const actualList = (await vscode.commands.executeCommand(
+            'vscode.executeHoverProvider',
+            testUri,
+            new vscode.Position(189, 8),
+        )) as vscode.Hover[];
+        assert.ok(actualList.length > 0, 'expect at least one hover result');
+
+        const allText = actualList
+            .map((h) => {
+                const c = h.contents as any;
+                if (Array.isArray(c)) {
+                    return c.map((x: any) => (x && x.value ? x.value : String(x))).join('\n');
+                }
+                return c && c.value ? c.value : '';
+            })
+            .join('\n');
+
+        // 引用标准库函数时，应展示其签名
+        assert.ok(
+            allText.indexOf('table.unpack(list, i, j)') >= 0,
+            `hover should show ref signature, got: ${allText}`,
+        );
+
+        // 关键：标准库注释里的 markdown（**i**）必须放在代码块【外面】才会被渲染，
+        // 否则会像旧版本一样把 ** 原样显示出来
+        const mdIdx = allText.indexOf('**i**');
+        assert.ok(mdIdx >= 0, `hover should contain markdown **i**, got: ${allText}`);
+        const fenceIdx = allText.indexOf('```lua');
+        assert.ok(fenceIdx >= 0, `hover should contain a lua code block, got: ${allText}`);
+        assert.ok(
+            mdIdx < fenceIdx,
+            `markdown **i** must render OUTSIDE the code block (idx ${mdIdx} < fence idx ${fenceIdx}); got: ${allText}`,
+        );
     });
 
     test("test global function reference hover", async () => {

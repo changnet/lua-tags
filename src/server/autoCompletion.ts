@@ -136,9 +136,13 @@ export class AutoCompletion {
         }
 
         // 显示引用的变量
-        const ref = SymbolEx.instance().getRefValue(sym);
-        if (ref) {
-            mdDoc += ref;
+        const refInfo = SymbolEx.instance().getRefInfo(sym);
+        if (refInfo.text) {
+            mdDoc += refInfo.text;
+        }
+        // 被引用符号的 markdown 注释（标准库注释）要放在代码块外面才能渲染
+        if (!doc && refInfo.htmlComment) {
+            doc = refInfo.htmlComment + '\n';
         }
         // 显示行尾的注释
         if (sym.comment && sym.ctType === CommentType.CT_LINEEND) {
@@ -367,8 +371,18 @@ export class AutoCompletion {
 
         const items: SymInfoEx[] = [];
 
+        // 注解类型优先（含 require 的文件返回类型），再退回到模块/全局符号。
+        // 例如 local MailObj = require "annotation_return" 且目标文件 @return MailObj 时，
+        // MailObj. 应当补全 MailObj 类的成员，而不是被当成模块后列出其全局符号。
+        // 不放在模块查找之后，否则 searchGlobalModule 会把 require 别名解析成模块、
+        // 抢先返回模块的全局符号（如 decoy 函数），导致文件返回类型失效。
+        let tmps = search.searchAnnotation(query);
+        if (tmps) {
+            return tmps;
+        }
+
         // 优先根据模块名匹配全局符号
-        let tmps = search.searchGlobalModule(query, filter);
+        tmps = search.searchGlobalModule(query, filter);
         if (tmps) {
             items.push(...tmps);
             if (found) {

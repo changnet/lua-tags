@@ -3,7 +3,13 @@
 import { Utils } from './utils';
 import * as fuzzysort from 'fuzzysort';
 import { Setting, FileParseType } from './setting';
-import { ParseSymbol, SymInfoEx, VSCodeSymbol, LocalType } from './parseSymbol';
+import {
+    ParseSymbol,
+    SymInfoEx,
+    VSCodeSymbol,
+    LocalType,
+    CommentType,
+} from './parseSymbol';
 import { Location, SymbolKind } from 'vscode-languageserver';
 import { loadStl } from './stlSymbol';
 import { CacheSymbol } from './cacheSymbol';
@@ -38,6 +44,15 @@ export interface NameInfo {
     name: string;
     base?: string;
     indexer?: string;
+}
+
+// local N = M 这种引用的展示信息
+export interface RefValue {
+    // 拼接到 lua 代码块中的引用描述，如 " == function table.unpack(list, i, j)"
+    text: string;
+    // 被引用符号的 markdown 注释（标准库注释为 CT_HTML，带 ** 等 markdown 标记）。
+    // 这类注释必须放在 lua 代码块**外面**才能被渲染，否则 ** 会原样显示出来
+    htmlComment?: string;
 }
 
 export class SymbolEx {
@@ -688,14 +703,27 @@ export class SymbolEx {
 
     // 获取变量本地化的引用提示
     // local M = X.Y.Z 提示为 local M = X.Y.Z = 5
-    public getRefValue(sym: SymInfoEx) {
+    public getRefValue(sym: SymInfoEx): string {
+        return this.getRefInfo(sym).text;
+    }
+
+    /**
+     * 获取变量本地化的引用提示（含注释）
+     *
+     * 与 getRefValue 的区别：被引用符号如果带的是 markdown 注释（标准库的
+     * CT_HTML 注释，含 **xx** 这类标记），不能直接拼进 lua 代码块，否则
+     * markdown 不会被渲染，会把 ** 原样显示出来。这里把它单独拆出来，由调用方
+     * 放到代码块外面，行为与直接 hover 标准库符号时一致。
+     */
+    public getRefInfo(sym: SymInfoEx): RefValue {
+        const empty: RefValue = { text: '' };
         if (!sym.refType) {
-            return '';
+            return empty;
         }
 
         const refSym = this.getRefSym(sym, sym.location.uri);
         if (!refSym) {
-            return '';
+            return empty;
         }
 
         // 如果引用的是函数且有@return注解，类型已通过注解解析，无需显示ref
@@ -706,13 +734,14 @@ export class SymbolEx {
                 refSym.location.range.start.line,
             );
             if (funcAnnotation?.returns) {
-                return '';
+                return empty;
             }
         }
 
         // 如果引用的是一个常量，那显示常量
         let val = '';
         let prefix = '';
+        let htmlComment: string | undefined;
         if (refSym.value) {
             val = ` = ${refSym.value}`;
         } else if (refSym.kind === SymbolKind.Function) {
@@ -726,11 +755,19 @@ export class SymbolEx {
 
             // 如果原符号无注释，这里在后面显示注释
             if (refSym.comment && !sym.comment) {
-                val += '\n' + refSym.comment;
+                if (refSym.ctType === CommentType.CT_HTML) {
+                    // markdown 注释，交给调用方放到代码块外面渲染
+                    htmlComment = refSym.comment;
+                } else {
+                    val += '\n' + refSym.comment;
+                }
             }
         }
 
-        return ` ${SymbolEx.refMark} ${prefix}${sym.refType.join('.')}${val}`;
+        const text =
+            ` ${SymbolEx.refMark} ${prefix}${sym.refType.join('.')}${val}`;
+
+        return htmlComment ? { text, htmlComment } : { text };
     }
 
     /**
